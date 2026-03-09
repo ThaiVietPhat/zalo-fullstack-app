@@ -1,5 +1,8 @@
-package com.example.backend.securities;
+package com.example.backend.securities.config;
 
+import com.example.backend.securities.converters.KeycloakJwtAuthenticationConverter;
+import com.example.backend.securities.filters.UserSynchronizerFilter;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
@@ -19,8 +22,9 @@ import java.util.Collections;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity(securedEnabled = true)
+@RequiredArgsConstructor
 public class SecurityConfig {
-
+    private final UserSynchronizerFilter userSynchronizerFilter;
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
@@ -47,7 +51,8 @@ public class SecurityConfig {
                         auth.jwt(token ->
                                 token.jwtAuthenticationConverter(new KeycloakJwtAuthenticationConverter())
                         )
-                );
+                )
+                .addFilterAfter(userSynchronizerFilter, org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter.class);
 
         return http.build();
     }

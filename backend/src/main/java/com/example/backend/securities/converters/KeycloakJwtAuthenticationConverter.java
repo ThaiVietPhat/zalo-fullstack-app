@@ -1,4 +1,4 @@
-package com.example.backend.securities;
+package com.example.backend.securities.converters;
 
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.lang.NonNull;
@@ -27,8 +27,6 @@ public class KeycloakJwtAuthenticationConverter implements Converter<Jwt, Abstra
                 ).collect(Collectors.toSet())
         );
     }
-
-    @SuppressWarnings("unchecked")
     private Collection<? extends GrantedAuthority> extractResourceRoles(Jwt jwt) {
         var resourceAccess = jwt.<Map<String, Object>>getClaim("resource_access");
 
