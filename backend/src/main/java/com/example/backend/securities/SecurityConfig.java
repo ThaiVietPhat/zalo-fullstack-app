@@ -45,7 +45,7 @@ public class SecurityConfig {
                 )
                 .oauth2ResourceServer(auth ->
                         auth.jwt(token ->
-                                token.jwtAuthenticationConverter(new com.alibou.whatsappclone.security.KeycloakJwtAuthenticationConverter())
+                                token.jwtAuthenticationConverter(new KeycloakJwtAuthenticationConverter())
                         )
                 );
 
