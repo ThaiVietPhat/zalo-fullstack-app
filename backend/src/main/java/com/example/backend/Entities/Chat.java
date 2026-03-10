@@ -1,19 +1,13 @@
 package com.example.backend.Entities;
 
-import com.example.backend.enums.MessageType;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UuidGenerator;
 import org.hibernate.type.SqlTypes;
-import com.example.backend.enums.MessageState;
 
-import java.time.LocalDateTime;
-import java.util.List;
 import java.util.UUID;
+
 @Entity
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor
 public class Chat extends BaseAuditingEntity {
@@ -23,43 +17,29 @@ public class Chat extends BaseAuditingEntity {
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "sender_id")
-    private User sender;
+    @JoinColumn(name = "user1_id", nullable = false)
+    private User user1;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "receiver_id")
-    private User receiver;
-
-    @OneToMany(mappedBy = "chat", fetch = FetchType.LAZY) // Chuyển sang LAZY
-    @OrderBy("createdDate DESC")
-    private List<Message> messages;
+    @JoinColumn(name = "user2_id", nullable = false)
+    private User user2;
 
     @Transient
-    public String getChatName(final UUID currentUserId) {
-        if (receiver.getId().equals(currentUserId)) {
-            return sender.getFirstName() + " " + sender.getLastName();
+    public User getOtherUser(UUID currentUserId) {
+        if (user1.getId().equals(currentUserId)) {
+            return user2;
         }
-        return receiver.getFirstName() + " " + receiver.getLastName();
+        return user1;
     }
 
     @Transient
-    public long getUnreadMessages(final UUID currentUserId) {
-        if (messages == null) return 0;
-        return messages.stream()
-                .filter(m -> m.getReceiver().getId().equals(currentUserId))
-                .filter(m -> MessageState.SENT == m.getState())
-                .count();
+    public String getChatName(UUID currentUserId) {
+        User other = getOtherUser(currentUserId);
+        return other.getFirstName() + " " + other.getLastName();
     }
 
     @Transient
-    public String getLastMessage() {
-        if (messages != null && !messages.isEmpty()) {
-            Message last = messages.get(0);
-            if (last.getType() != MessageType.TEXT) {
-                return "Attachment"; // Nếu không phải text thì hiện Attachment
-            }
-            return last.getContent();
-        }
-        return null;
+    public boolean containsUser(UUID userId) {
+        return user1.getId().equals(userId) || user2.getId().equals(userId);
     }
 }

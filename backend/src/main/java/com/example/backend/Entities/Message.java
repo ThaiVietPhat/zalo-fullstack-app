@@ -3,15 +3,13 @@ package com.example.backend.Entities;
 import com.example.backend.enums.MessageState;
 import com.example.backend.enums.MessageType;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UuidGenerator;
 import org.hibernate.type.SqlTypes;
 
 import java.util.UUID;
+
 @Entity
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor
 public class Message extends BaseAuditingEntity {
@@ -24,20 +22,21 @@ public class Message extends BaseAuditingEntity {
     private String content;
 
     @Enumerated(EnumType.STRING)
-    private MessageState state;
+    private MessageState state = MessageState.SENT;
 
     @Enumerated(EnumType.STRING)
-    private MessageType type;
+    private MessageType type = MessageType.TEXT;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "chat_id")
+    @JoinColumn(name = "chat_id", nullable = false)
     private Chat chat;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "sender_id")
+    @JoinColumn(name = "sender_id", nullable = false)
     private User sender;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "receiver_id")
-    private User receiver;
+    @Transient
+    public User getReceiver() {
+        return chat.getOtherUser(sender.getId());
+    }
 }

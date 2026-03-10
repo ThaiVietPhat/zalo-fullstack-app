@@ -4,10 +4,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Transient;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UuidGenerator;
 import org.hibernate.type.SqlTypes;
@@ -30,7 +27,6 @@ public class User extends BaseAuditingEntity {
 
     @Transient
     public boolean isUserOnline() {
-        // User online nếu lastSeen trong vòng 5 phút trở lại đây
         return lastSeen != null && lastSeen.isAfter(LocalDateTime.now().minusMinutes(5));
     }
 }

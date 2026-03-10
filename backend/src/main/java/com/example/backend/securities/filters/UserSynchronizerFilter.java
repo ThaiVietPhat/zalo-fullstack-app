@@ -1,6 +1,6 @@
 package com.example.backend.securities.filters;
 
-import com.example.backend.services.UserService;
+import com.example.backend.services.UserSync;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -18,7 +18,7 @@ import java.io.IOException;
 @RequiredArgsConstructor
 public class UserSynchronizerFilter extends OncePerRequestFilter {
 
-    private final UserService userService;
+    private final UserSync userService;
 
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request,

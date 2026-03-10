@@ -26,6 +26,6 @@ public class BaseAuditingEntity {
     private LocalDateTime createdDate;
 
     @LastModifiedDate
-    @Column(name = "last_modified_date", insertable = false) // Fix ở đây
+    @Column(name = "last_modified_date", insertable = false)
     private LocalDateTime lastModifiedDate;
 }
