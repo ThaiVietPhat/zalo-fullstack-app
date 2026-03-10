@@ -1,8 +1,10 @@
 package com.example.backend.controllers;
 
 import com.example.backend.models.MessageDto;
+import com.example.backend.services.FileStorageService;
 import com.example.backend.services.MessageService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -15,6 +17,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class MessageController {
     private final MessageService messageService;
+    private final FileStorageService fileStorageService; // ✅ thêm
 
     @PostMapping
     public ResponseEntity<Void> saveMessage(
@@ -44,5 +47,13 @@ public class MessageController {
     public ResponseEntity<List<MessageDto>> getMessagesByChatId(
             @PathVariable String chatId) {
         return ResponseEntity.ok(messageService.getMessagesByChatId(chatId));
+    }
+
+    @GetMapping("/media/{filename}")
+    public ResponseEntity<byte[]> getMediaFile(@PathVariable String filename) {
+        byte[] file = fileStorageService.loadFile(filename);
+        return ResponseEntity.ok()
+                .contentType(MediaType.IMAGE_JPEG)
+                .body(file);
     }
 }
