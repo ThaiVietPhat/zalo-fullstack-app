@@ -16,5 +16,6 @@ public class UserDto {
     private String lastName;
     private String email;
     private LocalDateTime lastSeen;
-    private boolean isOnline;
+    private boolean online;
+    private String lastSeenText;
 }

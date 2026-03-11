@@ -7,6 +7,8 @@ import org.mapstruct.Mapping;
 
 @Mapper(componentModel = "spring")
 public interface UserMapper {
-    @Mapping(target = "isOnline", expression = "java(user.isUserOnline())")
+
+    @Mapping(target = "online", expression = "java(user.isUserOnline())")
+    @Mapping(target = "lastSeenText", expression = "java(user.getLastSeenText())")
     UserDto toDto(User user);
 }

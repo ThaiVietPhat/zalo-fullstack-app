@@ -9,8 +9,15 @@ import org.hibernate.type.SqlTypes;
 import java.util.UUID;
 
 @Entity
+@Table(name = "chat",
+        indexes = {
+                @Index(name = "idx_chat_user1", columnList = "user1_id"),
+                @Index(name = "idx_chat_user2", columnList = "user2_id")
+        }
+)
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor
 public class Chat extends BaseAuditingEntity {
+
     @Id
     @UuidGenerator
     @JdbcTypeCode(SqlTypes.CHAR)
@@ -23,13 +30,13 @@ public class Chat extends BaseAuditingEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user2_id", nullable = false)
     private User user2;
-
     @Transient
     public User getOtherUser(UUID currentUserId) {
-        if (user1.getId().equals(currentUserId)) {
-            return user2;
-        }
-        return user1;
+        if (user1.getId().equals(currentUserId)) return user2;
+        if (user2.getId().equals(currentUserId)) return user1;
+        throw new IllegalArgumentException(
+                "User " + currentUserId + " is not a member of chat " + this.id
+        );
     }
 
     @Transient

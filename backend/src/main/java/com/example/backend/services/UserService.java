@@ -8,4 +8,7 @@ import java.util.List;
 public interface UserService {
     List<UserDto> getAllUsersExceptSelf(Authentication currentUser);
 
+    UserDto getMyProfile(Authentication currentUser);
+
+    List<UserDto> searchUsers(String keyword, Authentication currentUser);
 }

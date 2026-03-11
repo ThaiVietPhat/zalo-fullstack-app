@@ -1,32 +1,60 @@
 package com.example.backend.Entities;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.OneToMany;
-import jakarta.persistence.Transient;
+import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UuidGenerator;
 import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.UUID;
+
 @Entity
+@Table(name = "user",
+        indexes = {
+                @Index(name = "idx_user_email", columnList = "email"),
+                @Index(name = "idx_user_keycloak_id", columnList = "keycloak_id")
+        }
+)
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor
 public class User extends BaseAuditingEntity {
+
     @Id
     @UuidGenerator
     @JdbcTypeCode(SqlTypes.CHAR)
     private UUID id;
 
+    @Column(name = "first_name")
     private String firstName;
+
+    @Column(name = "last_name")
     private String lastName;
+
+    @Column(unique = true, nullable = false)
     private String email;
+
+    @Column(name = "last_seen")
     private LocalDateTime lastSeen;
+
+    @Column(name = "keycloak_id", unique = true)
+    private String keycloakId;
+
+    @Column(name = "is_online", nullable = false)
+    private boolean online = false;
 
     @Transient
     public boolean isUserOnline() {
-        return lastSeen != null && lastSeen.isAfter(LocalDateTime.now().minusMinutes(5));
+        return this.online;
+    }
+    @Transient
+    public String getLastSeenText() {
+        if (online) return "Đang hoạt động";
+        if (lastSeen == null) return "Không xác định";
+
+        long minutesAgo = java.time.Duration.between(lastSeen, LocalDateTime.now()).toMinutes();
+        if (minutesAgo < 1) return "Vừa xong";
+        if (minutesAgo < 60) return minutesAgo + " phút trước";
+        if (minutesAgo < 1440) return (minutesAgo / 60) + " giờ trước";
+        return (minutesAgo / 1440) + " ngày trước";
     }
 }

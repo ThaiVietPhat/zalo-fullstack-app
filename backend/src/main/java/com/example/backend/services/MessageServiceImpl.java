@@ -12,6 +12,9 @@ import com.example.backend.repositories.MessageRepository;
 import com.example.backend.repositories.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,12 +37,23 @@ public class MessageServiceImpl implements MessageService {
 
     @Override
     @Transactional
-    public void sendMessage(MessageDto messageDto) {
+    public void sendMessage(MessageDto messageDto, Authentication currentUser) {
+
+        String email = currentUser.getName();
+        User sender = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Sender not found"));
+
         Chat chat = chatRepository.findById(messageDto.getChatId())
                 .orElseThrow(() -> new RuntimeException("Chat not found"));
 
-        User sender = userRepository.findById(messageDto.getSenderId())
-                .orElseThrow(() -> new RuntimeException("Sender not found"));
+        if (!chat.containsUser(sender.getId())) {
+            throw new RuntimeException("Access denied: You are not a member of this chat");
+        }
+
+        if (messageDto.getType() == MessageType.TEXT
+                && (messageDto.getContent() == null || messageDto.getContent().isBlank())) {
+            throw new RuntimeException("Message content cannot be empty");
+        }
 
         Message message = new Message();
         message.setChat(chat);
@@ -49,11 +63,8 @@ public class MessageServiceImpl implements MessageService {
         message.setType(messageDto.getType() != null ? messageDto.getType() : MessageType.TEXT);
 
         Message savedMessage = messageRepository.save(message);
-        
-        // Convert to DTO để gửi qua WebSocket
         MessageDto savedDto = messageMapper.toDto(savedMessage);
-        
-        // Xác định receiver và gửi notification real-time
+
         User receiver = chat.getOtherUser(sender.getId());
         log.info("Sending real-time message from {} to {}", sender.getId(), receiver.getId());
         notificationService.sendMessageNotification(receiver.getId(), savedDto);
@@ -65,32 +76,61 @@ public class MessageServiceImpl implements MessageService {
         Chat chat = chatRepository.findById(UUID.fromString(chatId))
                 .orElseThrow(() -> new RuntimeException("Chat not found"));
 
-        String filePath = fileStorageService.saveFile(file);
-
         String email = currentUser.getName();
         User sender = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Sender not found"));
+
+        if (!chat.containsUser(sender.getId())) {
+            throw new RuntimeException("Access denied: You are not a member of this chat");
+        }
+
+        String contentType = file.getContentType() != null ? file.getContentType() : "";
+        MessageType messageType;
+        if (contentType.startsWith("image/")) {
+            messageType = MessageType.IMAGE;
+        } else if (contentType.startsWith("video/")) {
+            messageType = MessageType.VIDEO;
+        } else {
+            messageType = MessageType.FILE;
+        }
+
+        String filePath = fileStorageService.saveFile(file);
 
         Message message = new Message();
         message.setChat(chat);
         message.setContent(filePath);
         message.setState(MessageState.SENT);
-        message.setType(MessageType.IMAGE);
+        message.setType(messageType);
         message.setSender(sender);
 
         Message savedMessage = messageRepository.save(message);
-        
-        // Convert to DTO và gửi notification
         MessageDto savedDto = messageMapper.toDto(savedMessage);
+
         User receiver = chat.getOtherUser(sender.getId());
-        
         log.info("Sending media message notification from {} to {}", sender.getId(), receiver.getId());
         notificationService.sendMessageNotification(receiver.getId(), savedDto);
     }
 
     @Override
-    public List<MessageDto> getMessagesByChatId(String chatId) {
-        return messageRepository.findByChatIdOrderByCreatedDateAsc(UUID.fromString(chatId))
+    public List<MessageDto> getMessagesByChatId(String chatId, int page, int size, Authentication currentUser) {
+        String email = currentUser.getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        UUID chatUuid = UUID.fromString(chatId);
+        Chat chat = chatRepository.findById(chatUuid)
+                .orElseThrow(() -> new RuntimeException("Chat not found"));
+
+        if (!chat.containsUser(user.getId())) {
+            throw new RuntimeException("Access denied");
+        }
+
+        Page<Message> messagePage = messageRepository.findByChatId(
+                chatUuid,
+                PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdDate"))
+        );
+
+        return messagePage.getContent()
                 .stream()
                 .map(messageMapper::toDto)
                 .collect(Collectors.toList());
@@ -104,22 +144,21 @@ public class MessageServiceImpl implements MessageService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         UUID chatUuid = UUID.fromString(chatId);
-        
-        // Mark messages as read
-        messageRepository.markMessagesAsRead(
-                chatUuid,
-                user.getId(),
-                MessageState.RECEIVED
-        );
-        
-        // Gửi notification cho sender biết message đã được đọc
+
         Chat chat = chatRepository.findById(chatUuid)
                 .orElseThrow(() -> new RuntimeException("Chat not found"));
-        
+
+        if (!chat.containsUser(user.getId())) {
+            throw new RuntimeException("Access denied");
+        }
+
+
+        messageRepository.markMessagesAsRead(chatUuid, user.getId(), MessageState.SEEN);
+
+        // Thông báo cho sender biết messages đã được đọc
         User sender = chat.getOtherUser(user.getId());
-        log.info("User {} marked messages as read in chat {}, notifying sender {}", 
+        log.info("User {} marked messages as seen in chat {}, notifying sender {}",
                 user.getId(), chatUuid, sender.getId());
-        
         notificationService.sendMessageSeenNotification(sender.getId(), chatUuid);
     }
 }

@@ -17,12 +17,13 @@ import java.util.List;
 @RequiredArgsConstructor
 public class MessageController {
     private final MessageService messageService;
-    private final FileStorageService fileStorageService; // ✅ thêm
+    private final FileStorageService fileStorageService;
 
     @PostMapping
     public ResponseEntity<Void> saveMessage(
-            @RequestBody MessageDto messageDto) {
-        messageService.sendMessage(messageDto);
+            @RequestBody MessageDto messageDto,
+            Authentication currentUser) {
+        messageService.sendMessage(messageDto, currentUser);
         return ResponseEntity.accepted().build();
     }
 
@@ -45,15 +46,19 @@ public class MessageController {
 
     @GetMapping("/chat/{chatId}")
     public ResponseEntity<List<MessageDto>> getMessagesByChatId(
-            @PathVariable String chatId) {
-        return ResponseEntity.ok(messageService.getMessagesByChatId(chatId));
+            @PathVariable String chatId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "30") int size,
+            Authentication currentUser) {  // ✅ FIX: Thêm Authentication để verify quyền truy cập
+        return ResponseEntity.ok(messageService.getMessagesByChatId(chatId, page, size, currentUser));
     }
 
     @GetMapping("/media/{filename}")
     public ResponseEntity<byte[]> getMediaFile(@PathVariable String filename) {
         byte[] file = fileStorageService.loadFile(filename);
+        String contentType = fileStorageService.detectContentType(filename);
         return ResponseEntity.ok()
-                .contentType(MediaType.IMAGE_JPEG)
+                .contentType(MediaType.parseMediaType(contentType))
                 .body(file);
     }
 }

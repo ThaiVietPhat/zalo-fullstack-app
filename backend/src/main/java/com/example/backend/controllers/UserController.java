@@ -5,9 +5,7 @@ import com.example.backend.services.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -16,9 +14,18 @@ import java.util.List;
 @RequiredArgsConstructor
 public class UserController {
     private final UserService userService;
-
     @GetMapping
     public ResponseEntity<List<UserDto>> getAllUsers(Authentication currentUser) {
         return ResponseEntity.ok(userService.getAllUsersExceptSelf(currentUser));
+    }
+    @GetMapping("/me")
+    public ResponseEntity<UserDto> getMyProfile(Authentication currentUser) {
+        return ResponseEntity.ok(userService.getMyProfile(currentUser));
+    }
+    @GetMapping("/search")
+    public ResponseEntity<List<UserDto>> searchUsers(
+            @RequestParam String keyword,
+            Authentication currentUser) {
+        return ResponseEntity.ok(userService.searchUsers(keyword, currentUser));
     }
 }

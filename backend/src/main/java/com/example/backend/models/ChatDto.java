@@ -21,4 +21,5 @@ public class ChatDto {
     private LocalDateTime lastMessageTime;
     private long unreadCount;
     private boolean recipientOnline;
+    private String recipientLastSeenText;
 }

@@ -15,9 +15,6 @@ public class NotificationService {
 
     private final SimpMessagingTemplate messagingTemplate;
 
-    /**
-     * Gửi message real-time đến receiver qua WebSocket
-     */
     public void sendMessageNotification(UUID receiverId, MessageDto messageDto) {
         log.info("Sending message notification to user: {}", receiverId);
         messagingTemplate.convertAndSendToUser(
@@ -27,9 +24,7 @@ public class NotificationService {
         );
     }
 
-    /**
-     * Gửi thông báo message đã được đọc
-     */
+
     public void sendMessageSeenNotification(UUID receiverId, UUID chatId) {
         log.info("Sending message seen notification to user: {} for chat: {}", receiverId, chatId);
         messagingTemplate.convertAndSendToUser(
@@ -39,9 +34,6 @@ public class NotificationService {
         );
     }
 
-    /**
-     * Gửi typing indicator
-     */
     public void sendTypingNotification(UUID chatId, UUID userId, boolean isTyping) {
         log.debug("User {} is {}typing in chat {}", userId, isTyping ? "" : "not ", chatId);
         messagingTemplate.convertAndSend(
@@ -50,9 +42,7 @@ public class NotificationService {
         );
     }
 
-    /**
-     * Gửi thông báo user online/offline status
-     */
+
     public void sendUserStatusNotification(UUID userId, boolean isOnline) {
         log.info("User {} is now {}", userId, isOnline ? "online" : "offline");
         messagingTemplate.convertAndSend(
@@ -61,7 +51,6 @@ public class NotificationService {
         );
     }
 
-    // Payload classes
     public record MessageSeenPayload(UUID chatId) {}
     public record TypingPayload(UUID userId, boolean isTyping) {}
     public record UserStatusPayload(UUID userId, boolean isOnline) {}

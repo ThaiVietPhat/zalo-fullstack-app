@@ -19,24 +19,36 @@ public class KeycloakJwtAuthenticationConverter implements Converter<Jwt, Abstra
 
     @Override
     public AbstractAuthenticationToken convert(@NonNull Jwt source) {
-        return new JwtAuthenticationToken(
-                source,
-                Stream.concat(
-                        new JwtGrantedAuthoritiesConverter().convert(source).stream(),
-                        extractResourceRoles(source).stream()
-                ).collect(Collectors.toSet())
-        );
+        Collection<GrantedAuthority> authorities = Stream.concat(
+                new JwtGrantedAuthoritiesConverter().convert(source).stream(),
+                extractResourceRoles(source).stream()
+        ).collect(Collectors.toSet());
+        String email = source.getClaimAsString("email");
+        String name = (email != null) ? email : source.getSubject();
+
+        return new JwtAuthenticationToken(source, authorities, name);
     }
+
     private Collection<? extends GrantedAuthority> extractResourceRoles(Jwt jwt) {
         var resourceAccess = jwt.<Map<String, Object>>getClaim("resource_access");
 
-        if (resourceAccess == null || resourceAccess.get("account") == null) {
+        if (resourceAccess == null) {
+            return Set.of();
+        }
+        String clientId = jwt.getClaimAsString("azp");
+
+        Map<String, Object> clientAccess = null;
+        if (clientId != null && resourceAccess.get(clientId) != null) {
+            clientAccess = (Map<String, Object>) resourceAccess.get(clientId);
+        } else if (resourceAccess.get("account") != null) {
+            clientAccess = (Map<String, Object>) resourceAccess.get("account");
+        }
+
+        if (clientAccess == null) {
             return Set.of();
         }
 
-        var eternal = (Map<String, Object>) resourceAccess.get("account");
-        var roles = (Collection<String>) eternal.get("roles");
-
+        var roles = (Collection<String>) clientAccess.get("roles");
         if (roles == null) return Set.of();
 
         return roles.stream()

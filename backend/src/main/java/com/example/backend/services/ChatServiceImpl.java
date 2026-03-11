@@ -1,7 +1,6 @@
 package com.example.backend.services;
 
 import com.example.backend.Entities.Chat;
-import com.example.backend.Entities.Message;
 import com.example.backend.Entities.User;
 import com.example.backend.enums.MessageState;
 import com.example.backend.mappers.ChatMapper;
@@ -36,26 +35,9 @@ public class ChatServiceImpl implements ChatService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        List<Chat> chats = chatRepository.findAllChatsByUserId(user.getId());
-
-        return chats.stream()
-                .map(chat -> {
-                    ChatDto dto = chatMapper.toDto(chat);
-                    dto.setChatName(chat.getChatName(user.getId()));
-                    dto.setUnreadCount(messageRepository.countUnreadMessages(chat.getId(), user.getId()));
-
-                    User otherUser = chat.getOtherUser(user.getId());
-                    dto.setRecipientOnline(otherUser.isUserOnline());
-
-                    List<Message> lastMessages = messageRepository.findByChatIdOrderByCreatedDateDesc(chat.getId());
-                    if (!lastMessages.isEmpty()) {
-                        Message last = lastMessages.get(0);
-                        dto.setLastMessageType(last.getType());
-                        dto.setLastMessageTime(last.getCreatedDate());
-                    }
-
-                    return dto;
-                })
+        return chatRepository.findAllChatsByUserId(user.getId())
+                .stream()
+                .map(chat -> mapChatToDto(chat, user))
                 .collect(Collectors.toList());
     }
 
@@ -73,21 +55,19 @@ public class ChatServiceImpl implements ChatService {
             throw new RuntimeException("Access denied");
         }
 
-        ChatDto dto = chatMapper.toDto(chat);
-        dto.setChatName(chat.getChatName(user.getId()));
-        dto.setUnreadCount(messageRepository.countUnreadMessages(chat.getId(), user.getId()));
-        
-        User otherUser = chat.getOtherUser(user.getId());
-        dto.setRecipientOnline(otherUser.isUserOnline());
-
-        return dto;
+        return mapChatToDto(chat, user);
     }
 
+    @Override
     @Transactional
     public ChatDto getOrCreateChat(UUID otherUserId, Authentication currentUser) {
         String email = currentUser.getName();
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (user.getId().equals(otherUserId)) {
+            throw new RuntimeException("Cannot create chat with yourself");
+        }
 
         User otherUser = userRepository.findById(otherUserId)
                 .orElseThrow(() -> new RuntimeException("Other user not found"));
@@ -100,14 +80,10 @@ public class ChatServiceImpl implements ChatService {
                     return chatRepository.save(newChat);
                 });
 
-        ChatDto dto = chatMapper.toDto(chat);
-        dto.setChatName(chat.getChatName(user.getId()));
-        dto.setUnreadCount(messageRepository.countUnreadMessages(chat.getId(), user.getId()));
-        dto.setRecipientOnline(otherUser.isUserOnline());
-
-        return dto;
+        return mapChatToDto(chat, user);
     }
 
+    @Override
     @Transactional(readOnly = true)
     public List<MessageDto> getMessagesByChatId(UUID chatId, Authentication currentUser) {
         String email = currentUser.getName();
@@ -121,12 +97,13 @@ public class ChatServiceImpl implements ChatService {
             throw new RuntimeException("Access denied");
         }
 
-        List<Message> messages = messageRepository.findByChatIdOrderByCreatedDateAsc(chatId);
-        return messages.stream()
+        return messageRepository.findByChatIdOrderByCreatedDateAsc(chatId)
+                .stream()
                 .map(messageMapper::toDto)
                 .collect(Collectors.toList());
     }
 
+    @Override
     @Transactional
     public void markMessagesAsRead(UUID chatId, Authentication currentUser) {
         String email = currentUser.getName();
@@ -140,6 +117,24 @@ public class ChatServiceImpl implements ChatService {
             throw new RuntimeException("Access denied");
         }
 
-        messageRepository.markMessagesAsRead(chatId, user.getId(), MessageState.RECEIVED);
+        messageRepository.markMessagesAsRead(chatId, user.getId(), MessageState.SEEN);
+    }
+
+    private ChatDto mapChatToDto(Chat chat, User currentUser) {
+        ChatDto dto = chatMapper.toDto(chat);
+        dto.setChatName(chat.getChatName(currentUser.getId()));
+        dto.setUnreadCount(messageRepository.countUnreadMessages(chat.getId(), currentUser.getId()));
+
+        User otherUser = chat.getOtherUser(currentUser.getId());
+        dto.setRecipientOnline(otherUser.isUserOnline());
+        dto.setRecipientLastSeenText(otherUser.getLastSeenText());
+        messageRepository.findTop1ByChatIdOrderByCreatedDateDesc(chat.getId())
+                .ifPresent(last -> {
+                    dto.setLastMessage(last.getContent());
+                    dto.setLastMessageType(last.getType());
+                    dto.setLastMessageTime(last.getCreatedDate());
+                });
+
+        return dto;
     }
 }

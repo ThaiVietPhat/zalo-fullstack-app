@@ -3,6 +3,7 @@ package com.example.backend.securities.config;
 import com.example.backend.securities.converters.KeycloakJwtAuthenticationConverter;
 import com.example.backend.securities.filters.UserSynchronizerFilter;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
@@ -17,14 +18,18 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
 
 import java.util.Arrays;
-import java.util.Collections;
+import java.util.List;
 
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity(securedEnabled = true)
 @RequiredArgsConstructor
 public class SecurityConfig {
+
     private final UserSynchronizerFilter userSynchronizerFilter;
+    @Value("${app.cors.allowed-origins:http://localhost:4200,http://localhost:3000}")
+    private List<String> allowedOrigins;
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
@@ -32,7 +37,7 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(req ->
                         req.requestMatchers(
-                                        "/auth/**",
+                                        // Swagger
                                         "/v2/api-docs",
                                         "/v3/api-docs",
                                         "/v3/api-docs/**",
@@ -43,7 +48,10 @@ public class SecurityConfig {
                                         "/swagger-ui/**",
                                         "/webjars/**",
                                         "/swagger-ui.html",
-                                        "/ws/**"
+                                        // ✅ WebSocket endpoint phải public để client có thể handshake
+                                        "/ws/**",
+                                        // ✅ Static media files (ảnh/video đã upload)
+                                        "/api/v1/message/media/**"
                                 ).permitAll()
                                 .anyRequest().authenticated()
                 )
@@ -52,7 +60,10 @@ public class SecurityConfig {
                                 token.jwtAuthenticationConverter(new KeycloakJwtAuthenticationConverter())
                         )
                 )
-                .addFilterAfter(userSynchronizerFilter, org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter.class);
+                .addFilterAfter(
+                        userSynchronizerFilter,
+                        org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter.class
+                );
 
         return http.build();
     }
@@ -63,16 +74,21 @@ public class SecurityConfig {
         final CorsConfiguration config = new CorsConfiguration();
 
         config.setAllowCredentials(true);
-        config.setAllowedOrigins(Collections.singletonList("http://localhost:4200"));
+        config.setAllowedOrigins(allowedOrigins);
         config.setAllowedHeaders(Arrays.asList(
                 HttpHeaders.ORIGIN,
                 HttpHeaders.CONTENT_TYPE,
                 HttpHeaders.ACCEPT,
-                HttpHeaders.AUTHORIZATION
+                HttpHeaders.AUTHORIZATION,
+                "X-Requested-With",
+                "Access-Control-Request-Method",
+                "Access-Control-Request-Headers"
         ));
+
         config.setAllowedMethods(Arrays.asList(
                 "GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"
         ));
+        config.setExposedHeaders(List.of(HttpHeaders.AUTHORIZATION));
 
         source.registerCorsConfiguration("/**", config);
         return new CorsFilter(source);

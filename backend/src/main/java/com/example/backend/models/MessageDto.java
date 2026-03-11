@@ -20,4 +20,6 @@ public class MessageDto {
     private MessageType type;
     private LocalDateTime createdAt;
     private UUID senderId;
+    private UUID receiverId;
+    private String mediaUrl;
 }

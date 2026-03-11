@@ -1,5 +1,6 @@
 package com.example.backend.services;
 
+import com.example.backend.Entities.User;
 import com.example.backend.mappers.UserMapper;
 import com.example.backend.models.UserDto;
 import com.example.backend.repositories.UserRepository;
@@ -19,9 +20,32 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public List<UserDto> getAllUsersExceptSelf(Authentication currentUser) {
-        UUID userId = UUID.fromString(currentUser.getName());
+        String email = currentUser.getName();
 
-        return userRepository.findByIdNot(userId)
+        User self = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        return userRepository.findByIdNot(self.getId())
+                .stream()
+                .map(userMapper::toDto)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public UserDto getMyProfile(Authentication currentUser) {
+        String email = currentUser.getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        return userMapper.toDto(user);
+    }
+
+    @Override
+    public List<UserDto> searchUsers(String keyword, Authentication currentUser) {
+        String email = currentUser.getName();
+        User self = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        return userRepository.searchByNameOrEmail(keyword, self.getId())
                 .stream()
                 .map(userMapper::toDto)
                 .collect(Collectors.toList());

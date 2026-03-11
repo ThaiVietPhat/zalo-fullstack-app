@@ -7,8 +7,12 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 
 public interface MessageService {
-    void sendMessage(MessageDto messageDto);
+
+    void sendMessage(MessageDto messageDto, Authentication currentUser);
+
     void uploadMediaMessage(String chatId, MultipartFile file, Authentication currentUser);
-    List<MessageDto> getMessagesByChatId(String chatId);
+
+    List<MessageDto> getMessagesByChatId(String chatId, int page, int size, Authentication currentUser);
+
     void setMessagesToSeen(String chatId, Authentication currentUser);
 }
