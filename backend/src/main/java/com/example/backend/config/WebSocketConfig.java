@@ -1,5 +1,6 @@
 package com.example.backend.config;
 
+import com.example.backend.services.JwtService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Configuration;
@@ -13,9 +14,8 @@ import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.messaging.support.MessageHeaderAccessor;
-import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
@@ -28,8 +28,7 @@ import java.util.List;
 @Slf4j
 @Order(Ordered.HIGHEST_PRECEDENCE + 99)
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
-
-    private final JwtDecoder jwtDecoder;
+    private final JwtService jwtService;
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry config) {
@@ -41,7 +40,6 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws")
-                // ✅ FIX: Dùng allowedOriginPatterns thay vì "*" để tương thích với allowCredentials
                 .setAllowedOriginPatterns("http://localhost:*", "https://*.yourdomain.com")
                 .withSockJS();
     }
@@ -70,19 +68,23 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                         throw new IllegalArgumentException("Invalid Authorization format");
                     }
 
-                    String tokenValue = bearerToken.substring(7);
+                    String token = bearerToken.substring(7);
 
                     try {
-                        Jwt jwt = jwtDecoder.decode(tokenValue);
+                        if (!jwtService.isTokenValid(token) || !jwtService.isAccessToken(token)) {
+                            throw new IllegalArgumentException("Invalid or expired token");
+                        }
 
-                        String email = jwt.getClaimAsString("email");
-                        String name = (email != null) ? email : jwt.getSubject();
+                        String email = jwtService.extractEmail(token);
+                        UsernamePasswordAuthenticationToken auth =
+                                new UsernamePasswordAuthenticationToken(
+                                        email,
+                                        null,
+                                        List.of(new SimpleGrantedAuthority("ROLE_USER"))
+                                );
 
-
-                        JwtAuthenticationToken auth = new JwtAuthenticationToken(jwt, List.of(), name);
                         accessor.setUser(auth);
-
-                        log.info("WebSocket authenticated for user: {}", name);
+                        log.info("WebSocket authenticated for user: {}", email);
 
                     } catch (Exception e) {
                         log.warn("WebSocket JWT validation failed: {}", e.getMessage());

@@ -33,9 +33,15 @@ public class User extends BaseAuditingEntity {
     @Column(unique = true, nullable = false)
     private String email;
 
+    // ✅ THÊM MỚI: lưu mật khẩu đã hash (BCrypt)
+    // nullable = true để tương thích nếu sau này vẫn muốn thêm OAuth
+    @Column(name = "password")
+    private String password;
+
     @Column(name = "last_seen")
     private LocalDateTime lastSeen;
 
+    // ✅ GIỮ NGUYÊN: dùng cho tương lai nếu cần OAuth/Keycloak
     @Column(name = "keycloak_id", unique = true)
     private String keycloakId;
 
@@ -46,6 +52,7 @@ public class User extends BaseAuditingEntity {
     public boolean isUserOnline() {
         return this.online;
     }
+
     @Transient
     public String getLastSeenText() {
         if (online) return "Đang hoạt động";

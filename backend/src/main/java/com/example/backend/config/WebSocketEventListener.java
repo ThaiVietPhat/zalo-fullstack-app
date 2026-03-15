@@ -1,19 +1,19 @@
 package com.example.backend.config;
 
-import com.example.backend.Entities.User;
 import com.example.backend.repositories.UserRepository;
 import com.example.backend.services.NotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.socket.messaging.SessionConnectedEvent;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 
 import java.time.LocalDateTime;
+
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -50,18 +50,17 @@ public class WebSocketEventListener {
 
         userRepository.findByEmail(email).ifPresent(user -> {
             user.setOnline(false);
-            user.setLastSeen(LocalDateTime.now()); // Ghi lại thời điểm offline
+            user.setLastSeen(LocalDateTime.now());
             userRepository.save(user);
 
             log.info("User DISCONNECTED: {} — last seen: {}", email, user.getLastSeen());
-
             notificationService.sendUserStatusNotification(user.getId(), false);
         });
     }
 
     private String extractEmail(StompHeaderAccessor accessor) {
-        if (accessor.getUser() instanceof JwtAuthenticationToken jwtAuth) {
-            return jwtAuth.getName(); // getName() = email (đã fix trong Converter)
+        if (accessor.getUser() instanceof UsernamePasswordAuthenticationToken auth) {
+            return auth.getName(); // getName() = email (set trong WebSocketConfig)
         }
         return null;
     }
