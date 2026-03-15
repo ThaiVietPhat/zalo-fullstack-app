@@ -273,54 +273,6 @@ Future<void> saveTokens(Map<String, dynamic> authResponse) async {
 
 ---
 
-## 📱 Setup Client — Mobile Android (Kotlin)
-
-### Bước 1 — Thêm dependencies vào `build.gradle`
-```gradle
-dependencies {
-    // HTTP
-    implementation 'com.squareup.retrofit2:retrofit:2.9.0'
-    implementation 'com.squareup.retrofit2:converter-gson:2.9.0'
-    implementation 'com.squareup.okhttp3:logging-interceptor:4.12.0'
-
-    // WebSocket STOMP
-    implementation 'ua.naiksoftware:stomp-client-jvm:1.6.6'
-    implementation 'io.reactivex.rxjava2:rxjava:2.2.21'
-    implementation 'io.reactivex.rxjava2:rxandroid:2.1.1'
-}
-```
-
-### Bước 2 — Retrofit với token interceptor
-```kotlin
-object ApiClient {
-    private const val BASE_URL = "http://10.0.2.2:8080/"
-
-    fun create(context: Context): ApiService {
-        val prefs = context.getSharedPreferences("auth", Context.MODE_PRIVATE)
-
-        val okhttp = OkHttpClient.Builder()
-            .addInterceptor { chain ->
-                val token = prefs.getString("accessToken", null)
-                val request = if (token != null)
-                    chain.request().newBuilder()
-                        .header("Authorization", "Bearer $token")
-                        .build()
-                else chain.request()
-                chain.proceed(request)
-            }.build()
-
-        return Retrofit.Builder()
-            .baseUrl(BASE_URL)
-            .client(okhttp)
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-            .create(ApiService::class.java)
-    }
-}
-```
-
----
-
 ## 🌐 Môi trường
 
 | Môi trường | Base URL |
@@ -335,7 +287,7 @@ object ApiClient {
 - Khi `accessToken` hết hạn → gọi `/api/v1/auth/refresh` để lấy token mới
 
 ---
-
+s
 ## 🔄 Flow tổng thể
 
 ```
