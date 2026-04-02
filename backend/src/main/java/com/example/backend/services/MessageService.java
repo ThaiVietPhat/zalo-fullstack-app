@@ -5,6 +5,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.UUID;
 
 public interface MessageService {
 
@@ -15,4 +16,5 @@ public interface MessageService {
     List<MessageDto> getMessagesByChatId(String chatId, int page, int size, Authentication currentUser);
 
     void setMessagesToSeen(String chatId, Authentication currentUser);
+    void recallMessage(UUID messageId, Authentication currentUser);
 }

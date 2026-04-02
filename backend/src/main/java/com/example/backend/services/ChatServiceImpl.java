@@ -2,11 +2,11 @@ package com.example.backend.services;
 
 import com.example.backend.Entities.Chat;
 import com.example.backend.Entities.User;
-import com.example.backend.enums.MessageState;
+import com.example.backend.exceptions.ResourceNotFoundException;
+import com.example.backend.exceptions.UnauthorizedException;
 import com.example.backend.mappers.ChatMapper;
 import com.example.backend.mappers.MessageMapper;
 import com.example.backend.models.ChatDto;
-import com.example.backend.models.MessageDto;
 import com.example.backend.repositories.ChatRepository;
 import com.example.backend.repositories.MessageRepository;
 import com.example.backend.repositories.UserRepository;
@@ -33,7 +33,7 @@ public class ChatServiceImpl implements ChatService {
     public List<ChatDto> getChatByReceiverId(Authentication currentUser) {
         final String email = currentUser.getName();
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         return chatRepository.findAllChatsByUserId(user.getId())
                 .stream()
@@ -46,13 +46,13 @@ public class ChatServiceImpl implements ChatService {
     public ChatDto getChatById(UUID chatId, Authentication currentUser) {
         String email = currentUser.getName();
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         Chat chat = chatRepository.findById(chatId)
-                .orElseThrow(() -> new RuntimeException("Chat not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Chat not found with id: " + chatId));
 
         if (!chat.containsUser(user.getId())) {
-            throw new RuntimeException("Access denied");
+            throw new UnauthorizedException("Access denied: you are not a member of this chat");
         }
 
         return mapChatToDto(chat, user);
@@ -63,14 +63,14 @@ public class ChatServiceImpl implements ChatService {
     public ChatDto getOrCreateChat(UUID otherUserId, Authentication currentUser) {
         String email = currentUser.getName();
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         if (user.getId().equals(otherUserId)) {
-            throw new RuntimeException("Cannot create chat with yourself");
+            throw new IllegalArgumentException("Cannot create chat with yourself");
         }
 
         User otherUser = userRepository.findById(otherUserId)
-                .orElseThrow(() -> new RuntimeException("Other user not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + otherUserId));
 
         Chat chat = chatRepository.findChatBetweenTwoUsers(user.getId(), otherUserId)
                 .orElseGet(() -> {
@@ -81,43 +81,6 @@ public class ChatServiceImpl implements ChatService {
                 });
 
         return mapChatToDto(chat, user);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<MessageDto> getMessagesByChatId(UUID chatId, Authentication currentUser) {
-        String email = currentUser.getName();
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        Chat chat = chatRepository.findById(chatId)
-                .orElseThrow(() -> new RuntimeException("Chat not found"));
-
-        if (!chat.containsUser(user.getId())) {
-            throw new RuntimeException("Access denied");
-        }
-
-        return messageRepository.findByChatIdOrderByCreatedDateAsc(chatId)
-                .stream()
-                .map(messageMapper::toDto)
-                .collect(Collectors.toList());
-    }
-
-    @Override
-    @Transactional
-    public void markMessagesAsRead(UUID chatId, Authentication currentUser) {
-        String email = currentUser.getName();
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        Chat chat = chatRepository.findById(chatId)
-                .orElseThrow(() -> new RuntimeException("Chat not found"));
-
-        if (!chat.containsUser(user.getId())) {
-            throw new RuntimeException("Access denied");
-        }
-
-        messageRepository.markMessagesAsRead(chatId, user.getId(), MessageState.SEEN);
     }
 
     private ChatDto mapChatToDto(Chat chat, User currentUser) {

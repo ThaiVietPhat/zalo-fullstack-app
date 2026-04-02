@@ -1,30 +1,36 @@
 package com.example.backend.config;
 
+import com.example.backend.Entities.User;
 import com.example.backend.repositories.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.context.annotation.Profile;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
 @Component
 @RequiredArgsConstructor
 @Slf4j
+@Profile("!test")
 public class DataSeeder implements ApplicationRunner {
 
     private final JdbcTemplate jdbc;
     private final UserRepository userRepository;
     private final ChatRepository chatRepository;
     private final GroupRepository groupRepository;
+    private final PasswordEncoder passwordEncoder;
 
     @Override
     @Transactional
@@ -34,41 +40,55 @@ public class DataSeeder implements ApplicationRunner {
             return;
         }
 
-        log.info("Bắt đầu import CSV data...");
+        log.info("Bắt đầu seeding dữ liệu ban đầu...");
 
-        importCsv("csvdata/user.csv",
-                "INSERT INTO user (id,first_name,last_name,email,password,is_online,last_seen,keycloak_id,created_date,last_modified_date) " +
-                        "VALUES (?,?,?,?,?,?,?,?,?,?)");
+        // Tạo tài khoản admin mặc định
+        seedDefaultAdmin();
 
-        importCsv("csvdata/chat.csv",
+        // Import CSV nếu có
+        importCsvIfExists("csvdata/chat.csv",
                 "INSERT INTO chat (id,user1_id,user2_id,created_date,last_modified_date) " +
                         "VALUES (?,?,?,?,?)");
 
-        importCsv("csvdata/message.csv",
+        importCsvIfExists("csvdata/message.csv",
                 "INSERT INTO message (id,content,state,type,chat_id,sender_id,created_date,last_modified_date) " +
                         "VALUES (?,?,?,?,?,?,?,?)");
 
-        importCsv("csvdata/group.csv",
-                "INSERT INTO `group` (id,name,description,avatar_url,created_by,created_date,last_modified_date,created_by_user,last_modified_by_user) " +
-                        "VALUES (?,?,?,?,?,?,?,?,?)");
+        importCsvIfExists("csvdata/group.csv",
+                "INSERT INTO `group` (id,name,description,avatar_url,created_by,created_date,last_modified_date) " +
+                        "VALUES (?,?,?,?,?,?,?)");
 
-        importCsv("csvdata/group_member.csv",
-                "INSERT INTO group_member (id,group_id,user_id,admin,created_date,last_modified_date,created_by_user,last_modified_by_user) " +
-                        "VALUES (?,?,?,?,?,?,?,?)");
+        importCsvIfExists("csvdata/group_member.csv",
+                "INSERT INTO group_member (id,group_id,user_id,admin,created_date,last_modified_date) " +
+                        "VALUES (?,?,?,?,?,?)");
 
-        importCsv("csvdata/group_message.csv",
-                "INSERT INTO group_message (id,content,type,group_id,sender_id,created_date,last_modified_date,created_by_user,last_modified_by_user) " +
-                        "VALUES (?,?,?,?,?,?,?,?,?)");
+        importCsvIfExists("csvdata/group_message.csv",
+                "INSERT INTO group_message (id,content,type,group_id,sender_id,created_date,last_modified_date) " +
+                        "VALUES (?,?,?,?,?,?,?)");
 
-        log.info("✅ Import CSV hoàn tất!");
-        log.info("  Users:          {}", userRepository.count());
-        log.info("  Chats:          {}", chatRepository.count());
-        log.info("  Groups:         {}", groupRepository.count());
+        log.info("✅ Seeding hoàn tất!");
+        log.info("  Users:  {}", userRepository.count());
+        log.info("  Chats:  {}", chatRepository.count());
+        log.info("  Groups: {}", groupRepository.count());
+    }
+
+    private void seedDefaultAdmin() {
+        User admin = new User();
+        admin.setEmail("admin@zalo.com");
+        admin.setPassword(passwordEncoder.encode("Admin@123"));
+        admin.setFirstName("Admin");
+        admin.setLastName("System");
+        admin.setRole("ADMIN");
+        admin.setBanned(false);
+        admin.setOnline(false);
+        admin.setLastSeen(LocalDateTime.now());
+        userRepository.save(admin);
+        log.info("  ✓ Admin mặc định đã được tạo: admin@zalo.com / Admin@123");
     }
 
     // ─── Helper: đọc CSV và batch insert ─────────────────────────────────────
 
-    private void importCsv(String resourcePath, String sql) throws Exception {
+    private void importCsvIfExists(String resourcePath, String sql) throws Exception {
         ClassPathResource resource = new ClassPathResource(resourcePath);
 
         if (!resource.exists()) {

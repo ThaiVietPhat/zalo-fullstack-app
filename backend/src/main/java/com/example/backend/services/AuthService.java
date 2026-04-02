@@ -57,6 +57,10 @@ public class AuthService {
             throw new BadCredentialsException("Email hoặc mật khẩu không đúng");
         }
 
+        if (user.isBanned()) {
+            throw new BadCredentialsException("Tài khoản của bạn đã bị khóa");
+        }
+
         // Cập nhật trạng thái online
         user.setOnline(true);
         user.setLastSeen(LocalDateTime.now());
@@ -79,15 +83,20 @@ public class AuthService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new BadCredentialsException("Người dùng không tồn tại"));
 
-        // Chỉ cấp lại access token mới, giữ nguyên refresh token cũ
+        // Cấp access token mới và refresh token mới (rotation)
         String newAccessToken = jwtService.generateAccessToken(
+                user.getEmail(),
+                user.getId().toString(),
+                user.getRole()
+        );
+        String newRefreshToken = jwtService.generateRefreshToken(
                 user.getEmail(),
                 user.getId().toString()
         );
 
         return AuthResponse.builder()
                 .accessToken(newAccessToken)
-                .refreshToken(refreshToken)
+                .refreshToken(newRefreshToken)
                 .userId(user.getId())
                 .email(user.getEmail())
                 .firstName(user.getFirstName())
@@ -111,7 +120,7 @@ public class AuthService {
     // ─── Helper ──────────────────────────────────────────────────────────────
 
     private AuthResponse buildAuthResponse(User user) {
-        String accessToken  = jwtService.generateAccessToken(user.getEmail(), user.getId().toString());
+        String accessToken  = jwtService.generateAccessToken(user.getEmail(), user.getId().toString(), user.getRole());
         String refreshToken = jwtService.generateRefreshToken(user.getEmail(), user.getId().toString());
 
         return AuthResponse.builder()

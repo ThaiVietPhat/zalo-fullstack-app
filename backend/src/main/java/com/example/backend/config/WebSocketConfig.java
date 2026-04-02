@@ -40,7 +40,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns("http://localhost:*", "https://*.yourdomain.com")
+                .setAllowedOriginPatterns("http://localhost:*", "https://*.yourdomain.com", "capacitor://localhost")
                 .withSockJS();
     }
 
@@ -76,11 +76,12 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                         }
 
                         String email = jwtService.extractEmail(token);
+                        String role = jwtService.extractRole(token);
                         UsernamePasswordAuthenticationToken auth =
                                 new UsernamePasswordAuthenticationToken(
                                         email,
                                         null,
-                                        List.of(new SimpleGrantedAuthority("ROLE_USER"))
+                                        List.of(new SimpleGrantedAuthority("ROLE_" + role))
                                 );
 
                         accessor.setUser(auth);

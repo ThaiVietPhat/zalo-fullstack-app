@@ -1,5 +1,6 @@
 package com.example.backend.services;
 
+import com.example.backend.exceptions.ResourceNotFoundException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -30,16 +31,16 @@ public class FileStorageService {
 
     public String saveFile(MultipartFile file) {
         if (file == null || file.isEmpty()) {
-            throw new RuntimeException("File is empty");
+            throw new IllegalArgumentException("File is empty");
         }
 
         if (file.getSize() > MAX_FILE_SIZE) {
-            throw new RuntimeException("File size exceeds maximum allowed size (50MB)");
+            throw new IllegalArgumentException("File size exceeds maximum allowed size (50MB)");
         }
 
         String contentType = file.getContentType();
         if (contentType == null || !ALLOWED_CONTENT_TYPES.contains(contentType)) {
-            throw new RuntimeException("File type not allowed: " + contentType);
+            throw new IllegalArgumentException("File type not allowed: " + contentType);
         }
 
         try {
@@ -55,7 +56,7 @@ public class FileStorageService {
             Path filePath = uploadPath.resolve(fileName).normalize();
 
             if (!filePath.startsWith(uploadPath)) {
-                throw new RuntimeException("Invalid file path detected");
+                throw new IllegalArgumentException("Invalid file path detected");
             }
 
             Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
@@ -73,11 +74,11 @@ public class FileStorageService {
             Path filePath = uploadPath.resolve(fileName).normalize();
 
             if (!filePath.startsWith(uploadPath)) {
-                throw new RuntimeException("Invalid file path");
+                throw new IllegalArgumentException("Invalid file path");
             }
 
             if (!Files.exists(filePath)) {
-                throw new RuntimeException("File not found: " + fileName);
+                throw new ResourceNotFoundException("File not found: " + fileName);
             }
 
             return Files.readAllBytes(filePath);

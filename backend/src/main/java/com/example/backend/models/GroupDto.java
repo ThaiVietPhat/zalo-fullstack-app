@@ -1,6 +1,7 @@
 package com.example.backend.models;
 
 import com.example.backend.enums.MessageType;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 
 import java.time.LocalDateTime;
@@ -24,5 +25,6 @@ public class GroupDto {
     private String lastMessageSenderName;
 
     // Quyền của user hiện tại trong nhóm
+    @JsonProperty("isAdmin")
     private boolean isAdmin;
 }

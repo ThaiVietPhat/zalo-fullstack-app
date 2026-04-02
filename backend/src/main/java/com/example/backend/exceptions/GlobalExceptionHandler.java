@@ -1,5 +1,7 @@
 package com.example.backend.exceptions;
 
+import com.example.backend.exceptions.ResourceNotFoundException;
+import com.example.backend.exceptions.UnauthorizedException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -62,13 +64,36 @@ public class GlobalExceptionHandler {
     }
 
     // ─── Lỗi không tìm thấy ──────────────────────────────────────────────────
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleResourceNotFound(
+            ResourceNotFoundException ex) {
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+                "timestamp", LocalDateTime.now().toString(),
+                "status", 404,
+                "error", ex.getMessage()
+        ));
+    }
+
     @ExceptionHandler(jakarta.persistence.EntityNotFoundException.class)
-    public ResponseEntity<Map<String, Object>> handleNotFound(
+    public ResponseEntity<Map<String, Object>> handleEntityNotFound(
             jakarta.persistence.EntityNotFoundException ex) {
 
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
                 "timestamp", LocalDateTime.now().toString(),
                 "status", 404,
+                "error", ex.getMessage()
+        ));
+    }
+
+    // ─── Lỗi không có quyền truy cập ─────────────────────────────────────────
+    @ExceptionHandler(UnauthorizedException.class)
+    public ResponseEntity<Map<String, Object>> handleUnauthorized(
+            UnauthorizedException ex) {
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
+                "timestamp", LocalDateTime.now().toString(),
+                "status", 403,
                 "error", ex.getMessage()
         ));
     }

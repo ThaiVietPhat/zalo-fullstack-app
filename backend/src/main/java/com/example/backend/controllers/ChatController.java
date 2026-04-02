@@ -1,7 +1,6 @@
 package com.example.backend.controllers;
 
 import com.example.backend.models.ChatDto;
-import com.example.backend.models.MessageDto;
 import com.example.backend.services.ChatService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -30,16 +29,5 @@ public class ChatController {
     @PostMapping("/start/{otherUserId}")
     public ResponseEntity<ChatDto> startChat(@PathVariable UUID otherUserId, Authentication currentUser) {
         return ResponseEntity.ok(chatService.getOrCreateChat(otherUserId, currentUser));
-    }
-
-    @GetMapping("/{chatId}/messages")
-    public ResponseEntity<List<MessageDto>> getMessages(@PathVariable UUID chatId, Authentication currentUser) {
-        return ResponseEntity.ok(chatService.getMessagesByChatId(chatId, currentUser));
-    }
-
-    @PostMapping("/{chatId}/read")
-    public ResponseEntity<Void> markAsRead(@PathVariable UUID chatId, Authentication currentUser) {
-        chatService.markMessagesAsRead(chatId, currentUser);
-        return ResponseEntity.ok().build();
     }
 }

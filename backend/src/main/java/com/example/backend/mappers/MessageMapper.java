@@ -17,6 +17,7 @@ public interface MessageMapper {
     @Mapping(target = "receiverId", expression = "java(message.getReceiver().getId())")
 
     @Mapping(target = "mediaUrl", source = "message", qualifiedByName = "toMediaUrl")
+    @Mapping(target = "reactions", ignore = true)
     MessageDto toDto(Message message);
 
     @Named("toMediaUrl")

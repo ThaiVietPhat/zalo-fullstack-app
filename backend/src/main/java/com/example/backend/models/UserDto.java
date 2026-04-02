@@ -5,11 +5,7 @@ import lombok.*;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-@Getter
-@Setter
-@Builder
-@AllArgsConstructor
-@NoArgsConstructor
+@Getter @Setter @Builder @AllArgsConstructor @NoArgsConstructor
 public class UserDto {
     private UUID id;
     private String firstName;
@@ -18,4 +14,7 @@ public class UserDto {
     private LocalDateTime lastSeen;
     private boolean online;
     private String lastSeenText;
+    private String role;
+    private boolean banned;
+    private String avatarUrl;
 }

@@ -1,11 +1,15 @@
 package com.example.backend.controllers;
 
+import com.example.backend.models.ChangePasswordRequest;
+import com.example.backend.models.UpdateProfileRequest;
 import com.example.backend.models.UserDto;
 import com.example.backend.services.UserService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -14,14 +18,39 @@ import java.util.List;
 @RequiredArgsConstructor
 public class UserController {
     private final UserService userService;
+
     @GetMapping
     public ResponseEntity<List<UserDto>> getAllUsers(Authentication currentUser) {
         return ResponseEntity.ok(userService.getAllUsersExceptSelf(currentUser));
     }
+
     @GetMapping("/me")
     public ResponseEntity<UserDto> getMyProfile(Authentication currentUser) {
         return ResponseEntity.ok(userService.getMyProfile(currentUser));
     }
+
+    @PutMapping("/me")
+    public ResponseEntity<UserDto> updateMyProfile(
+            @Valid @RequestBody UpdateProfileRequest request,
+            Authentication currentUser) {
+        return ResponseEntity.ok(userService.updateProfile(request, currentUser));
+    }
+
+    @PatchMapping("/me/password")
+    public ResponseEntity<Void> changePassword(
+            @Valid @RequestBody ChangePasswordRequest request,
+            Authentication currentUser) {
+        userService.changePassword(request, currentUser);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/me/avatar")
+    public ResponseEntity<UserDto> uploadAvatar(
+            @RequestParam("file") MultipartFile file,
+            Authentication currentUser) {
+        return ResponseEntity.ok(userService.uploadAvatar(file, currentUser));
+    }
+
     @GetMapping("/search")
     public ResponseEntity<List<UserDto>> searchUsers(
             @RequestParam String keyword,

@@ -53,6 +53,14 @@ public class MessageController {
         return ResponseEntity.ok(messageService.getMessagesByChatId(chatId, page, size, currentUser));
     }
 
+    @DeleteMapping("/{messageId}/recall")
+    public ResponseEntity<Void> recallMessage(
+            @PathVariable java.util.UUID messageId,
+            Authentication currentUser) {
+        messageService.recallMessage(messageId, currentUser);
+        return ResponseEntity.ok().build();
+    }
+
     @GetMapping("/media/{filename}")
     public ResponseEntity<byte[]> getMediaFile(@PathVariable String filename) {
         byte[] file = fileStorageService.loadFile(filename);

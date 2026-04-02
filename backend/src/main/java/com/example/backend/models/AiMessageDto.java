@@ -1,0 +1,14 @@
+package com.example.backend.models;
+
+import lombok.*;
+
+import java.time.LocalDateTime;
+import java.util.UUID;
+
+@Data @Builder @NoArgsConstructor @AllArgsConstructor
+public class AiMessageDto {
+    private UUID id;
+    private String role;     // "USER" hoặc "ASSISTANT"
+    private String content;
+    private LocalDateTime createdDate;
+}

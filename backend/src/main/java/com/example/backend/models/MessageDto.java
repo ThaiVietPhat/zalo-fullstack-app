@@ -5,13 +5,10 @@ import com.example.backend.enums.MessageType;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
-@Getter
-@Setter
-@Builder
-@AllArgsConstructor
-@NoArgsConstructor
+@Getter @Setter @Builder @AllArgsConstructor @NoArgsConstructor
 public class MessageDto {
     private UUID id;
     private UUID chatId;
@@ -22,4 +19,6 @@ public class MessageDto {
     private UUID senderId;
     private UUID receiverId;
     private String mediaUrl;
+    private boolean deleted;
+    private List<ReactionDto> reactions;
 }

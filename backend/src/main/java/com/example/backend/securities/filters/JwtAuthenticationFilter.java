@@ -56,11 +56,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                     // Set authentication vào SecurityContext
                     // (giống cách Keycloak trả về email làm principal name)
+                    String role = jwtService.extractRole(token);
                     UsernamePasswordAuthenticationToken auth =
                             new UsernamePasswordAuthenticationToken(
                                     email,
                                     null,
-                                    List.of(new SimpleGrantedAuthority("ROLE_USER"))
+                                    List.of(new SimpleGrantedAuthority("ROLE_" + role))
                             );
 
                     SecurityContextHolder.getContext().setAuthentication(auth);

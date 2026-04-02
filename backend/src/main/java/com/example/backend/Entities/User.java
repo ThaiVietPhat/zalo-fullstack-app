@@ -12,8 +12,7 @@ import java.util.UUID;
 @Entity
 @Table(name = "user",
         indexes = {
-                @Index(name = "idx_user_email", columnList = "email"),
-                @Index(name = "idx_user_keycloak_id", columnList = "keycloak_id")
+                @Index(name = "idx_user_email", columnList = "email")
         }
 )
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor
@@ -41,12 +40,22 @@ public class User extends BaseAuditingEntity {
     @Column(name = "last_seen")
     private LocalDateTime lastSeen;
 
-    // ✅ GIỮ NGUYÊN: dùng cho tương lai nếu cần OAuth/Keycloak
-    @Column(name = "keycloak_id", unique = true)
-    private String keycloakId;
+    @Column(nullable = false)
+    private String role = "USER";
+
+    @Column(nullable = false)
+    private boolean banned = false;
 
     @Column(name = "is_online", nullable = false)
     private boolean online = false;
+
+    @Column(name = "avatar_url")
+    private String avatarUrl;
+
+    @Transient
+    public boolean isAdmin() {
+        return "ADMIN".equals(this.role);
+    }
 
     @Transient
     public boolean isUserOnline() {

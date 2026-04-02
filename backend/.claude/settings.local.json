@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mvn compile:*)",
+      "Bash(java -version)",
+      "Bash(mvn help:evaluate -Dexpression=lombok.version -q -DforceStdout)",
+      "Bash(mvn dependency:resolve -Dartifact=org.projectlombok:lombok)",
+      "Bash(curl -s \"https://search.maven.org/solrsearch/select?q=g:org.projectlombok+AND+a:lombok&rows=5&wt=json&core=gav&sort=version+desc\")",
+      "Bash(python -c \"import sys,json; data=json.load\\(sys.stdin\\); [print\\(d['v']\\) for d in data['response']['docs']]\")",
+      "Bash(xargs wc:*)",
+      "Bash(mvn test:*)"
+    ]
+  }
+}

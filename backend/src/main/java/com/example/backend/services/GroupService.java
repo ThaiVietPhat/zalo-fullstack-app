@@ -4,11 +4,16 @@ import com.example.backend.Entities.Group;
 import com.example.backend.Entities.GroupMember;
 import com.example.backend.Entities.GroupMessage;
 import com.example.backend.Entities.User;
+import com.example.backend.exceptions.ResourceNotFoundException;
+import com.example.backend.exceptions.UnauthorizedException;
 import com.example.backend.models.*;
+import com.example.backend.enums.MessageType;
 import com.example.backend.repositories.GroupMemberRepository;
+import com.example.backend.repositories.GroupMessageReactionRepository;
 import com.example.backend.repositories.GroupMessageRepository;
 import com.example.backend.repositories.GroupRepository;
 import com.example.backend.repositories.UserRepository;
+import org.springframework.web.multipart.MultipartFile;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -18,6 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -29,8 +35,10 @@ public class GroupService {
     private final GroupRepository groupRepository;
     private final GroupMemberRepository groupMemberRepository;
     private final GroupMessageRepository groupMessageRepository;
+    private final GroupMessageReactionRepository groupMessageReactionRepository;
     private final UserRepository userRepository;
     private final SimpMessagingTemplate messagingTemplate;
+    private final FileStorageService fileStorageService;
 
     // ─── Tạo nhóm ────────────────────────────────────────────────────────────
 
@@ -52,7 +60,7 @@ public class GroupService {
         for (UUID memberId : request.getMemberIds()) {
             if (memberId.equals(creator.getId())) continue; // bỏ qua nếu trùng creator
             User member = userRepository.findById(memberId)
-                    .orElseThrow(() -> new RuntimeException("User not found: " + memberId));
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + memberId));
             saved.getMembers().add(GroupMember.of(saved, member, false));
         }
 
@@ -97,6 +105,29 @@ public class GroupService {
         return toGroupDto(group, user.getId());
     }
 
+    // ─── Upload avatar nhóm (chỉ admin) ──────────────────────────────────────
+
+    @Transactional
+    public GroupDto uploadGroupAvatar(UUID groupId, MultipartFile file, Authentication currentUser) {
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("File không được để trống");
+        }
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.startsWith("image/")) {
+            throw new IllegalArgumentException("Chỉ chấp nhận file ảnh");
+        }
+
+        User user = getUser(currentUser);
+        Group group = getGroupAndCheckAdmin(groupId, user.getId());
+
+        String filename = fileStorageService.saveFile(file);
+        group.setAvatarUrl("/api/v1/message/media/" + filename);
+
+        groupRepository.save(group);
+        log.info("Group '{}' avatar updated by {}", group.getName(), user.getEmail());
+        return toGroupDto(group, user.getId());
+    }
+
     // ─── Thêm thành viên (chỉ admin) ─────────────────────────────────────────
 
     @Transactional
@@ -107,7 +138,7 @@ public class GroupService {
         for (UUID userId : request.getUserIds()) {
             if (groupMemberRepository.existsByGroupIdAndUserId(groupId, userId)) continue;
             User newMember = userRepository.findById(userId)
-                    .orElseThrow(() -> new RuntimeException("User not found: " + userId));
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
             group.getMembers().add(GroupMember.of(group, newMember, false));
         }
 
@@ -124,12 +155,12 @@ public class GroupService {
         getGroupAndCheckAdmin(groupId, user.getId());
 
         if (user.getId().equals(targetUserId)) {
-            throw new RuntimeException("Admin không thể tự xóa mình, hãy dùng rời nhóm");
+            throw new IllegalArgumentException("Admin không thể tự xóa mình, hãy dùng rời nhóm");
         }
 
         GroupMember member = groupMemberRepository
                 .findByGroupIdAndUserId(groupId, targetUserId)
-                .orElseThrow(() -> new RuntimeException("Thành viên không tồn tại trong nhóm"));
+                .orElseThrow(() -> new ResourceNotFoundException("Thành viên không tồn tại trong nhóm"));
 
         groupMemberRepository.delete(member);
         log.info("User {} removed from group {}", targetUserId, groupId);
@@ -152,7 +183,7 @@ public class GroupService {
 
         GroupMember member = groupMemberRepository
                 .findByGroupIdAndUserId(groupId, user.getId())
-                .orElseThrow(() -> new RuntimeException("Bạn không phải thành viên nhóm này"));
+                .orElseThrow(() -> new ResourceNotFoundException("Bạn không phải thành viên nhóm này"));
 
         groupMemberRepository.delete(member);
 
@@ -176,7 +207,7 @@ public class GroupService {
         msg.setGroup(group);
         msg.setSender(user);
         msg.setContent(request.getContent());
-        msg.setType(request.getType());
+        msg.setType(request.getType() != null ? request.getType() : MessageType.TEXT);
 
         GroupMessage saved = groupMessageRepository.save(msg);
         GroupMessageDto dto = toMessageDto(saved, user.getId());
@@ -188,6 +219,69 @@ public class GroupService {
         return dto;
     }
 
+    // ─── Upload media vào nhóm ────────────────────────────────────────────────
+
+    @Transactional
+    public GroupMessageDto uploadGroupMediaMessage(UUID groupId, MultipartFile file, Authentication currentUser) {
+        User user = getUser(currentUser);
+        Group group = getGroupAndCheckMember(groupId, user.getId());
+
+        String contentType = file.getContentType() != null ? file.getContentType() : "";
+        MessageType messageType;
+        if (contentType.startsWith("image/")) {
+            messageType = MessageType.IMAGE;
+        } else if (contentType.startsWith("video/")) {
+            messageType = MessageType.VIDEO;
+        } else if (contentType.startsWith("audio/")) {
+            messageType = MessageType.AUDIO;
+        } else {
+            messageType = MessageType.FILE;
+        }
+
+        String filePath = fileStorageService.saveFile(file);
+
+        GroupMessage msg = new GroupMessage();
+        msg.setGroup(group);
+        msg.setSender(user);
+        msg.setContent(filePath);
+        msg.setType(messageType);
+
+        GroupMessage saved = groupMessageRepository.save(msg);
+        GroupMessageDto dto = toMessageDto(saved, user.getId());
+
+        messagingTemplate.convertAndSend("/topic/group/" + groupId, dto);
+        log.info("Media message sent to group {} by {}", groupId, user.getEmail());
+        return dto;
+    }
+
+    // ─── Thu hồi tin nhắn nhóm ───────────────────────────────────────────────
+
+    @Transactional
+    public void recallGroupMessage(UUID messageId, Authentication currentUser) {
+        User user = getUser(currentUser);
+
+        GroupMessage msg = groupMessageRepository.findById(messageId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tin nhắn không tồn tại: " + messageId));
+
+        boolean isSender = msg.getSender().getId().equals(user.getId());
+        boolean isAdmin = msg.getGroup().isAdmin(user.getId());
+
+        if (!isSender && !isAdmin) {
+            throw new UnauthorizedException("Bạn không có quyền thu hồi tin nhắn này");
+        }
+
+        if (msg.isDeleted()) {
+            throw new IllegalArgumentException("Tin nhắn đã được thu hồi trước đó");
+        }
+
+        msg.setDeleted(true);
+        groupMessageRepository.save(msg);
+
+        GroupMessageDto dto = toMessageDto(msg, user.getId());
+        messagingTemplate.convertAndSend("/topic/group/" + msg.getGroup().getId(), dto);
+        log.info("Group message {} recalled by {}", messageId, user.getEmail());
+    }
+
     // ─── Lấy tin nhắn nhóm (phân trang) ─────────────────────────────────────
 
     @Transactional(readOnly = true)
@@ -195,34 +289,58 @@ public class GroupService {
         User user = getUser(currentUser);
         getGroupAndCheckMember(groupId, user.getId());
 
-        return groupMessageRepository
-                .findByGroupIdOrderByCreatedDateAsc(groupId, PageRequest.of(page, size))
-                .stream()
+        List<GroupMessage> messages = groupMessageRepository
+                .findByGroupIdAndDeletedFalseOrderByCreatedDateAsc(groupId, PageRequest.of(page, size))
+                .getContent();
+
+        List<GroupMessageDto> dtos = messages.stream()
                 .map(m -> toMessageDto(m, user.getId()))
                 .collect(Collectors.toList());
+
+        // Gắn reactions vào từng tin nhắn (batch query tránh N+1)
+        List<UUID> msgIds = messages.stream().map(GroupMessage::getId).collect(Collectors.toList());
+        if (!msgIds.isEmpty()) {
+            Map<UUID, List<ReactionDto>> reactionsByMsgId = groupMessageReactionRepository
+                    .findByGroupMessageIdIn(msgIds)
+                    .stream()
+                    .collect(Collectors.groupingBy(
+                            r -> r.getGroupMessage().getId(),
+                            Collectors.mapping(r -> ReactionDto.builder()
+                                    .id(r.getId())
+                                    .userId(r.getUser().getId())
+                                    .userFullName(r.getUser().getFirstName() + " " + r.getUser().getLastName())
+                                    .emoji(r.getEmoji())
+                                    .createdDate(r.getCreatedDate())
+                                    .build(), Collectors.toList())
+                    ));
+
+            dtos.forEach(dto -> dto.setReactions(reactionsByMsgId.getOrDefault(dto.getId(), List.of())));
+        }
+
+        return dtos;
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────────────
 
     private User getUser(Authentication auth) {
         return userRepository.findByEmail(auth.getName())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
     }
 
     private Group getGroupAndCheckMember(UUID groupId, UUID userId) {
         Group group = groupRepository.findById(groupId)
-                .orElseThrow(() -> new RuntimeException("Nhóm không tồn tại"));
+                .orElseThrow(() -> new ResourceNotFoundException("Nhóm không tồn tại với id: " + groupId));
         if (!group.isMember(userId)) {
-            throw new RuntimeException("Bạn không phải thành viên nhóm này");
+            throw new UnauthorizedException("Bạn không phải thành viên nhóm này");
         }
         return group;
     }
 
     private Group getGroupAndCheckAdmin(UUID groupId, UUID userId) {
         Group group = groupRepository.findById(groupId)
-                .orElseThrow(() -> new RuntimeException("Nhóm không tồn tại"));
+                .orElseThrow(() -> new ResourceNotFoundException("Nhóm không tồn tại với id: " + groupId));
         if (!group.isAdmin(userId)) {
-            throw new RuntimeException("Chỉ admin mới có quyền thực hiện thao tác này");
+            throw new UnauthorizedException("Chỉ admin mới có quyền thực hiện thao tác này");
         }
         return group;
     }
@@ -268,13 +386,14 @@ public class GroupService {
     private GroupMessageDto toMessageDto(GroupMessage msg, UUID currentUserId) {
         return GroupMessageDto.builder()
                 .id(msg.getId())
-                .content(msg.getContent())
+                .content(msg.isDeleted() ? null : msg.getContent())
                 .type(msg.getType())
                 .groupId(msg.getGroup().getId())
                 .senderId(msg.getSender().getId())
                 .senderName(msg.getSender().getFirstName() + " " + msg.getSender().getLastName())
                 .isMine(msg.getSender().getId().equals(currentUserId))
                 .createdDate(msg.getCreatedDate())
+                .deleted(msg.isDeleted())
                 .build();
     }
 }

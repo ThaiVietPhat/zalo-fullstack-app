@@ -2,12 +2,17 @@ package com.example.backend.services;
 
 import com.example.backend.Entities.Chat;
 import com.example.backend.Entities.Message;
+import com.example.backend.Entities.MessageReaction;
 import com.example.backend.Entities.User;
 import com.example.backend.enums.MessageState;
 import com.example.backend.enums.MessageType;
+import com.example.backend.exceptions.ResourceNotFoundException;
+import com.example.backend.exceptions.UnauthorizedException;
 import com.example.backend.mappers.MessageMapper;
 import com.example.backend.models.MessageDto;
+import com.example.backend.models.ReactionDto;
 import com.example.backend.repositories.ChatRepository;
+import com.example.backend.repositories.MessageReactionRepository;
 import com.example.backend.repositories.MessageRepository;
 import com.example.backend.repositories.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -34,6 +40,7 @@ public class MessageServiceImpl implements MessageService {
     private final FileStorageService fileStorageService;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
+    private final MessageReactionRepository messageReactionRepository;
 
     @Override
     @Transactional
@@ -41,18 +48,18 @@ public class MessageServiceImpl implements MessageService {
 
         String email = currentUser.getName();
         User sender = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Sender not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         Chat chat = chatRepository.findById(messageDto.getChatId())
-                .orElseThrow(() -> new RuntimeException("Chat not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Chat not found with id: " + messageDto.getChatId()));
 
         if (!chat.containsUser(sender.getId())) {
-            throw new RuntimeException("Access denied: You are not a member of this chat");
+            throw new UnauthorizedException("Access denied: you are not a member of this chat");
         }
 
         if (messageDto.getType() == MessageType.TEXT
                 && (messageDto.getContent() == null || messageDto.getContent().isBlank())) {
-            throw new RuntimeException("Message content cannot be empty");
+            throw new IllegalArgumentException("Message content cannot be empty");
         }
 
         Message message = new Message();
@@ -74,14 +81,14 @@ public class MessageServiceImpl implements MessageService {
     @Transactional
     public void uploadMediaMessage(String chatId, MultipartFile file, Authentication currentUser) {
         Chat chat = chatRepository.findById(UUID.fromString(chatId))
-                .orElseThrow(() -> new RuntimeException("Chat not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Chat not found with id: " + chatId));
 
         String email = currentUser.getName();
         User sender = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Sender not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         if (!chat.containsUser(sender.getId())) {
-            throw new RuntimeException("Access denied: You are not a member of this chat");
+            throw new UnauthorizedException("Access denied: you are not a member of this chat");
         }
 
         String contentType = file.getContentType() != null ? file.getContentType() : "";
@@ -90,6 +97,8 @@ public class MessageServiceImpl implements MessageService {
             messageType = MessageType.IMAGE;
         } else if (contentType.startsWith("video/")) {
             messageType = MessageType.VIDEO;
+        } else if (contentType.startsWith("audio/")) {
+            messageType = MessageType.AUDIO;
         } else {
             messageType = MessageType.FILE;
         }
@@ -115,25 +124,76 @@ public class MessageServiceImpl implements MessageService {
     public List<MessageDto> getMessagesByChatId(String chatId, int page, int size, Authentication currentUser) {
         String email = currentUser.getName();
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         UUID chatUuid = UUID.fromString(chatId);
         Chat chat = chatRepository.findById(chatUuid)
-                .orElseThrow(() -> new RuntimeException("Chat not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Chat not found with id: " + chatId));
 
         if (!chat.containsUser(user.getId())) {
-            throw new RuntimeException("Access denied");
+            throw new UnauthorizedException("Access denied: you are not a member of this chat");
         }
 
-        Page<Message> messagePage = messageRepository.findByChatId(
+        Page<Message> messagePage = messageRepository.findByChatIdAndDeletedFalse(
                 chatUuid,
                 PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdDate"))
         );
 
-        return messagePage.getContent()
+        List<MessageDto> dtos = messagePage.getContent()
                 .stream()
                 .map(messageMapper::toDto)
                 .collect(Collectors.toList());
+
+        // Gắn reactions vào từng tin nhắn (batch query tránh N+1)
+        List<UUID> messageIds = messagePage.getContent().stream()
+                .map(Message::getId)
+                .collect(Collectors.toList());
+
+        if (!messageIds.isEmpty()) {
+            Map<UUID, List<ReactionDto>> reactionsByMsgId = messageReactionRepository
+                    .findByMessageIdIn(messageIds)
+                    .stream()
+                    .collect(Collectors.groupingBy(
+                            r -> r.getMessage().getId(),
+                            Collectors.mapping(r -> ReactionDto.builder()
+                                    .id(r.getId())
+                                    .userId(r.getUser().getId())
+                                    .userFullName(r.getUser().getFirstName() + " " + r.getUser().getLastName())
+                                    .emoji(r.getEmoji())
+                                    .createdDate(r.getCreatedDate())
+                                    .build(), Collectors.toList())
+                    ));
+
+            dtos.forEach(dto -> dto.setReactions(reactionsByMsgId.getOrDefault(dto.getId(), List.of())));
+        }
+
+        return dtos;
+    }
+
+    @Override
+    @Transactional
+    public void recallMessage(UUID messageId, Authentication currentUser) {
+        String email = currentUser.getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        Message message = messageRepository.findById(messageId)
+                .orElseThrow(() -> new ResourceNotFoundException("Message not found with id: " + messageId));
+
+        if (!message.getSender().getId().equals(user.getId())) {
+            throw new UnauthorizedException("Bạn chỉ có thể thu hồi tin nhắn của mình");
+        }
+
+        if (message.isDeleted()) {
+            throw new IllegalArgumentException("Tin nhắn đã được thu hồi trước đó");
+        }
+
+        message.setDeleted(true);
+        messageRepository.save(message);
+
+        User receiver = message.getChat().getOtherUser(user.getId());
+        notificationService.sendMessageRecalledNotification(receiver.getId(), messageId, message.getChat().getId());
+        log.info("Message {} recalled by user {}", messageId, user.getId());
     }
 
     @Override
@@ -141,15 +201,15 @@ public class MessageServiceImpl implements MessageService {
     public void setMessagesToSeen(String chatId, Authentication currentUser) {
         String email = currentUser.getName();
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         UUID chatUuid = UUID.fromString(chatId);
 
         Chat chat = chatRepository.findById(chatUuid)
-                .orElseThrow(() -> new RuntimeException("Chat not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Chat not found with id: " + chatId));
 
         if (!chat.containsUser(user.getId())) {
-            throw new RuntimeException("Access denied");
+            throw new UnauthorizedException("Access denied: you are not a member of this chat");
         }
 
 

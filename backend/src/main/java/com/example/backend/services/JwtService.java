@@ -28,11 +28,12 @@ public class JwtService {
 
     // ─── Tạo access token ────────────────────────────────────────────────────
 
-    public String generateAccessToken(String email, String userId) {
+    public String generateAccessToken(String email, String userId, String role) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("sub", userId);
         claims.put("email", email);
         claims.put("type", "access");
+        claims.put("role", role != null ? role : "USER");
         return buildToken(claims, email, expirationMs);
     }
 
@@ -85,6 +86,15 @@ public class JwtService {
 
     public String extractUserId(String token) {
         return extractAllClaims(token).getSubject();
+    }
+
+    public String extractRole(String token) {
+        try {
+            Object role = extractAllClaims(token).get("role");
+            return role != null ? role.toString() : "USER";
+        } catch (Exception e) {
+            return "USER";
+        }
     }
 
     private Claims extractAllClaims(String token) {

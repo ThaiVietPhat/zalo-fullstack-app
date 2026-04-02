@@ -5,9 +5,11 @@ import com.example.backend.services.GroupService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.UUID;
@@ -64,6 +66,18 @@ public class GroupController {
     }
 
     /**
+     * Upload avatar nhóm (chỉ admin)
+     * POST /api/v1/group/{groupId}/avatar
+     */
+    @PostMapping(value = "/{groupId}/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<GroupDto> uploadGroupAvatar(
+            @PathVariable UUID groupId,
+            @RequestParam("file") MultipartFile file,
+            Authentication currentUser) {
+        return ResponseEntity.ok(groupService.uploadGroupAvatar(groupId, file, currentUser));
+    }
+
+    /**
      * Thêm thành viên vào nhóm (chỉ admin)
      * POST /api/v1/group/{groupId}/members
      */
@@ -111,6 +125,32 @@ public class GroupController {
             Authentication currentUser) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(groupService.sendMessage(groupId, request, currentUser));
+    }
+
+    /**
+     * Upload media vào nhóm
+     * POST /api/v1/group/{groupId}/upload-media
+     */
+    @PostMapping(value = "/{groupId}/upload-media", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<GroupMessageDto> uploadGroupMedia(
+            @PathVariable UUID groupId,
+            @RequestParam("file") MultipartFile file,
+            Authentication currentUser) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(groupService.uploadGroupMediaMessage(groupId, file, currentUser));
+    }
+
+    /**
+     * Thu hồi tin nhắn nhóm
+     * DELETE /api/v1/group/{groupId}/messages/{messageId}/recall
+     */
+    @DeleteMapping("/{groupId}/messages/{messageId}/recall")
+    public ResponseEntity<Void> recallGroupMessage(
+            @PathVariable UUID groupId,
+            @PathVariable UUID messageId,
+            Authentication currentUser) {
+        groupService.recallGroupMessage(messageId, currentUser);
+        return ResponseEntity.ok().build();
     }
 
     /**

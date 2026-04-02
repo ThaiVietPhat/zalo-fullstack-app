@@ -27,6 +27,9 @@ public class Message extends BaseAuditingEntity {
     @Enumerated(EnumType.STRING)
     private MessageType type = MessageType.TEXT;
 
+    @Column(nullable = false)
+    private boolean deleted = false;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "chat_id", nullable = false)
     private Chat chat;
