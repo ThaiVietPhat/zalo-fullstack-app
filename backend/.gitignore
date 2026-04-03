@@ -1,10 +1,20 @@
-HELP.md
+# ── Build ────────────────────────────────────────────
 target/
-.mvn/wrapper/maven-wrapper.jar
+build/
 !**/src/main/**/target/
 !**/src/test/**/target/
+!**/src/main/**/build/
+!**/src/test/**/build/
 
-### STS ###
+# ── Maven wrapper JAR ────────────────────────────────
+.mvn/wrapper/maven-wrapper.jar
+
+# ── IDE ──────────────────────────────────────────────
+.idea/
+.vscode/
+*.iws
+*.iml
+*.ipr
 .apt_generated
 .classpath
 .factorypath
@@ -12,22 +22,32 @@ target/
 .settings
 .springBeans
 .sts4-cache
-
-### IntelliJ IDEA ###
-.idea
-*.iws
-*.iml
-*.ipr
-
-### NetBeans ###
 /nbproject/private/
 /nbbuild/
 /dist/
 /nbdist/
 /.nb-gradle/
-build/
-!**/src/main/**/build/
-!**/src/test/**/build/
 
-### VS Code ###
-.vscode/
+# ── Claude Code CLI ──────────────────────────────────
+.claude/
+
+# ── Runtime / uploads ────────────────────────────────
+uploads/
+
+# ── Secrets / local config ───────────────────────────
+.env
+.env.*
+application-local.properties
+application-dev.properties
+application-prod.properties
+
+# ── Logs ─────────────────────────────────────────────
+*.log
+logs/
+
+# ── OS ───────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── Docs tự sinh ─────────────────────────────────────
+HELP.md
