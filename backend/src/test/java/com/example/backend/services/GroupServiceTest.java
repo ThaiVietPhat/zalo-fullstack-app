@@ -1,18 +1,20 @@
 package com.example.backend.services;
 
-import com.example.backend.Entities.Group;
-import com.example.backend.Entities.GroupMember;
-import com.example.backend.Entities.GroupMessage;
-import com.example.backend.Entities.User;
-import com.example.backend.enums.MessageType;
-import com.example.backend.models.GroupDto;
-import com.example.backend.models.GroupMessageDto;
-import com.example.backend.models.GroupRequest;
-import com.example.backend.repositories.GroupMemberRepository;
-import com.example.backend.repositories.GroupMessageReactionRepository;
-import com.example.backend.repositories.GroupMessageRepository;
-import com.example.backend.repositories.GroupRepository;
-import com.example.backend.repositories.UserRepository;
+import com.example.backend.group.entity.Group;
+import com.example.backend.group.entity.GroupMember;
+import com.example.backend.group.entity.GroupMessage;
+import com.example.backend.user.entity.User;
+import com.example.backend.messaging.enums.MessageType;
+import com.example.backend.group.dto.GroupDto;
+import com.example.backend.group.dto.GroupMessageDto;
+import com.example.backend.group.dto.GroupRequest;
+import com.example.backend.group.repository.GroupMemberRepository;
+import com.example.backend.group.repository.GroupMessageReactionRepository;
+import com.example.backend.group.repository.GroupMessageRepository;
+import com.example.backend.group.repository.GroupRepository;
+import com.example.backend.group.service.GroupService;
+import com.example.backend.file.service.FileStorageService;
+import com.example.backend.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -156,7 +158,7 @@ class GroupServiceTest {
         GroupRequest.AddMember req = new GroupRequest.AddMember(List.of(member2.getId()));
 
         assertThatThrownBy(() -> groupService.addMembers(groupId, req, authentication))
-                .isInstanceOf(com.example.backend.exceptions.UnauthorizedException.class)
+                .isInstanceOf(com.example.backend.shared.exception.UnauthorizedException.class)
                 .hasMessageContaining("admin");
     }
 
@@ -228,7 +230,7 @@ class GroupServiceTest {
         GroupRequest.SendMessage req = new GroupRequest.SendMessage("Hello", MessageType.TEXT);
 
         assertThatThrownBy(() -> groupService.sendMessage(groupId, req, authentication))
-                .isInstanceOf(com.example.backend.exceptions.UnauthorizedException.class)
+                .isInstanceOf(com.example.backend.shared.exception.UnauthorizedException.class)
                 .hasMessageContaining("thành viên");
     }
 }

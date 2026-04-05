@@ -1,0 +1,25 @@
+package com.example.backend.group.dto;
+
+import com.example.backend.messaging.enums.MessageType;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.*;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.UUID;
+import com.example.backend.reaction.dto.ReactionDto;
+
+@Data @Builder @NoArgsConstructor @AllArgsConstructor
+public class GroupMessageDto {
+    private UUID id;
+    private String content;
+    private MessageType type;
+    private UUID groupId;
+    private UUID senderId;
+    private String senderName;
+    @JsonProperty("isMine")
+    private boolean isMine;
+    private LocalDateTime createdDate;
+    private boolean deleted;
+    private List<ReactionDto> reactions;
+}

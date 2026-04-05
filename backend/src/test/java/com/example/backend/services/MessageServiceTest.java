@@ -1,16 +1,19 @@
 package com.example.backend.services;
 
-import com.example.backend.Entities.Chat;
-import com.example.backend.Entities.Message;
-import com.example.backend.Entities.User;
-import com.example.backend.enums.MessageState;
-import com.example.backend.enums.MessageType;
-import com.example.backend.mappers.MessageMapper;
-import com.example.backend.models.MessageDto;
-import com.example.backend.repositories.ChatRepository;
-import com.example.backend.repositories.MessageReactionRepository;
-import com.example.backend.repositories.MessageRepository;
-import com.example.backend.repositories.UserRepository;
+import com.example.backend.chat.entity.Chat;
+import com.example.backend.messaging.entity.Message;
+import com.example.backend.user.entity.User;
+import com.example.backend.messaging.enums.MessageState;
+import com.example.backend.messaging.enums.MessageType;
+import com.example.backend.messaging.mapper.MessageMapper;
+import com.example.backend.messaging.dto.MessageDto;
+import com.example.backend.chat.repository.ChatRepository;
+import com.example.backend.messaging.repository.MessageReactionRepository;
+import com.example.backend.messaging.repository.MessageRepository;
+import com.example.backend.messaging.service.MessageServiceImpl;
+import com.example.backend.messaging.service.NotificationService;
+import com.example.backend.file.service.FileStorageService;
+import com.example.backend.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -98,7 +101,7 @@ class MessageServiceTest {
 
         assertThatNoException().isThrownBy(() -> messageService.sendMessage(dto, authentication));
         verify(messageRepository).save(any(Message.class));
-        verify(notificationService).sendMessageNotification(eq(receiver.getId()), any());
+        verify(notificationService).sendMessageNotification(eq(receiver.getEmail()), any());
     }
 
     @Test
@@ -113,7 +116,7 @@ class MessageServiceTest {
         when(chatRepository.findById(chatId)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> messageService.sendMessage(dto, authentication))
-                .isInstanceOf(com.example.backend.exceptions.ResourceNotFoundException.class)
+                .isInstanceOf(com.example.backend.shared.exception.ResourceNotFoundException.class)
                 .hasMessageContaining("Chat not found");
     }
 
@@ -134,7 +137,7 @@ class MessageServiceTest {
         dto.setType(MessageType.TEXT);
 
         assertThatThrownBy(() -> messageService.sendMessage(dto, authentication))
-                .isInstanceOf(com.example.backend.exceptions.UnauthorizedException.class)
+                .isInstanceOf(com.example.backend.shared.exception.UnauthorizedException.class)
                 .hasMessageContaining("Access denied");
     }
 
@@ -177,7 +180,7 @@ class MessageServiceTest {
         assertThatNoException().isThrownBy(
                 () -> messageService.uploadMediaMessage(chatId.toString(), file, authentication));
         verify(fileStorageService).saveFile(file);
-        verify(notificationService).sendMessageNotification(eq(receiver.getId()), any());
+        verify(notificationService).sendMessageNotification(eq(receiver.getEmail()), any());
     }
 
     @Test
@@ -238,6 +241,6 @@ class MessageServiceTest {
                 () -> messageService.setMessagesToSeen(chatId.toString(), authentication));
 
         verify(messageRepository).markMessagesAsRead(chatId, sender.getId(), MessageState.SEEN);
-        verify(notificationService).sendMessageSeenNotification(eq(receiver.getId()), eq(chatId));
+        verify(notificationService).sendMessageSeenNotification(eq(receiver.getEmail()), eq(chatId));
     }
 }

@@ -1,6 +1,6 @@
 package com.example.backend.controllers;
 
-import com.example.backend.models.AuthRequest;
+import com.example.backend.auth.dto.AuthRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;

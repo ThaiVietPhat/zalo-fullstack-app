@@ -1,10 +1,11 @@
 package com.example.backend.services;
 
-import com.example.backend.Entities.User;
-import com.example.backend.mappers.UserMapper;
-import com.example.backend.models.UpdateProfileRequest;
-import com.example.backend.models.UserDto;
-import com.example.backend.repositories.UserRepository;
+import com.example.backend.user.entity.User;
+import com.example.backend.user.mapper.UserMapper;
+import com.example.backend.user.dto.UpdateProfileRequest;
+import com.example.backend.user.dto.UserDto;
+import com.example.backend.user.repository.UserRepository;
+import com.example.backend.user.service.UserServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -85,7 +86,7 @@ class UserServiceTest {
         when(userRepository.findByEmail("self@gmail.com")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> userService.getAllUsersExceptSelf(authentication))
-                .isInstanceOf(com.example.backend.exceptions.ResourceNotFoundException.class)
+                .isInstanceOf(com.example.backend.shared.exception.ResourceNotFoundException.class)
                 .hasMessageContaining("User not found");
     }
 
@@ -156,7 +157,7 @@ class UserServiceTest {
         when(userRepository.findByEmail("self@gmail.com")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> userService.updateProfile(req, authentication))
-                .isInstanceOf(com.example.backend.exceptions.ResourceNotFoundException.class)
+                .isInstanceOf(com.example.backend.shared.exception.ResourceNotFoundException.class)
                 .hasMessageContaining("User not found");
     }
 }

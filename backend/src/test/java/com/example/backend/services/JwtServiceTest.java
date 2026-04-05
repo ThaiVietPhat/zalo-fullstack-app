@@ -1,5 +1,6 @@
 package com.example.backend.services;
 
+import com.example.backend.security.service.JwtService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

@@ -1,0 +1,219 @@
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { Phone, Video, Info, ChevronLeft } from 'lucide-react';
+import { getChatDetail } from '../../api/chat';
+import { getMessages, sendMessage, uploadMedia, markSeen } from '../../api/message';
+import useChatStore from '../../store/chatStore';
+import useAuthStore from '../../store/authStore';
+import { useWebSocket } from '../../hooks/useWebSocket';
+import Avatar from '../common/Avatar';
+import MessageBubble from './MessageBubble';
+import MessageInput from './MessageInput';
+import TypingIndicator from './TypingIndicator';
+import toast from 'react-hot-toast';
+
+export default function ChatWindow() {
+  const { activeChatId, messages, typingUsers, setMessages, prependMessages, addMessage, updateChatLastMessage, setActiveChatId, clearUnread } = useChatStore();
+  const { auth } = useAuthStore();
+  const { subscribeToChat, unsubscribeFromChat, sendTyping } = useWebSocket();
+  const [chatDetail, setChatDetail] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const messagesEndRef = useRef(null);
+  const scrollContainerRef = useRef(null);
+  const prevScrollHeightRef = useRef(0);
+
+  const chatMessages = messages[activeChatId] || [];
+  const typingKey = `chat_${activeChatId}`;
+  const typingSet = typingUsers[typingKey] || new Set();
+  const isTyping = typingSet.size > 0;
+
+  useEffect(() => {
+    if (!activeChatId) return;
+
+    setPage(0);
+    setHasMore(true);
+    setLoading(true);
+
+    getChatDetail(activeChatId)
+      .then((res) => setChatDetail(res.data))
+      .catch(() => {});
+
+    getMessages(activeChatId, 0, 30)
+      .then((res) => {
+        const data = res.data;
+        const msgs = Array.isArray(data) ? data : (data.content || []);
+        setMessages(activeChatId, msgs.reverse ? msgs.slice().reverse() : msgs);
+        setHasMore(msgs.length === 30);
+        setTimeout(() => scrollToBottom(), 100);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+
+    markSeen(activeChatId).catch(() => {});
+    clearUnread(activeChatId);
+    subscribeToChat(activeChatId);
+
+    return () => {
+      unsubscribeFromChat(activeChatId);
+    };
+  }, [activeChatId]);
+
+  useEffect(() => {
+    // Auto scroll to bottom only when new message arrives at the bottom
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 200;
+    if (isNearBottom) {
+      scrollToBottom();
+    }
+  }, [chatMessages.length]);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const handleScroll = useCallback(async () => {
+    const container = scrollContainerRef.current;
+    if (!container || loadingMore || !hasMore) return;
+
+    if (container.scrollTop < 100) {
+      setLoadingMore(true);
+      prevScrollHeightRef.current = container.scrollHeight;
+      const nextPage = page + 1;
+
+      try {
+        const res = await getMessages(activeChatId, nextPage, 30);
+        const data = res.data;
+        const msgs = Array.isArray(data) ? data : (data.content || []);
+        if (msgs.length === 0) {
+          setHasMore(false);
+        } else {
+          prependMessages(activeChatId, msgs.slice().reverse());
+          setPage(nextPage);
+          setTimeout(() => {
+            const newScrollHeight = container.scrollHeight;
+            container.scrollTop = newScrollHeight - prevScrollHeightRef.current;
+          }, 50);
+        }
+      } catch {}
+      setLoadingMore(false);
+    }
+  }, [activeChatId, page, loadingMore, hasMore]);
+
+  const handleSendText = async (content) => {
+    try {
+      const res = await sendMessage({ chatId: activeChatId, content, type: 'TEXT' });
+      const msg = res.data;
+      addMessage(activeChatId, msg);
+      updateChatLastMessage(activeChatId, msg);
+    } catch {
+      toast.error('Không thể gửi tin nhắn');
+    }
+  };
+
+  const handleSendMedia = async (file) => {
+    try {
+      const res = await uploadMedia(activeChatId, file);
+      const msg = res.data;
+      addMessage(activeChatId, msg);
+      updateChatLastMessage(activeChatId, msg);
+    } catch {
+      toast.error('Không thể gửi tệp');
+    }
+  };
+
+  const handleTyping = (isTypingNow) => {
+    sendTyping(activeChatId, isTypingNow);
+  };
+
+  if (!activeChatId) {
+    return (
+      <div className="flex-1 flex items-center justify-center bg-gray-50">
+        <div className="text-center text-gray-400">
+          <div className="text-6xl mb-4">💬</div>
+          <p className="text-lg font-medium">Chọn một cuộc trò chuyện</p>
+          <p className="text-sm mt-1">để bắt đầu nhắn tin</p>
+        </div>
+      </div>
+    );
+  }
+
+  const recipientName = chatDetail?.chatName || 'Người dùng';
+
+  return (
+    <div className="flex-1 flex flex-col h-full bg-gray-50">
+      {/* Header */}
+      <div className="flex items-center gap-3 px-4 py-3 bg-white border-b border-gray-100 shadow-sm">
+        <button
+          className="md:hidden p-1 hover:bg-gray-100 rounded-full"
+          onClick={() => setActiveChatId(null)}
+        >
+          <ChevronLeft size={20} />
+        </button>
+        <Avatar
+          src={chatDetail?.avatarUrl}
+          name={recipientName}
+          size={40}
+          online={chatDetail?.recipientOnline}
+        />
+        <div className="flex-1 min-w-0">
+          <h3 className="font-semibold text-gray-800 truncate">{recipientName}</h3>
+          <p className="text-xs text-gray-400">
+            {chatDetail?.recipientOnline
+              ? 'Đang hoạt động'
+              : chatDetail?.recipientLastSeenText || 'Không hoạt động'}
+          </p>
+        </div>
+        <div className="flex items-center gap-1">
+          <button className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors" title="Gọi thoại">
+            <Phone size={18} className="text-gray-600" />
+          </button>
+          <button className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors" title="Gọi video">
+            <Video size={18} className="text-gray-600" />
+          </button>
+          <button className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors" title="Thông tin">
+            <Info size={18} className="text-gray-600" />
+          </button>
+        </div>
+      </div>
+
+      {/* Messages */}
+      <div
+        ref={scrollContainerRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto py-4"
+      >
+        {loadingMore && (
+          <div className="flex justify-center py-2">
+            <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+          </div>
+        )}
+        {loading ? (
+          <div className="flex justify-center py-8">
+            <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : (
+          chatMessages.map((msg) => (
+            <MessageBubble
+              key={msg.id}
+              message={msg}
+              chatId={activeChatId}
+            />
+          ))
+        )}
+        {isTyping && <TypingIndicator />}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Input */}
+      <MessageInput
+        onSendText={handleSendText}
+        onSendMedia={handleSendMedia}
+        onTyping={handleTyping}
+        placeholder="Nhập tin nhắn..."
+      />
+    </div>
+  );
+}

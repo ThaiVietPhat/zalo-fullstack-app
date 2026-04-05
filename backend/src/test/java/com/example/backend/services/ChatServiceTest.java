@@ -1,14 +1,15 @@
 package com.example.backend.services;
 
-import com.example.backend.Entities.Chat;
-import com.example.backend.Entities.User;
-import com.example.backend.exceptions.UnauthorizedException;
-import com.example.backend.mappers.ChatMapper;
-import com.example.backend.mappers.MessageMapper;
-import com.example.backend.models.ChatDto;
-import com.example.backend.repositories.ChatRepository;
-import com.example.backend.repositories.MessageRepository;
-import com.example.backend.repositories.UserRepository;
+import com.example.backend.chat.entity.Chat;
+import com.example.backend.user.entity.User;
+import com.example.backend.shared.exception.UnauthorizedException;
+import com.example.backend.chat.mapper.ChatMapper;
+import com.example.backend.chat.service.ChatServiceImpl;
+import com.example.backend.messaging.mapper.MessageMapper;
+import com.example.backend.chat.dto.ChatDto;
+import com.example.backend.chat.repository.ChatRepository;
+import com.example.backend.messaging.repository.MessageRepository;
+import com.example.backend.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

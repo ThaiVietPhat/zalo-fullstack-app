@@ -1,9 +1,11 @@
 package com.example.backend.services;
 
-import com.example.backend.Entities.User;
-import com.example.backend.models.AuthRequest;
-import com.example.backend.models.AuthResponse;
-import com.example.backend.repositories.UserRepository;
+import com.example.backend.user.entity.User;
+import com.example.backend.auth.dto.AuthRequest;
+import com.example.backend.auth.dto.AuthResponse;
+import com.example.backend.auth.service.AuthService;
+import com.example.backend.security.service.JwtService;
+import com.example.backend.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
