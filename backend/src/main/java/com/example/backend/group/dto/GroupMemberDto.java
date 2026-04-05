@@ -12,6 +12,7 @@ public class GroupMemberDto {
     private String firstName;
     private String lastName;
     private String email;
+    private String avatarUrl;
     private boolean admin;
     private boolean online;
     private String lastSeenText;

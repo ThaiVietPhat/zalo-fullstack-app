@@ -17,45 +17,45 @@ public class AuthController {
 
     private final AuthService authService;
 
-    /**
-     * Đăng ký tài khoản mới
-     * POST /api/v1/auth/register
-     * Body: { "email", "password", "firstName", "lastName" }
-     */
     @PostMapping("/register")
-    public ResponseEntity<AuthResponse> register(
-            @Valid @RequestBody AuthRequest.Register request) {
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(authService.register(request));
+    public ResponseEntity<Void> register(@Valid @RequestBody AuthRequest.Register request) {
+        authService.register(request);
+        return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
-    /**
-     * Đăng nhập
-     * POST /api/v1/auth/login
-     * Body: { "email", "password" }
-     */
+    @PostMapping("/verify-email")
+    public ResponseEntity<AuthResponse> verifyEmail(@Valid @RequestBody AuthRequest.VerifyEmail request) {
+        return ResponseEntity.ok(authService.verifyEmail(request));
+    }
+
+    @PostMapping("/resend-verification")
+    public ResponseEntity<Void> resendVerification(@Valid @RequestBody AuthRequest.ResendVerification request) {
+        authService.resendVerification(request);
+        return ResponseEntity.ok().build();
+    }
+
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(
-            @Valid @RequestBody AuthRequest.Login request) {
+    public ResponseEntity<AuthResponse> login(@Valid @RequestBody AuthRequest.Login request) {
         return ResponseEntity.ok(authService.login(request));
     }
 
-    /**
-     * Làm mới access token
-     * POST /api/v1/auth/refresh
-     * Body: { "refreshToken": "..." }
-     */
+    @PostMapping("/forgot-password")
+    public ResponseEntity<Void> forgotPassword(@Valid @RequestBody AuthRequest.ForgotPassword request) {
+        authService.forgotPassword(request);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<Void> resetPassword(@Valid @RequestBody AuthRequest.ResetPassword request) {
+        authService.resetPassword(request);
+        return ResponseEntity.ok().build();
+    }
+
     @PostMapping("/refresh")
-    public ResponseEntity<AuthResponse> refresh(
-            @Valid @RequestBody AuthRequest.RefreshToken request) {
+    public ResponseEntity<AuthResponse> refresh(@Valid @RequestBody AuthRequest.RefreshToken request) {
         return ResponseEntity.ok(authService.refreshToken(request));
     }
 
-    /**
-     * Đăng xuất
-     * POST /api/v1/auth/logout
-     * Header: Authorization: Bearer <token>
-     */
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(Authentication currentUser) {
         authService.logout(currentUser.getName());

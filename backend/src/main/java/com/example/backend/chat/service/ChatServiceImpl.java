@@ -89,6 +89,9 @@ public class ChatServiceImpl implements ChatService {
         dto.setUnreadCount(messageRepository.countUnreadMessages(chat.getId(), currentUser.getId()));
 
         User otherUser = chat.getOtherUser(currentUser.getId());
+        dto.setRecipientId(otherUser.getId());
+        dto.setRecipientEmail(otherUser.getEmail());
+        dto.setAvatarUrl(otherUser.getAvatarUrl());
         dto.setRecipientOnline(otherUser.isUserOnline());
         dto.setRecipientLastSeenText(otherUser.getLastSeenText());
         messageRepository.findTop1ByChatIdOrderByCreatedDateDesc(chat.getId())

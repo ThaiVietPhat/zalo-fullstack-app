@@ -32,6 +32,7 @@ export default function Header() {
           className="flex items-center gap-2 p-2 rounded-lg hover:bg-white/10 transition-colors w-full"
         >
           <Avatar
+            key={auth?.avatarUrl}
             src={auth?.avatarUrl}
             name={fullName || auth?.email}
             size={36}

@@ -1,20 +1,11 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
 const BASE_URL = 'http://localhost:8080';
-
-function getAvatarUrl(url) {
-  if (!url) return null;
-  if (url.startsWith('/api/')) return `${BASE_URL}${url}`;
-  if (url.startsWith('http')) return url;
-  return `${BASE_URL}${url}`;
-}
 
 function getInitials(name) {
   if (!name) return '?';
   const parts = name.trim().split(' ');
-  if (parts.length >= 2) {
-    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-  }
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   return name[0].toUpperCase();
 }
 
@@ -33,42 +24,42 @@ function getColorFromName(name) {
 }
 
 export default function Avatar({ src, name, size = 40, className = '', online = null }) {
-  const avatarUrl = getAvatarUrl(src);
+  const baseAvatarUrl = src ? (src.startsWith('http') ? src : `${BASE_URL}${src}`) : null;
+  const [imgError, setImgError] = useState(false);
+  const [urlVersion, setUrlVersion] = useState(0);
+
+  // Reset error state and add version number whenever src changes
+  useEffect(() => {
+    setImgError(false);
+    setUrlVersion(prev => prev + 1);
+  }, [src]);
+
+  const avatarUrl = baseAvatarUrl ? `${baseAvatarUrl}?v=${urlVersion}` : null;
   const initials = getInitials(name);
   const bgColor = getColorFromName(name);
   const fontSize = size * 0.38;
+  const showImage = avatarUrl && !imgError;
 
   return (
-    <div
-      className={`relative flex-shrink-0 ${className}`}
-      style={{ width: size, height: size }}
-    >
-      {avatarUrl ? (
+    <div className={`relative flex-shrink-0 ${className}`} style={{ width: size, height: size }}>
+      {showImage ? (
         <img
           src={avatarUrl}
           alt={name}
           className="w-full h-full rounded-full object-cover"
-          onError={(e) => {
-            e.target.style.display = 'none';
-            e.target.nextSibling.style.display = 'flex';
-          }}
+          onError={() => setImgError(true)}
         />
-      ) : null}
-      <div
-        className="w-full h-full rounded-full flex items-center justify-center text-white font-medium"
-        style={{
-          backgroundColor: bgColor,
-          fontSize,
-          display: avatarUrl ? 'none' : 'flex',
-        }}
-      >
-        {initials}
-      </div>
+      ) : (
+        <div
+          className="w-full h-full rounded-full flex items-center justify-center text-white font-medium"
+          style={{ backgroundColor: bgColor, fontSize }}
+        >
+          {initials}
+        </div>
+      )}
       {online !== null && (
         <span
-          className={`absolute bottom-0 right-0 rounded-full border-2 border-white ${
-            online ? 'bg-green-500' : 'bg-gray-400'
-          }`}
+          className={`absolute bottom-0 right-0 rounded-full border-2 border-white ${online ? 'bg-green-500' : 'bg-gray-400'}`}
           style={{ width: size * 0.28, height: size * 0.28 }}
         />
       )}

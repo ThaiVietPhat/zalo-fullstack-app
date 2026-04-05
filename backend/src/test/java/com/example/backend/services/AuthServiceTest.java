@@ -1,27 +1,30 @@
 package com.example.backend.services;
 
-import com.example.backend.user.entity.User;
-import com.example.backend.auth.dto.AuthRequest;
-import com.example.backend.auth.dto.AuthResponse;
-import com.example.backend.auth.service.AuthService;
-import com.example.backend.security.service.JwtService;
-import com.example.backend.user.repository.UserRepository;
+import java.util.Optional;
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import static org.mockito.ArgumentMatchers.any;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
-import java.util.Optional;
-import java.util.UUID;
-
-import static org.assertj.core.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
+import com.example.backend.auth.dto.AuthRequest;
+import com.example.backend.auth.dto.AuthResponse;
+import com.example.backend.auth.service.AuthService;
+import com.example.backend.security.service.JwtService;
+import com.example.backend.user.entity.User;
+import com.example.backend.user.repository.UserRepository;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("AuthService Unit Tests")
@@ -58,13 +61,9 @@ class AuthServiceTest {
         when(userRepository.existsByEmail("new@gmail.com")).thenReturn(false);
         when(passwordEncoder.encode("123456")).thenReturn("hashed");
         when(userRepository.save(any())).thenReturn(mockUser);
-        when(jwtService.generateAccessToken(any(), any(), any())).thenReturn("access-token");
-        when(jwtService.generateRefreshToken(any(), any())).thenReturn("refresh-token");
 
-        AuthResponse res = authService.register(req);
+        authService.register(req);
 
-        assertThat(res.getAccessToken()).isEqualTo("access-token");
-        assertThat(res.getRefreshToken()).isEqualTo("refresh-token");
         verify(userRepository).save(any(User.class));
     }
 

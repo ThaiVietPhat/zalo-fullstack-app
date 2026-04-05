@@ -1,8 +1,10 @@
 package com.example.backend.shared.exception;
 
-import com.example.backend.shared.exception.ResourceNotFoundException;
-import com.example.backend.shared.exception.UnauthorizedException;
-import lombok.extern.slf4j.Slf4j;
+import java.io.IOException;
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -11,9 +13,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
 
 @RestControllerAdvice
 @Slf4j
@@ -96,6 +96,13 @@ public class GlobalExceptionHandler {
                 "status", 403,
                 "error", ex.getMessage()
         ));
+    }
+
+    // ─── Client disconnect khi download file ──────────────────────────────────
+    @ExceptionHandler(IOException.class)
+    public void handleIOException(IOException ex) {
+        // Client đã disconnect, không cần gửi response
+        log.warn("Client disconnected: {}", ex.getMessage());
     }
 
     // ─── Lỗi chung ───────────────────────────────────────────────────────────

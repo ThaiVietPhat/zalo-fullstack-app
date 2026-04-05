@@ -13,6 +13,10 @@ const useChatStore = create((set) => ({
 
   setChats: (chats) =>
     set((state) => ({ chats: typeof chats === 'function' ? chats(state.chats) : chats })),
+  updateChat: (chatId, updates) =>
+    set((state) => ({
+      chats: state.chats.map((c) => (c.id === chatId ? { ...c, ...updates } : c)),
+    })),
   setGroups: (groups) => set({ groups }),
   setActiveTab: (tab) => set({ activeTab: tab }),
 

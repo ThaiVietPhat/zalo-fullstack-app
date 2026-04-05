@@ -20,12 +20,11 @@ public class ReactionController {
     // ─── Reaction tin nhắn 1-1 ───────────────────────────────────────────────
 
     @PostMapping("/message/{messageId}/reactions")
-    public ResponseEntity<Void> reactToMessage(
+    public ResponseEntity<List<ReactionDto>> reactToMessage(
             @PathVariable UUID messageId,
             @RequestParam String emoji,
             Authentication currentUser) {
-        reactionService.reactToMessage(messageId, emoji, currentUser);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(reactionService.reactToMessage(messageId, emoji, currentUser));
     }
 
     @DeleteMapping("/message/{messageId}/reactions")
@@ -44,12 +43,11 @@ public class ReactionController {
     // ─── Reaction tin nhắn nhóm ──────────────────────────────────────────────
 
     @PostMapping("/group-message/{messageId}/reactions")
-    public ResponseEntity<Void> reactToGroupMessage(
+    public ResponseEntity<List<ReactionDto>> reactToGroupMessage(
             @PathVariable UUID messageId,
             @RequestParam String emoji,
             Authentication currentUser) {
-        reactionService.reactToGroupMessage(messageId, emoji, currentUser);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(reactionService.reactToGroupMessage(messageId, emoji, currentUser));
     }
 
     @DeleteMapping("/group-message/{messageId}/reactions")

@@ -33,6 +33,14 @@ public class Message extends BaseAuditingEntity {
     @Column(nullable = false)
     private boolean deleted = false;
 
+    /** Người gửi tự xóa khỏi giao diện của mình */
+    @Column(nullable = false)
+    private boolean deletedBySender = false;
+
+    /** Người nhận tự xóa khỏi giao diện của mình */
+    @Column(nullable = false)
+    private boolean deletedByReceiver = false;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "chat_id", nullable = false)
     private Chat chat;

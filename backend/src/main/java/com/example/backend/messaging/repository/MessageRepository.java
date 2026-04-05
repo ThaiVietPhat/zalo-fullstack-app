@@ -20,6 +20,18 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
     Optional<Message> findTop1ByChatIdOrderByCreatedDateDesc(UUID chatId);
     Page<Message> findByChatIdAndDeletedFalse(UUID chatId, Pageable pageable);
 
+    /**
+     * Lấy tin nhắn cho một user cụ thể, loại trừ:
+     *  - Tin bị thu hồi (deleted = true)
+     *  - Tin user xóa phía mình (deletedBySender nếu là người gửi, deletedByReceiver nếu là người nhận)
+     */
+    @Query("SELECT m FROM Message m WHERE m.chat.id = :chatId AND m.deleted = false " +
+           "AND NOT (m.deletedBySender = true AND m.sender.id = :userId) " +
+           "AND NOT (m.deletedByReceiver = true AND m.sender.id <> :userId)")
+    Page<Message> findByChatIdForUser(@Param("chatId") UUID chatId,
+                                      @Param("userId") UUID userId,
+                                      Pageable pageable);
+
     @Query("SELECT COUNT(m) FROM Message m WHERE m.chat.id = :chatId " +
             "AND m.sender.id <> :userId AND m.state <> com.example.backend.messaging.enums.MessageState.SEEN")
     int countUnreadMessages(@Param("chatId") UUID chatId, @Param("userId") UUID userId);

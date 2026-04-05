@@ -9,15 +9,17 @@ import Avatar from '../common/Avatar';
 import MessageBubble from './MessageBubble';
 import MessageInput from './MessageInput';
 import TypingIndicator from './TypingIndicator';
+import ChatInfoPanel from './ChatInfoPanel';
 import toast from 'react-hot-toast';
 
 export default function ChatWindow() {
-  const { activeChatId, messages, typingUsers, setMessages, prependMessages, addMessage, updateChatLastMessage, setActiveChatId, clearUnread } = useChatStore();
+  const { activeChatId, messages, typingUsers, setMessages, prependMessages, addMessage, updateChatLastMessage, updateChat, setActiveChatId, clearUnread } = useChatStore();
   const { auth } = useAuthStore();
   const { subscribeToChat, unsubscribeFromChat, sendTyping } = useWebSocket();
   const [chatDetail, setChatDetail] = useState(null);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const messagesEndRef = useRef(null);
@@ -37,7 +39,14 @@ export default function ChatWindow() {
     setLoading(true);
 
     getChatDetail(activeChatId)
-      .then((res) => setChatDetail(res.data))
+      .then((res) => {
+        setChatDetail(res.data);
+        updateChat(activeChatId, {
+          chatName: res.data.chatName,
+          avatarUrl: res.data.avatarUrl,
+          recipientOnline: res.data.recipientOnline,
+        });
+      })
       .catch(() => {});
 
     getMessages(activeChatId, 0, 30)
@@ -46,7 +55,7 @@ export default function ChatWindow() {
         const msgs = Array.isArray(data) ? data : (data.content || []);
         setMessages(activeChatId, msgs.reverse ? msgs.slice().reverse() : msgs);
         setHasMore(msgs.length === 30);
-        setTimeout(() => scrollToBottom(), 100);
+        setTimeout(() => scrollToBottom(false), 100);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -70,8 +79,8 @@ export default function ChatWindow() {
     }
   }, [chatMessages.length]);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const scrollToBottom = (smooth = true) => {
+    messagesEndRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto' });
   };
 
   const handleScroll = useCallback(async () => {
@@ -108,6 +117,7 @@ export default function ChatWindow() {
       const msg = res.data;
       addMessage(activeChatId, msg);
       updateChatLastMessage(activeChatId, msg);
+      setTimeout(() => scrollToBottom(), 50);
     } catch {
       toast.error('Không thể gửi tin nhắn');
     }
@@ -119,6 +129,7 @@ export default function ChatWindow() {
       const msg = res.data;
       addMessage(activeChatId, msg);
       updateChatLastMessage(activeChatId, msg);
+      setTimeout(() => scrollToBottom(), 50);
     } catch {
       toast.error('Không thể gửi tệp');
     }
@@ -143,7 +154,8 @@ export default function ChatWindow() {
   const recipientName = chatDetail?.chatName || 'Người dùng';
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-gray-50">
+    <div className="flex-1 flex h-full overflow-hidden">
+    <div className="flex-1 flex flex-col h-full bg-gray-50 min-w-0">
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3 bg-white border-b border-gray-100 shadow-sm">
         <button
@@ -173,8 +185,12 @@ export default function ChatWindow() {
           <button className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors" title="Gọi video">
             <Video size={18} className="text-gray-600" />
           </button>
-          <button className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors" title="Thông tin">
-            <Info size={18} className="text-gray-600" />
+          <button
+            onClick={() => setShowInfo((v) => !v)}
+            className={`w-9 h-9 flex items-center justify-center rounded-full transition-colors ${showInfo ? 'bg-blue-50 text-blue-500' : 'hover:bg-gray-100 text-gray-600'}`}
+            title="Thông tin"
+          >
+            <Info size={18} />
           </button>
         </div>
       </div>
@@ -214,6 +230,11 @@ export default function ChatWindow() {
         onTyping={handleTyping}
         placeholder="Nhập tin nhắn..."
       />
+    </div>
+
+    {showInfo && (
+      <ChatInfoPanel chatDetail={chatDetail} onClose={() => setShowInfo(false)} />
+    )}
     </div>
   );
 }

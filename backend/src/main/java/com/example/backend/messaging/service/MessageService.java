@@ -17,4 +17,5 @@ public interface MessageService {
 
     void setMessagesToSeen(String chatId, Authentication currentUser);
     void recallMessage(UUID messageId, Authentication currentUser);
+    void deleteMessageForMe(UUID messageId, Authentication currentUser);
 }

@@ -1,24 +1,15 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import Sidebar from '../components/layout/Sidebar';
 import ChatWindow from '../components/chat/ChatWindow';
 import GroupWindow from '../components/group/GroupWindow';
 import useChatStore from '../store/chatStore';
-import useAuthStore from '../store/authStore';
-import wsService from '../services/websocket';
 import { useWebSocket } from '../hooks/useWebSocket';
 
 export default function ChatPage() {
   const { activeTab, activeChatId, activeGroupId } = useChatStore();
-  const { auth } = useAuthStore();
 
-  // Initialize WebSocket connection
+  // Initialize WebSocket connection (handles connect + all subscriptions)
   useWebSocket();
-
-  useEffect(() => {
-    if (auth?.accessToken && !wsService.isConnected()) {
-      wsService.connect(auth.accessToken);
-    }
-  }, [auth?.accessToken]);
 
   const showChatWindow = activeTab === 'chats' && activeChatId;
   const showGroupWindow = activeTab === 'groups' && activeGroupId;

@@ -29,6 +29,12 @@ export const removeGroupMember = (groupId, userId) =>
 export const leaveGroup = (groupId) =>
   api.delete(`/api/v1/group/${groupId}/leave`);
 
+export const setMemberAsAdmin = (groupId, userId) =>
+  api.patch(`/api/v1/group/${groupId}/members/${userId}/set-admin`);
+
+export const dissolveGroup = (groupId) =>
+  api.delete(`/api/v1/group/${groupId}/dissolve`);
+
 export const sendGroupMessage = (groupId, data) =>
   api.post(`/api/v1/group/${groupId}/messages`, data);
 

@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Random;
 import com.example.backend.security.service.JwtService;
 
 @Service
@@ -22,17 +23,25 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final EmailService emailService;
+
+    private static final int OTP_LENGTH = 6;
+    private static final int OTP_EXPIRY_MINUTES = 10;
 
     // ─── Đăng ký ─────────────────────────────────────────────────────────────
 
     @Transactional
-    public AuthResponse register(AuthRequest.Register request) {
-        // Kiểm tra email đã tồn tại chưa
+    public void register(AuthRequest.Register request) {
         if (userRepository.existsByEmail(request.getEmail())) {
+            // Nếu đã tồn tại nhưng chưa xác thực → gửi lại OTP
+            User existing = userRepository.findByEmail(request.getEmail()).get();
+            if (!existing.isEmailVerified()) {
+                sendVerificationCode(existing);
+                return;
+            }
             throw new IllegalArgumentException("Email đã được sử dụng: " + request.getEmail());
         }
 
-        // Tạo user mới
         User user = new User();
         user.setEmail(request.getEmail());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
@@ -40,11 +49,55 @@ public class AuthService {
         user.setLastName(request.getLastName() != null ? request.getLastName() : "");
         user.setOnline(false);
         user.setLastSeen(LocalDateTime.now());
+        user.setEmailVerified(false);
 
-        User savedUser = userRepository.save(user);
-        log.info("User đã đăng ký thành công: {}", savedUser.getEmail());
+        sendVerificationCode(user);
+        userRepository.save(user);
+        log.info("User đã đăng ký, đang chờ xác thực email: {}", user.getEmail());
+    }
 
-        return buildAuthResponse(savedUser);
+    // ─── Xác thực email ──────────────────────────────────────────────────────
+
+    @Transactional
+    public AuthResponse verifyEmail(AuthRequest.VerifyEmail request) {
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new IllegalArgumentException("Email không tồn tại"));
+
+        if (user.isEmailVerified()) {
+            throw new IllegalArgumentException("Tài khoản đã được xác thực");
+        }
+        if (user.getVerificationCode() == null
+                || !user.getVerificationCode().equals(request.getCode())) {
+            throw new IllegalArgumentException("Mã OTP không đúng");
+        }
+        if (user.getVerificationCodeExpiry() == null
+                || LocalDateTime.now().isAfter(user.getVerificationCodeExpiry())) {
+            throw new IllegalArgumentException("Mã OTP đã hết hạn. Vui lòng yêu cầu mã mới");
+        }
+
+        user.setEmailVerified(true);
+        user.setVerificationCode(null);
+        user.setVerificationCodeExpiry(null);
+        userRepository.save(user);
+
+        log.info("Email đã xác thực thành công: {}", user.getEmail());
+        return buildAuthResponse(user);
+    }
+
+    // ─── Gửi lại mã xác thực ─────────────────────────────────────────────────
+
+    @Transactional
+    public void resendVerification(AuthRequest.ResendVerification request) {
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new IllegalArgumentException("Email không tồn tại"));
+
+        if (user.isEmailVerified()) {
+            throw new IllegalArgumentException("Tài khoản đã được xác thực");
+        }
+
+        sendVerificationCode(user);
+        userRepository.save(user);
+        log.info("Đã gửi lại mã xác thực đến: {}", user.getEmail());
     }
 
     // ─── Đăng nhập ───────────────────────────────────────────────────────────
@@ -57,18 +110,63 @@ public class AuthService {
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new BadCredentialsException("Email hoặc mật khẩu không đúng");
         }
-
         if (user.isBanned()) {
             throw new BadCredentialsException("Tài khoản của bạn đã bị khóa");
         }
+        if (!user.isEmailVerified()) {
+            throw new BadCredentialsException("Tài khoản chưa được xác thực. Vui lòng kiểm tra email");
+        }
 
-        // Cập nhật trạng thái online
         user.setOnline(true);
         user.setLastSeen(LocalDateTime.now());
         userRepository.save(user);
 
         log.info("User đã đăng nhập: {}", user.getEmail());
         return buildAuthResponse(user);
+    }
+
+    // ─── Quên mật khẩu ───────────────────────────────────────────────────────
+
+    @Transactional
+    public void forgotPassword(AuthRequest.ForgotPassword request) {
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new IllegalArgumentException("Email không tồn tại trong hệ thống"));
+
+        if (user.isBanned()) {
+            throw new IllegalArgumentException("Tài khoản của bạn đã bị khóa");
+        }
+
+        String code = generateOtp();
+        user.setResetPasswordCode(code);
+        user.setResetPasswordCodeExpiry(LocalDateTime.now().plusMinutes(OTP_EXPIRY_MINUTES));
+        userRepository.save(user);
+
+        emailService.sendResetPasswordEmail(user.getEmail(), user.getFirstName(), code);
+        log.info("Đã gửi mã đặt lại mật khẩu đến: {}", user.getEmail());
+    }
+
+    // ─── Đặt lại mật khẩu ────────────────────────────────────────────────────
+
+    @Transactional
+    public void resetPassword(AuthRequest.ResetPassword request) {
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new IllegalArgumentException("Email không tồn tại"));
+
+        if (user.getResetPasswordCode() == null
+                || !user.getResetPasswordCode().equals(request.getCode())) {
+            throw new IllegalArgumentException("Mã OTP không đúng");
+        }
+        if (user.getResetPasswordCodeExpiry() == null
+                || LocalDateTime.now().isAfter(user.getResetPasswordCodeExpiry())) {
+            throw new IllegalArgumentException("Mã OTP đã hết hạn. Vui lòng yêu cầu mã mới");
+        }
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        user.setResetPasswordCode(null);
+        user.setResetPasswordCodeExpiry(null);
+        userRepository.save(user);
+
+        log.info("Mật khẩu đã được đặt lại cho: {}", user.getEmail());
     }
 
     // ─── Refresh token ────────────────────────────────────────────────────────
@@ -84,16 +182,10 @@ public class AuthService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new BadCredentialsException("Người dùng không tồn tại"));
 
-        // Cấp access token mới và refresh token mới (rotation)
         String newAccessToken = jwtService.generateAccessToken(
-                user.getEmail(),
-                user.getId().toString(),
-                user.getRole()
-        );
+                user.getEmail(), user.getId().toString(), user.getRole());
         String newRefreshToken = jwtService.generateRefreshToken(
-                user.getEmail(),
-                user.getId().toString()
-        );
+                user.getEmail(), user.getId().toString());
 
         return AuthResponse.builder()
                 .accessToken(newAccessToken)
@@ -120,6 +212,19 @@ public class AuthService {
 
     // ─── Helper ──────────────────────────────────────────────────────────────
 
+    private void sendVerificationCode(User user) {
+        String code = generateOtp();
+        user.setVerificationCode(code);
+        user.setVerificationCodeExpiry(LocalDateTime.now().plusMinutes(OTP_EXPIRY_MINUTES));
+        emailService.sendVerificationEmail(user.getEmail(), user.getFirstName(), code);
+    }
+
+    private String generateOtp() {
+        Random random = new Random();
+        int code = 100000 + random.nextInt(900000);
+        return String.valueOf(code);
+    }
+
     private AuthResponse buildAuthResponse(User user) {
         String accessToken  = jwtService.generateAccessToken(user.getEmail(), user.getId().toString(), user.getRole());
         String refreshToken = jwtService.generateRefreshToken(user.getEmail(), user.getId().toString());
@@ -131,6 +236,8 @@ public class AuthService {
                 .email(user.getEmail())
                 .firstName(user.getFirstName())
                 .lastName(user.getLastName())
+                .avatarUrl(user.getAvatarUrl())
+                .role(user.getRole())
                 .online(user.isOnline())
                 .build();
     }

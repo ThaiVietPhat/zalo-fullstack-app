@@ -1,11 +1,12 @@
 package com.example.backend.group.repository;
 
-import com.example.backend.group.entity.GroupMember;
+import java.util.Optional;
+import java.util.UUID;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import java.util.Optional;
-import java.util.UUID;
+import com.example.backend.group.entity.GroupMember;
 
 @Repository
 public interface GroupMemberRepository extends JpaRepository<GroupMember, UUID> {
@@ -15,4 +16,6 @@ public interface GroupMemberRepository extends JpaRepository<GroupMember, UUID> 
     boolean existsByGroupIdAndUserId(UUID groupId, UUID userId);
 
     long countByGroupId(UUID groupId);
+
+    void deleteByGroupId(UUID groupId);
 }

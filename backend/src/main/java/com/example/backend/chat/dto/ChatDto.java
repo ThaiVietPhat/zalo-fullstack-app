@@ -22,4 +22,7 @@ public class ChatDto {
     private long unreadCount;
     private boolean recipientOnline;
     private String recipientLastSeenText;
+    private String avatarUrl;
+    private UUID recipientId;
+    private String recipientEmail;
 }

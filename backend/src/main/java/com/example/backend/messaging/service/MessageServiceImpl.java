@@ -137,8 +137,9 @@ public class MessageServiceImpl implements MessageService {
             throw new UnauthorizedException("Access denied: you are not a member of this chat");
         }
 
-        Page<Message> messagePage = messageRepository.findByChatIdAndDeletedFalse(
+        Page<Message> messagePage = messageRepository.findByChatIdForUser(
                 chatUuid,
+                user.getId(),
                 PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdDate"))
         );
 
@@ -197,6 +198,30 @@ public class MessageServiceImpl implements MessageService {
         User receiver = message.getChat().getOtherUser(user.getId());
         notificationService.sendMessageRecalledNotification(receiver.getEmail(), messageId, message.getChat().getId());
         log.info("Message {} recalled by user {}", messageId, user.getId());
+    }
+
+    @Override
+    @Transactional
+    public void deleteMessageForMe(UUID messageId, Authentication currentUser) {
+        String email = currentUser.getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        Message message = messageRepository.findById(messageId)
+                .orElseThrow(() -> new ResourceNotFoundException("Message not found with id: " + messageId));
+
+        if (!message.getChat().containsUser(user.getId())) {
+            throw new UnauthorizedException("Bạn không phải thành viên của cuộc trò chuyện này");
+        }
+
+        if (message.getSender().getId().equals(user.getId())) {
+            message.setDeletedBySender(true);
+        } else {
+            message.setDeletedByReceiver(true);
+        }
+
+        messageRepository.save(message);
+        log.info("Message {} deleted for user {}", messageId, user.getId());
     }
 
     @Override

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Info, Users, LogOut, ChevronLeft, UserPlus, Pencil, Camera } from 'lucide-react';
-import { getGroupDetail, getGroupMessages, sendGroupMessage, uploadGroupMedia, leaveGroup, addGroupMembers, removeGroupMember, updateGroup, uploadGroupAvatar, recallGroupMessage } from '../../api/group';
+import { getGroupDetail, getGroupMessages, sendGroupMessage, uploadGroupMedia, leaveGroup, addGroupMembers, removeGroupMember, updateGroup, uploadGroupAvatar, recallGroupMessage, setMemberAsAdmin, dissolveGroup } from '../../api/group';
 import { getAllUsers } from '../../api/user';
 import useChatStore from '../../store/chatStore';
 import useAuthStore from '../../store/authStore';
@@ -23,7 +23,7 @@ function GroupMessageBubble({ message, groupId }) {
   const [showEmoji, setShowEmoji] = useState(false);
   const [imagePreview, setImagePreview] = useState(null);
 
-  const isMine = message.isMine || message.senderId === auth?.userId;
+  const isMine = message.senderId === auth?.userId;
   const BASE_URL = 'http://localhost:8080';
 
   const getMediaUrl = (url) => {
@@ -43,13 +43,14 @@ function GroupMessageBubble({ message, groupId }) {
   };
 
   const handleReaction = async (emojiData) => {
+    setShowEmoji(false);
+    setShowActions(false);
     try {
       const res = await toggleGroupReaction(message.id, emojiData.emoji);
-      if (res.data?.reactions) {
-        updateGroupMessageReactions(groupId, message.id, res.data.reactions);
+      if (Array.isArray(res.data)) {
+        updateGroupMessageReactions(groupId, message.id, res.data);
       }
     } catch {}
-    setShowEmoji(false);
   };
 
   const handleRemoveReaction = async () => {
@@ -76,20 +77,41 @@ function GroupMessageBubble({ message, groupId }) {
 
     if (type === 'IMAGE' && mediaUrl) {
       return (
-        <img
-          src={mediaUrl}
-          alt="img"
-          onClick={() => setImagePreview(mediaUrl)}
-          className="rounded-xl cursor-pointer max-w-[240px] max-h-[240px] object-cover"
-        />
+        <div className="relative group/img">
+          <img
+            src={mediaUrl}
+            alt="img"
+            onClick={() => setImagePreview(mediaUrl)}
+            className="rounded-xl cursor-pointer max-w-[240px] max-h-[240px] object-cover"
+          />
+          <a
+            href={`${mediaUrl}?download=true`}
+            className="absolute top-1 right-1 bg-black/50 text-white rounded-full p-1 opacity-0 group-hover/img:opacity-100 transition-opacity"
+            title="Tải xuống"
+            onClick={(e) => e.stopPropagation()}
+          >⬇</a>
+        </div>
       );
     }
     if (type === 'VIDEO' && mediaUrl) {
-      return <video src={mediaUrl} controls className="rounded-xl max-w-[240px] max-h-[240px]" />;
+      return (
+        <div className="relative group/vid">
+          <video src={mediaUrl} controls className="rounded-xl max-w-[240px] max-h-[240px]" />
+          <a
+            href={`${mediaUrl}?download=true`}
+            className="absolute top-1 right-1 bg-black/50 text-white rounded-full p-1 opacity-0 group-hover/vid:opacity-100 transition-opacity"
+            title="Tải xuống"
+          >⬇</a>
+        </div>
+      );
     }
     if ((type === 'FILE' || type === 'AUDIO') && mediaUrl) {
       const filename = message.mediaUrl?.split('/').pop() || 'Tệp đính kèm';
-      return <a href={mediaUrl} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm underline">📎 {filename}</a>;
+      return (
+        <a href={`${mediaUrl}?download=true`} className="flex items-center gap-2 text-sm underline">
+          📎 {filename}
+        </a>
+      );
     }
     return <span className="text-sm whitespace-pre-wrap break-words">{message.content}</span>;
   };
@@ -97,9 +119,9 @@ function GroupMessageBubble({ message, groupId }) {
   return (
     <>
       <div
-        className={`flex items-end gap-2 group px-4 py-0.5 ${isMine ? 'flex-row-reverse' : 'flex-row'}`}
+        className={`flex items-end gap-2 px-4 py-0.5 ${isMine ? 'flex-row-reverse' : 'flex-row'}`}
         onMouseEnter={() => setShowActions(true)}
-        onMouseLeave={() => { setShowActions(false); setShowEmoji(false); }}
+        onMouseLeave={() => { if (!showEmoji) setShowActions(false); }}
       >
         <div className={`relative flex flex-col ${isMine ? 'items-end' : 'items-start'} max-w-[65%]`}>
           {!isMine && message.senderName && (
@@ -131,7 +153,7 @@ function GroupMessageBubble({ message, groupId }) {
         </div>
 
         {!message.deleted && showActions && (
-          <div className={`flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ${isMine ? 'flex-row-reverse' : ''}`}>
+          <div className={`flex items-center gap-1 ${isMine ? 'flex-row-reverse' : ''}`}>
             <div className="relative">
               <button onClick={() => setShowEmoji(!showEmoji)}
                 className="w-7 h-7 flex items-center justify-center rounded-full bg-white shadow-md hover:bg-gray-100">
@@ -274,6 +296,28 @@ export default function GroupWindow() {
     } catch { toast.error('Không thể rời nhóm'); }
   };
 
+  const handleSetMemberAsAdmin = async (userId) => {
+    if (!window.confirm('Gán quyền admin cho thành viên này?')) return;
+    try {
+      await setMemberAsAdmin(activeGroupId, userId);
+      const res = await getGroupDetail(activeGroupId);
+      setGroupDetail(res.data);
+      toast.success('Đã gán quyền admin');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Không thể gán quyền admin');
+    }
+  };
+
+  const handleDissolveGroup = async () => {
+    if (!window.confirm('Bạn có chắc muốn giải tán nhóm? Thao tác này không thể hoàn tác.')) return;
+    try {
+      await dissolveGroup(activeGroupId);
+      setGroups(groups.filter((g) => g.id !== activeGroupId));
+      setActiveGroupId(null);
+      toast.success('Đã giải tân nhóm');
+    } catch { toast.error('Không thể giải tân nhóm'); }
+  };
+
   const handleSaveEdit = async () => {
     try {
       await updateGroup(activeGroupId, { name: editName, description: editDesc });
@@ -300,7 +344,7 @@ export default function GroupWindow() {
     if (!window.confirm('Xóa thành viên này?')) return;
     try {
       await removeGroupMember(activeGroupId, userId);
-      setGroupDetail((prev) => ({ ...prev, members: prev.members.filter((m) => m.id !== userId) }));
+      setGroupDetail((prev) => ({ ...prev, members: prev.members.filter((m) => m.userId !== userId) }));
       toast.success('Đã xóa thành viên');
     } catch { toast.error('Không thể xóa thành viên'); }
   };
@@ -438,22 +482,30 @@ export default function GroupWindow() {
             </div>
             <div className="space-y-2 max-h-48 overflow-y-auto">
               {(groupDetail?.members || []).map((member) => (
-                <div key={member.id} className="flex items-center gap-3">
+                <div key={member.userId} className="flex items-center gap-3">
                   <Avatar src={member.avatarUrl} name={`${member.firstName} ${member.lastName}`} size={36} online={member.online} />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-800 truncate">
                       {member.firstName} {member.lastName}
-                      {member.id === groupDetail?.createdById && (
+                      {member.admin && (
                         <span className="ml-1 text-xs text-blue-500 font-normal">(Admin)</span>
                       )}
                     </p>
                     <p className="text-xs text-gray-400 truncate">{member.email}</p>
                   </div>
-                  {isAdmin && member.id !== auth?.userId && (
-                    <button onClick={() => handleRemoveMember(member.id)}
-                      className="text-xs text-red-400 hover:text-red-600 transition-colors px-2 py-1 rounded hover:bg-red-50">
-                      Xóa
-                    </button>
+                  {isAdmin && member.userId !== auth?.userId && member.userId !== groupDetail?.createdById && (
+                    <div className="flex items-center gap-1">
+                      {!member.admin && (
+                        <button onClick={() => handleSetMemberAsAdmin(member.userId)}
+                          className="text-xs text-blue-400 hover:text-blue-600 transition-colors px-2 py-1 rounded hover:bg-blue-50">
+                          Gán admin
+                        </button>
+                      )}
+                      <button onClick={() => handleRemoveMember(member.userId)}
+                        className="text-xs text-red-400 hover:text-red-600 transition-colors px-2 py-1 rounded hover:bg-red-50">
+                        Xóa
+                      </button>
+                    </div>
                   )}
                 </div>
               ))}
@@ -465,6 +517,14 @@ export default function GroupWindow() {
             className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-red-200 text-red-500 hover:bg-red-50 transition-colors text-sm font-medium">
             <LogOut size={16} /> Rời nhóm
           </button>
+
+          {/* Dissolve group */}
+          {isAdmin && (
+            <button onClick={handleDissolveGroup}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-red-300 bg-red-50 text-red-600 hover:bg-red-100 transition-colors text-sm font-medium">
+              ⚠️ Giải tán nhóm
+            </button>
+          )}
         </div>
       </Modal>
 

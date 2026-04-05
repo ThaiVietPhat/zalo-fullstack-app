@@ -1,20 +1,31 @@
 package com.example.backend.group.controller;
 
-import com.example.backend.group.dto.GroupDto;
-import com.example.backend.group.dto.GroupMessageDto;
-import com.example.backend.group.dto.GroupRequest;
-import com.example.backend.group.service.GroupService;
-import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
+import java.util.List;
+import java.util.UUID;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.List;
-import java.util.UUID;
+import com.example.backend.group.dto.GroupDto;
+import com.example.backend.group.dto.GroupMessageDto;
+import com.example.backend.group.dto.GroupRequest;
+import com.example.backend.group.service.GroupService;
+
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/api/v1/group")
@@ -113,6 +124,30 @@ public class GroupController {
             @PathVariable UUID groupId,
             Authentication currentUser) {
         groupService.leaveGroup(groupId, currentUser);
+        return ResponseEntity.ok().build();
+    }
+
+    /**
+     * Gán quyền admin cho thành viên (chỉ admin)
+     * PATCH /api/v1/group/{groupId}/members/{userId}/set-admin
+     */
+    @PatchMapping("/{groupId}/members/{userId}/set-admin")
+    public ResponseEntity<GroupDto> setMemberAsAdmin(
+            @PathVariable UUID groupId,
+            @PathVariable UUID userId,
+            Authentication currentUser) {
+        return ResponseEntity.ok(groupService.setMemberAsAdmin(groupId, userId, currentUser));
+    }
+
+    /**
+     * Giải tán nhóm (chỉ admin)
+     * DELETE /api/v1/group/{groupId}/dissolve
+     */
+    @DeleteMapping("/{groupId}/dissolve")
+    public ResponseEntity<Void> dissolveGroup(
+            @PathVariable UUID groupId,
+            Authentication currentUser) {
+        groupService.dissolveGroup(groupId, currentUser);
         return ResponseEntity.ok().build();
     }
 

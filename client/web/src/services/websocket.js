@@ -10,10 +10,17 @@ class WebSocketService {
   }
 
   connect(token, onConnect) {
-    if (this.client && this.connected) {
+    // Already connected — run callback immediately
+    if (this.connected) {
       if (onConnect) onConnect();
       return;
     }
+
+    // Queue the callback (works whether we're mid-connect or just starting)
+    if (onConnect) this.onConnectCallbacks.push(onConnect);
+
+    // Already connecting — don't create a second client
+    if (this.client) return;
 
     this.client = new Client({
       webSocketFactory: () => new SockJS(`${window.location.protocol}//${window.location.hostname}:8080/ws`),
@@ -25,7 +32,6 @@ class WebSocketService {
         this.connected = true;
         this.onConnectCallbacks.forEach((cb) => cb());
         this.onConnectCallbacks = [];
-        if (onConnect) onConnect();
       },
       onDisconnect: () => {
         this.connected = false;

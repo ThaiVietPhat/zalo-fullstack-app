@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Search, MessageCircle } from 'lucide-react';
+import { Search, MessageCircle, Loader } from 'lucide-react';
 import { searchUsers, getAllUsers } from '../../api/user';
 import { startChat } from '../../api/chat';
 import useChatStore from '../../store/chatStore';
 import Avatar from '../common/Avatar';
+import Modal from '../common/Modal';
 import toast from 'react-hot-toast';
 
 export default function UserSearch() {
@@ -12,6 +13,9 @@ export default function UserSearch() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
   const [debounced, setDebounced] = useState('');
+  const [connectingUserId, setConnectingUserId] = useState(null);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
 
   useEffect(() => {
     const t = setTimeout(() => setDebounced(search), 400);
@@ -35,6 +39,7 @@ export default function UserSearch() {
 
   const handleStartChat = async (userId) => {
     try {
+      setConnectingUserId(userId);
       const res = await startChat(userId);
       const chat = res.data;
       // Add to chats list if not exists
@@ -47,9 +52,18 @@ export default function UserSearch() {
       });
       setActiveChatId(chat.id);
       setActiveTab('chats');
+      setShowConfirmDialog(false);
+      toast.success('Đã thiết lập kết nối thành công');
     } catch {
       toast.error('Không thể bắt đầu cuộc trò chuyện');
+    } finally {
+      setConnectingUserId(null);
     }
+  };
+
+  const handleStartChatClick = (user) => {
+    setSelectedUser(user);
+    setShowConfirmDialog(true);
   };
 
   return (
@@ -103,16 +117,70 @@ export default function UserSearch() {
             </div>
             {!user.banned && (
               <button
-                onClick={() => handleStartChat(user.id)}
-                className="w-8 h-8 flex items-center justify-center rounded-full bg-blue-50 text-blue-500 hover:bg-blue-100 transition-colors flex-shrink-0"
+                onClick={() => handleStartChatClick(user)}
+                disabled={connectingUserId === user.id}
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-blue-50 text-blue-500 hover:bg-blue-100 transition-colors flex-shrink-0 disabled:opacity-50"
                 title="Nhắn tin"
               >
-                <MessageCircle size={16} />
+                {connectingUserId === user.id ? (
+                  <Loader size={16} className="animate-spin" />
+                ) : (
+                  <MessageCircle size={16} />
+                )}
               </button>
             )}
           </div>
         ))}
       </div>
+
+      {/* Confirm dialog */}
+      <Modal isOpen={showConfirmDialog} onClose={() => setShowConfirmDialog(false)} title="Bắt đầu cuộc trò chuyện">
+        <div className="p-6">
+          {selectedUser && (
+            <>
+              <div className="flex items-center gap-3 mb-4">
+                <Avatar
+                  src={selectedUser.avatarUrl}
+                  name={`${selectedUser.firstName} ${selectedUser.lastName}`}
+                  size={56}
+                />
+                <div>
+                  <p className="font-medium text-gray-800">
+                    {selectedUser.firstName} {selectedUser.lastName}
+                  </p>
+                  <p className="text-sm text-gray-500">{selectedUser.email}</p>
+                </div>
+              </div>
+              <p className="text-sm text-gray-600 mb-6">
+                Bạn sắp thiết lập kết nối với người dùng này. Sau khi được chấp nhận, bạn sẽ có thể chat với họ.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowConfirmDialog(false)}
+                  className="flex-1 px-4 py-2.5 rounded-xl border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+                  disabled={connectingUserId === selectedUser.id}
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={() => handleStartChat(selectedUser.id)}
+                  disabled={connectingUserId === selectedUser.id}
+                  className="flex-1 px-4 py-2.5 rounded-xl bg-blue-500 text-white font-medium hover:bg-blue-600 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {connectingUserId === selectedUser.id ? (
+                    <>
+                      <Loader size={16} className="animate-spin" />
+                      Đang thiết lập...
+                    </>
+                  ) : (
+                    'Thiết lập kết nối'
+                  )}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 }

@@ -20,6 +20,9 @@ export const markSeen = (chatId) =>
 export const recallMessage = (messageId) =>
   api.delete(`/api/v1/message/${messageId}/recall`);
 
+export const deleteMessageForMe = (messageId) =>
+  api.delete(`/api/v1/message/${messageId}`);
+
 export const getMediaUrl = (filename) =>
   `http://localhost:8080/api/v1/message/media/${filename}`;
 

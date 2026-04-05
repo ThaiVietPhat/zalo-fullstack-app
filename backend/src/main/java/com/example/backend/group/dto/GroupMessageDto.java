@@ -13,6 +13,7 @@ import com.example.backend.reaction.dto.ReactionDto;
 public class GroupMessageDto {
     private UUID id;
     private String content;
+    private String mediaUrl;
     private MessageType type;
     private UUID groupId;
     private UUID senderId;

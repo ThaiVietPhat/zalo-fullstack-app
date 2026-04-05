@@ -41,7 +41,7 @@ public class ReactionService {
     // ─── Reaction tin nhắn 1-1 ───────────────────────────────────────────────
 
     @Transactional
-    public void reactToMessage(UUID messageId, String emoji, Authentication auth) {
+    public List<ReactionDto> reactToMessage(UUID messageId, String emoji, Authentication auth) {
         User user = getUser(auth);
         Message message = messageRepository.findById(messageId)
                 .orElseThrow(() -> new ResourceNotFoundException("Message not found: " + messageId));
@@ -74,6 +74,7 @@ public class ReactionService {
         List<ReactionDto> reactions = getMessageReactions(messageId);
         User receiver = message.getChat().getOtherUser(user.getId());
         notificationService.sendReactionNotification(receiver.getEmail(), messageId, message.getChat().getId(), reactions);
+        return reactions;
     }
 
     @Transactional
@@ -99,7 +100,7 @@ public class ReactionService {
     // ─── Reaction tin nhắn nhóm ──────────────────────────────────────────────
 
     @Transactional
-    public void reactToGroupMessage(UUID groupMessageId, String emoji, Authentication auth) {
+    public List<ReactionDto> reactToGroupMessage(UUID groupMessageId, String emoji, Authentication auth) {
         User user = getUser(auth);
         GroupMessage message = groupMessageRepository.findById(groupMessageId)
                 .orElseThrow(() -> new ResourceNotFoundException("Group message not found: " + groupMessageId));
@@ -130,6 +131,7 @@ public class ReactionService {
         List<ReactionDto> reactions = getGroupMessageReactions(groupMessageId);
         messagingTemplate.convertAndSend("/topic/group/" + message.getGroup().getId(),
                 new ReactionGroupEvent(groupMessageId, reactions));
+        return reactions;
     }
 
     @Transactional

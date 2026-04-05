@@ -45,4 +45,34 @@ public class AuthRequest {
         @NotBlank(message = "Refresh token không được để trống")
         private String refreshToken;
     }
+
+    @Data @Builder @NoArgsConstructor @AllArgsConstructor
+    public static class VerifyEmail {
+        @NotBlank @Email
+        private String email;
+        @NotBlank
+        private String code;
+    }
+
+    @Data @Builder @NoArgsConstructor @AllArgsConstructor
+    public static class ForgotPassword {
+        @NotBlank @Email
+        private String email;
+    }
+
+    @Data @Builder @NoArgsConstructor @AllArgsConstructor
+    public static class ResetPassword {
+        @NotBlank @Email
+        private String email;
+        @NotBlank
+        private String code;
+        @NotBlank @Size(min = 6, message = "Mật khẩu tối thiểu 6 ký tự")
+        private String newPassword;
+    }
+
+    @Data @Builder @NoArgsConstructor @AllArgsConstructor
+    public static class ResendVerification {
+        @NotBlank @Email
+        private String email;
+    }
 }

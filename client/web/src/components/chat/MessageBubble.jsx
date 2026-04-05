@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { MoreHorizontal, RotateCcw, Smile } from 'lucide-react';
+import { MoreHorizontal, Smile, Copy, RotateCcw, Trash2, Share2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import EmojiPicker from 'emoji-picker-react';
-import { recallMessage, toggleReaction, deleteReaction } from '../../api/message';
+import { recallMessage, deleteMessageForMe, toggleReaction, deleteReaction, sendMessage } from '../../api/message';
 import useAuthStore from '../../store/authStore';
 import useChatStore from '../../store/chatStore';
+import Avatar from '../common/Avatar';
 import toast from 'react-hot-toast';
 
 const BASE_URL = 'http://localhost:8080';
@@ -30,11 +31,18 @@ export default function MessageBubble({ message, chatId, isGroup = false }) {
   const { updateMessage, updateMessageReactions } = useChatStore();
   const [showActions, setShowActions] = useState(false);
   const [showEmoji, setShowEmoji] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const [showForwardModal, setShowForwardModal] = useState(false);
   const [imagePreview, setImagePreview] = useState(null);
 
   const isMine = isGroup
     ? message.isMine || message.senderId === auth?.userId
     : message.senderId === auth?.userId;
+
+  // Không hiển thị tin nhắn nếu bị xóa bởi mình
+  if (message.hiddenForMe) {
+    return null;
+  }
 
   const handleRecall = async () => {
     try {
@@ -44,17 +52,43 @@ export default function MessageBubble({ message, chatId, isGroup = false }) {
     } catch {
       toast.error('Không thể thu hồi tin nhắn');
     }
+    setShowMenu(false);
     setShowActions(false);
   };
 
+  const handleDelete = async () => {
+    try {
+      await deleteMessageForMe(message.id);
+      updateMessage(chatId, message.id, { hiddenForMe: true });
+      toast.success('Đã xóa tin nhắn');
+    } catch {
+      toast.error('Không thể xóa tin nhắn');
+    }
+    setShowMenu(false);
+    setShowActions(false);
+  };
+
+  const handleCopy = () => {
+    const textToCopy = message.content || '';
+    navigator.clipboard.writeText(textToCopy);
+    toast.success('Đã sao chép');
+    setShowMenu(false);
+  };
+
+  const handleForward = () => {
+    setShowForwardModal(true);
+    setShowMenu(false);
+  };
+
   const handleReaction = async (emojiData) => {
+    setShowEmoji(false);
+    setShowActions(false);
     try {
       const res = await toggleReaction(message.id, emojiData.emoji);
-      if (res.data?.reactions) {
-        updateMessageReactions(chatId, message.id, res.data.reactions);
+      if (Array.isArray(res.data)) {
+        updateMessageReactions(chatId, message.id, res.data);
       }
     } catch {}
-    setShowEmoji(false);
   };
 
   const handleRemoveReaction = async () => {
@@ -81,25 +115,36 @@ export default function MessageBubble({ message, chatId, isGroup = false }) {
 
     if (type === 'IMAGE' && mediaUrl) {
       return (
-        <div className="message-bubble">
+        <div className="relative group/img">
           <img
             src={mediaUrl}
             alt="Hình ảnh"
             onClick={() => setImagePreview(mediaUrl)}
             className="rounded-xl cursor-pointer max-w-[240px] max-h-[240px] object-cover"
           />
+          <a
+            href={`${mediaUrl}?download=true`}
+            className="absolute top-1 right-1 bg-black/50 text-white rounded-full p-1 opacity-0 group-hover/img:opacity-100 transition-opacity"
+            title="Tải xuống"
+            onClick={(e) => e.stopPropagation()}
+          >
+            ⬇
+          </a>
         </div>
       );
     }
 
     if (type === 'VIDEO' && mediaUrl) {
       return (
-        <div className="message-bubble">
-          <video
-            src={mediaUrl}
-            controls
-            className="rounded-xl max-w-[240px] max-h-[240px]"
-          />
+        <div className="relative group/vid">
+          <video src={mediaUrl} controls className="rounded-xl max-w-[240px] max-h-[240px]" />
+          <a
+            href={`${mediaUrl}?download=true`}
+            className="absolute top-1 right-1 bg-black/50 text-white rounded-full p-1 opacity-0 group-hover/vid:opacity-100 transition-opacity"
+            title="Tải xuống"
+          >
+            ⬇
+          </a>
         </div>
       );
     }
@@ -108,9 +153,7 @@ export default function MessageBubble({ message, chatId, isGroup = false }) {
       const filename = message.mediaUrl?.split('/').pop() || 'Tệp đính kèm';
       return (
         <a
-          href={mediaUrl}
-          target="_blank"
-          rel="noreferrer"
+          href={`${mediaUrl}?download=true`}
           className="flex items-center gap-2 text-sm underline"
         >
           📎 {filename}
@@ -129,9 +172,9 @@ export default function MessageBubble({ message, chatId, isGroup = false }) {
   return (
     <>
       <div
-        className={`flex items-end gap-2 group px-4 py-0.5 ${isMine ? 'flex-row-reverse' : 'flex-row'}`}
+        className={`flex items-end gap-2 px-4 py-0.5 ${isMine ? 'flex-row-reverse' : 'flex-row'}`}
         onMouseEnter={() => setShowActions(true)}
-        onMouseLeave={() => { setShowActions(false); setShowEmoji(false); }}
+        onMouseLeave={() => { if (!showEmoji) setShowActions(false); }}
       >
         <div className={`relative flex flex-col ${isMine ? 'items-end' : 'items-start'} max-w-[65%]`}>
           {/* Sender name for group */}
@@ -185,7 +228,7 @@ export default function MessageBubble({ message, chatId, isGroup = false }) {
 
         {/* Actions */}
         {!message.deleted && showActions && (
-          <div className={`flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ${isMine ? 'flex-row-reverse' : ''}`}>
+          <div className={`flex items-center gap-1 ${isMine ? 'flex-row-reverse' : ''}`}>
             <div className="relative">
               <button
                 onClick={() => setShowEmoji(!showEmoji)}
@@ -207,15 +250,53 @@ export default function MessageBubble({ message, chatId, isGroup = false }) {
                 </div>
               )}
             </div>
-            {isMine && (
+            <div className="relative">
               <button
-                onClick={handleRecall}
+                onClick={() => setShowMenu(!showMenu)}
                 className="w-7 h-7 flex items-center justify-center rounded-full bg-white shadow-md hover:bg-gray-100 transition-colors"
-                title="Thu hồi"
+                title="Tùy chọn"
               >
-                <RotateCcw size={13} className="text-gray-500" />
+                <MoreHorizontal size={14} className="text-gray-500" />
               </button>
-            )}
+              {showMenu && (
+                <div className={`absolute bottom-8 z-20 bg-white rounded-xl shadow-lg border border-gray-100 py-1 w-40 ${isMine ? 'right-0' : 'left-0'}`}>
+                  {message.content && (
+                    <button
+                      onClick={handleCopy}
+                      className="flex items-center gap-2 px-3 py-2 w-full text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      <Copy size={14} />
+                      Sao chép
+                    </button>
+                  )}
+                  <button
+                    onClick={handleForward}
+                    className="flex items-center gap-2 px-3 py-2 w-full text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    <Share2 size={14} />
+                    Chuyển tiếp
+                  </button>
+                  {isMine && (
+                    <>
+                      <button
+                        onClick={handleRecall}
+                        className="flex items-center gap-2 px-3 py-2 w-full text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                      >
+                        <RotateCcw size={14} />
+                        Thu hồi
+                      </button>
+                      <button
+                        onClick={handleDelete}
+                        className="flex items-center gap-2 px-3 py-2 w-full text-sm text-red-600 hover:bg-red-50 transition-colors border-t border-gray-100"
+                      >
+                        <Trash2 size={14} />
+                        Xóa
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -233,6 +314,97 @@ export default function MessageBubble({ message, chatId, isGroup = false }) {
           />
         </div>
       )}
+
+      {/* Forward modal */}
+      {showForwardModal && (
+        <ForwardModal
+          message={message}
+          onClose={() => setShowForwardModal(false)}
+        />
+      )}
     </>
+  );
+}
+
+function ForwardModal({ message, onClose }) {
+  const { chats, addMessage } = useChatStore();
+  const [selectedChatId, setSelectedChatId] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const handleForwardMessage = async () => {
+    if (!selectedChatId) {
+      toast.error('Vui lòng chọn cuộc trò chuyện');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const newMessage = {
+        content: message.content || '',
+        chatId: selectedChatId,
+        type: message.type || 'TEXT',
+      };
+      await sendMessage(newMessage);
+      toast.success('Đã chuyển tiếp tin nhắn');
+      onClose();
+    } catch {
+      toast.error('Không thể chuyển tiếp tin nhắn');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] flex flex-col">
+        <div className="px-6 py-4 border-b border-gray-100">
+          <h2 className="font-bold text-gray-800">Chuyển tiếp tin nhắn</h2>
+          <p className="text-xs text-gray-500 mt-1">Chọn cuộc trò chuyện để gửi</p>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-4 py-3">
+          {Array.isArray(chats) && chats.length > 0 ? (
+            chats.map((chat) => (
+              <button
+                key={chat.id}
+                onClick={() => setSelectedChatId(chat.id)}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${
+                  selectedChatId === chat.id
+                    ? 'bg-blue-50 border border-blue-200'
+                    : 'hover:bg-gray-50'
+                }`}
+              >
+                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${selectedChatId === chat.id ? 'border-blue-500 bg-blue-500' : 'border-gray-300'}`}>
+                  {selectedChatId === chat.id && <span className="text-white text-xs">✓</span>}
+                </div>
+                <Avatar src={chat.avatarUrl} name={chat.chatName} size={36} online={chat.recipientOnline} />
+                <div className="text-left min-w-0">
+                  <p className="font-medium text-sm text-gray-800 truncate">{chat.chatName || 'Cuộc trò chuyện'}</p>
+                </div>
+              </button>
+            ))
+          ) : (
+            <p className="text-center text-gray-400 py-8">Không có cuộc trò chuyện</p>
+          )}
+        </div>
+
+        <div className="px-6 py-4 border-t border-gray-100 flex gap-3">
+          <button
+            onClick={onClose}
+            disabled={loading}
+            className="flex-1 px-4 py-2.5 rounded-xl border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
+          >
+            Hủy
+          </button>
+          <button
+            onClick={handleForwardMessage}
+            disabled={!selectedChatId || loading}
+            className="flex-1 px-4 py-2.5 rounded-xl bg-blue-500 text-white font-medium hover:bg-blue-600 transition-colors disabled:opacity-50"
+          >
+            {loading ? 'Đang gửi...' : 'Gửi'}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

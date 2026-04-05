@@ -53,6 +53,21 @@ public class User extends BaseAuditingEntity {
     @Column(name = "avatar_url")
     private String avatarUrl;
 
+    @Column(name = "email_verified", nullable = false)
+    private boolean emailVerified = false;
+
+    @Column(name = "verification_code", length = 6)
+    private String verificationCode;
+
+    @Column(name = "verification_code_expiry")
+    private LocalDateTime verificationCodeExpiry;
+
+    @Column(name = "reset_password_code", length = 6)
+    private String resetPasswordCode;
+
+    @Column(name = "reset_password_code_expiry")
+    private LocalDateTime resetPasswordCodeExpiry;
+
     @Transient
     public boolean isAdmin() {
         return "ADMIN".equals(this.role);

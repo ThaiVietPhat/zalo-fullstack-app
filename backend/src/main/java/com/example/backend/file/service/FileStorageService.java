@@ -21,10 +21,23 @@ public class FileStorageService {
     private String uploadDir;
 
     private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of(
+            // Images
             "image/jpeg", "image/png", "image/gif", "image/webp",
+            // Videos
             "video/mp4", "video/webm",
+            // Audio
+            "audio/mpeg", "audio/ogg",
+            // Documents
             "application/pdf",
-            "audio/mpeg", "audio/ogg"
+            "application/msword",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "application/vnd.ms-excel",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "application/vnd.ms-powerpoint",
+            "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            "text/plain",
+            "application/zip",
+            "application/x-zip-compressed"
     );
 
     private static final long MAX_FILE_SIZE = 50 * 1024 * 1024;
@@ -109,6 +122,14 @@ public class FileStorageService {
             case "application/pdf" -> ".pdf";
             case "audio/mpeg" -> ".mp3";
             case "audio/ogg" -> ".ogg";
+            case "application/msword" -> ".doc";
+            case "application/vnd.openxmlformats-officedocument.wordprocessingml.document" -> ".docx";
+            case "application/vnd.ms-excel" -> ".xls";
+            case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" -> ".xlsx";
+            case "application/vnd.ms-powerpoint" -> ".ppt";
+            case "application/vnd.openxmlformats-officedocument.presentationml.presentation" -> ".pptx";
+            case "text/plain" -> ".txt";
+            case "application/zip", "application/x-zip-compressed" -> ".zip";
             default -> "";
         };
     }

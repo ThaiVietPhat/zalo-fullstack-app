@@ -79,8 +79,9 @@ export default function ProfileModal({ isOpen, onClose }) {
     setUploadLoading(true);
     try {
       const res = await uploadAvatar(file);
-      setProfile((prev) => ({ ...prev, avatarUrl: res.data.avatarUrl }));
-      updateAuth({ avatarUrl: res.data.avatarUrl });
+      const newAvatarUrl = res.data.avatarUrl;
+      setProfile((prev) => ({ ...prev, avatarUrl: newAvatarUrl }));
+      updateAuth({ avatarUrl: newAvatarUrl });
       toast.success('Đã cập nhật ảnh đại diện');
     } catch {
       toast.error('Không thể cập nhật ảnh đại diện');

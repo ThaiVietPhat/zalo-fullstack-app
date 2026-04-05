@@ -1,36 +1,38 @@
 package com.example.backend.group.service;
 
-import com.example.backend.group.entity.Group;
-import com.example.backend.group.entity.GroupMember;
-import com.example.backend.group.entity.GroupMessage;
-import com.example.backend.user.entity.User;
-import com.example.backend.shared.exception.ResourceNotFoundException;
-import com.example.backend.shared.exception.UnauthorizedException;
-import com.example.backend.group.dto.GroupDto;
-import com.example.backend.group.dto.GroupMemberDto;
-import com.example.backend.group.dto.GroupMessageDto;
-import com.example.backend.group.dto.GroupRequest;
-import com.example.backend.reaction.dto.ReactionDto;
-import com.example.backend.file.service.FileStorageService;
-import com.example.backend.messaging.enums.MessageType;
-import com.example.backend.group.repository.GroupMemberRepository;
-import com.example.backend.group.repository.GroupMessageReactionRepository;
-import com.example.backend.group.repository.GroupMessageRepository;
-import com.example.backend.group.repository.GroupRepository;
-import com.example.backend.user.repository.UserRepository;
-import org.springframework.web.multipart.MultipartFile;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
 import org.springframework.data.domain.PageRequest;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.stream.Collectors;
+import com.example.backend.file.service.FileStorageService;
+import com.example.backend.group.dto.GroupDto;
+import com.example.backend.group.dto.GroupMemberDto;
+import com.example.backend.group.dto.GroupMessageDto;
+import com.example.backend.group.dto.GroupRequest;
+import com.example.backend.group.entity.Group;
+import com.example.backend.group.entity.GroupMember;
+import com.example.backend.group.entity.GroupMessage;
+import com.example.backend.group.repository.GroupMemberRepository;
+import com.example.backend.group.repository.GroupMessageReactionRepository;
+import com.example.backend.group.repository.GroupMessageRepository;
+import com.example.backend.group.repository.GroupRepository;
+import com.example.backend.messaging.enums.MessageType;
+import com.example.backend.reaction.dto.ReactionDto;
+import com.example.backend.shared.exception.ResourceNotFoundException;
+import com.example.backend.shared.exception.UnauthorizedException;
+import com.example.backend.user.entity.User;
+import com.example.backend.user.repository.UserRepository;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
@@ -201,6 +203,47 @@ public class GroupService {
         }
     }
 
+    // ─── Gán quyền admin cho thành viên (chỉ admin) ───────────────────────────
+
+    @Transactional
+    public GroupDto setMemberAsAdmin(UUID groupId, UUID targetUserId, Authentication currentUser) {
+        User user = getUser(currentUser);
+        Group group = getGroupAndCheckAdmin(groupId, user.getId());
+
+        if (user.getId().equals(targetUserId)) {
+            throw new IllegalArgumentException("Bạn đã là admin rồi");
+        }
+
+        GroupMember member = groupMemberRepository
+                .findByGroupIdAndUserId(groupId, targetUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("Thành viên không tồn tại trong nhóm"));
+
+        if (member.isAdmin()) {
+            throw new IllegalArgumentException("Thành viên này đã là admin");
+        }
+
+        member.setAdmin(true);
+        groupMemberRepository.save(member);
+        log.info("User {} promoted to admin in group {}", targetUserId, groupId);
+
+        return toGroupDto(group, user.getId());
+    }
+
+    // ─── Giải tán nhóm (chỉ admin) ────────────────────────────────────────────
+
+    @Transactional
+    public void dissolveGroup(UUID groupId, Authentication currentUser) {
+        User user = getUser(currentUser);
+        Group group = getGroupAndCheckAdmin(groupId, user.getId());
+
+        // Xóa tất cả thành viên
+        groupMemberRepository.deleteByGroupId(groupId);
+
+        // Xóa nhóm
+        groupRepository.delete(group);
+        log.info("Group {} dissolved by admin {}", groupId, user.getEmail());
+    }
+
     // ─── Gửi tin nhắn nhóm ───────────────────────────────────────────────────
 
     @Transactional
@@ -357,6 +400,7 @@ public class GroupService {
                         .firstName(m.getUser().getFirstName())
                         .lastName(m.getUser().getLastName())
                         .email(m.getUser().getEmail())
+                        .avatarUrl(m.getUser().getAvatarUrl())
                         .admin(m.isAdmin())
                         .online(m.getUser().isUserOnline())
                         .lastSeenText(m.getUser().getLastSeenText())
@@ -389,9 +433,16 @@ public class GroupService {
     }
 
     private GroupMessageDto toMessageDto(GroupMessage msg, UUID currentUserId) {
+        boolean isMedia = msg.getType() != null && msg.getType() != com.example.backend.messaging.enums.MessageType.TEXT;
+        String mediaUrl = (!msg.isDeleted() && isMedia && msg.getContent() != null)
+                ? "/api/v1/message/media/" + msg.getContent()
+                : null;
+        String content = msg.isDeleted() ? null : (isMedia ? null : msg.getContent());
+
         return GroupMessageDto.builder()
                 .id(msg.getId())
-                .content(msg.isDeleted() ? null : msg.getContent())
+                .content(content)
+                .mediaUrl(mediaUrl)
                 .type(msg.getType())
                 .groupId(msg.getGroup().getId())
                 .senderId(msg.getSender().getId())

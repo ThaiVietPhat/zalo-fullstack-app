@@ -61,12 +61,25 @@ public class MessageController {
         return ResponseEntity.ok().build();
     }
 
+    @DeleteMapping("/{messageId}")
+    public ResponseEntity<Void> deleteMessageForMe(
+            @PathVariable java.util.UUID messageId,
+            Authentication currentUser) {
+        messageService.deleteMessageForMe(messageId, currentUser);
+        return ResponseEntity.ok().build();
+    }
+
     @GetMapping("/media/{filename}")
-    public ResponseEntity<byte[]> getMediaFile(@PathVariable String filename) {
+    public ResponseEntity<byte[]> getMediaFile(
+            @PathVariable String filename,
+            @RequestParam(required = false, defaultValue = "false") boolean download) {
         byte[] file = fileStorageService.loadFile(filename);
         String contentType = fileStorageService.detectContentType(filename);
-        return ResponseEntity.ok()
-                .contentType(MediaType.parseMediaType(contentType))
-                .body(file);
+        var builder = ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(contentType));
+        if (download) {
+            builder = builder.header("Content-Disposition", "attachment; filename=\"" + filename + "\"");
+        }
+        return builder.body(file);
     }
 }

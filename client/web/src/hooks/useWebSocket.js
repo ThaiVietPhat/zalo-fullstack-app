@@ -20,6 +20,7 @@ export function useWebSocket() {
     activeChatId,
     activeGroupId,
     clearUnread,
+    groups,
   } = useChatStore();
 
   const activeChatIdRef = useRef(activeChatId);
@@ -90,9 +91,14 @@ export function useWebSocket() {
   };
 
   const subscribeToGroup = (groupId) => {
-    wsService.subscribe(`/topic/group/${groupId}`, (message) => {
-      addGroupMessage(groupId, message);
-      updateGroupLastMessage(groupId, message);
+    wsService.subscribe(`/topic/group/${groupId}`, (data) => {
+      // ReactionGroupEvent has { messageId, reactions }, new messages have { id, content, ... }
+      if (data.messageId !== undefined && data.reactions !== undefined && !data.id) {
+        updateGroupMessageReactions(groupId, data.messageId, data.reactions);
+      } else {
+        addGroupMessage(groupId, data);
+        updateGroupLastMessage(groupId, data);
+      }
     });
 
     wsService.subscribe(`/topic/group/${groupId}/typing`, (data) => {
