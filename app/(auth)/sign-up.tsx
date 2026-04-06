@@ -24,7 +24,14 @@ import { register, verifyEmail } from "@/api/auth";
 const SignUp = () => {
   const [step, setStep] = useState(1); // 1: Register, 2: OTP
   const [isLoading, setIsLoading] = useState(false);
-  const [form, setForm] = useState({ firstName: "", lastName: "", email: "", password: "", otp: "" });
+  const [form, setForm] = useState({ 
+    firstName: "", 
+    lastName: "", 
+    email: "", 
+    password: "", 
+    confirmPassword: "", 
+    otp: "" 
+  });
 
   const [alertModal, setAlertModal] = useState({ visible: false, title: "", message: "" });
   const showAlert = (title: string, message: string) => setAlertModal({ visible: true, title, message });
@@ -34,6 +41,15 @@ const SignUp = () => {
       showAlert("Lỗi", "Vui lòng nhập đầy đủ thông tin.");
       return;
     }
+    if (form.password.length < 6) {
+      showAlert("Lỗi", "Mật khẩu phải từ 6 ký tự.");
+      return;
+    }
+    if (form.password !== form.confirmPassword) {
+      showAlert("Lỗi", "Xác nhận mật khẩu không khớp.");
+      return;
+    }
+
     setIsLoading(true);
     try {
       await register({
@@ -55,7 +71,6 @@ const SignUp = () => {
     if (!form.otp) return;
     setIsLoading(true);
     try {
-      // API verifyEmail yêu cầu { email, code }
       await verifyEmail({ email: form.email, code: form.otp });
       showAlert("Thành công", "Tài khoản của bạn đã được kích hoạt.");
       router.replace("/(auth)/sign-in");
@@ -95,6 +110,7 @@ const SignUp = () => {
                   </View>
                   <InputField label="Email" placeholder="example@gmail.com" value={form.email} onChangeText={(v: string) => setForm({ ...form, email: v.trim() })} icon="mail-outline" />
                   <InputField label="Mật khẩu" placeholder="Tối thiểu 6 ký tự" value={form.password} onChangeText={(v: string) => setForm({ ...form, password: v })} secureTextEntry icon="lock-closed-outline" />
+                  <InputField label="Xác nhận mật khẩu" placeholder="Nhập lại mật khẩu" value={form.confirmPassword} onChangeText={(v: string) => setForm({ ...form, confirmPassword: v })} secureTextEntry icon="shield-checkmark-outline" />
                   <CustomButton title="TIẾP TỤC" onPress={handleRegister} loading={isLoading} className="mt-4" />
                 </>
               ) : (

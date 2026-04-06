@@ -9,6 +9,10 @@ import {
   RefreshControl,
   Image,
   Modal,
+  KeyboardAvoidingView,
+  Platform,
+  TouchableWithoutFeedback,
+  Keyboard,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -141,12 +145,12 @@ const ProfileScreen = () => {
     );
   }
 
-  const name = formatFullName(profile?.firstName, profile?.lastName);
+  const name = formatFullName(profile?.firstName, profile?.lastName || "");
 
   return (
     <View className="flex-1 bg-gray-50">
       <MainHeader title="Cá nhân" showSearch={true} />
-      
+
       <ScrollView
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#0068FF"]} />}
       >
@@ -155,7 +159,7 @@ const ProfileScreen = () => {
           <View className="bg-white w-full rounded-3xl p-6 shadow-sm items-center">
             <TouchableOpacity onPress={handlePickImage} className="relative">
               <Image
-                source={{ uri: getAvatarUrl(name, profile?.avatarUrl) }}
+                source={{ uri: getAvatarUrl(formatFullName(profile?.firstName, profile?.lastName || ""), profile?.avatarUrl) }}
                 className="w-24 h-24 rounded-full bg-gray-100"
               />
               <View className="absolute bottom-0 right-0 bg-primary-500 p-1.5 rounded-full border-2 border-white">
@@ -188,7 +192,7 @@ const ProfileScreen = () => {
 
         {/* Settings Menu */}
         <View className="px-4 mt-6 mb-10">
-          <Text className="text-gray-500 font-JakartaBold mb-3 ml-1">CÀI ĐẶT TÀI KHỎN</Text>
+          <Text className="text-gray-500 font-JakartaBold mb-3 ml-1">CÀI ĐẶT TÀI KHOẢN</Text>
           <View className="bg-white rounded-2xl shadow-sm overflow-hidden">
             <MenuItem
               icon="lock-closed-outline"
@@ -207,69 +211,83 @@ const ProfileScreen = () => {
 
       {/* ── Modal Đổi mật khẩu ── */}
       <Modal visible={showPasswordModal} animationType="slide" transparent>
-        <View className="flex-1 bg-black/50 justify-end">
-          <View className="bg-white rounded-t-3xl p-6 pb-10">
-            <View className="flex-row justify-between items-center mb-6">
-              <Text className="text-xl font-JakartaBold">Đổi mật khẩu</Text>
-              <TouchableOpacity onPress={() => setShowPasswordModal(false)}>
-                <Ionicons name="close" size={24} color="gray" />
-              </TouchableOpacity>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          className="flex-1"
+        >
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <View className="flex-1 bg-black/50 justify-end">
+              <View className="bg-white rounded-t-3xl p-6 pb-12">
+                <View className="flex-row justify-between items-center mb-6">
+                  <Text className="text-xl font-JakartaBold">Đổi mật khẩu</Text>
+                  <TouchableOpacity onPress={() => setShowPasswordModal(false)}>
+                    <Ionicons name="close" size={26} color="gray" />
+                  </TouchableOpacity>
+                </View>
+                <InputField
+                  label="Mật khẩu hiện tại"
+                  placeholder="Nhập mật khẩu cũ"
+                  secureTextEntry
+                  value={passForm.current}
+                  onChangeText={(v: string) => setPassForm({ ...passForm, current: v })}
+                />
+                <InputField
+                  label="Mật khẩu mới"
+                  placeholder="Tối thiểu 6 ký tự"
+                  secureTextEntry
+                  value={passForm.new}
+                  onChangeText={(v: string) => setPassForm({ ...passForm, new: v })}
+                />
+                <InputField
+                  label="Xác nhận mật khẩu mới"
+                  placeholder="Nhập lại mật khẩu mới"
+                  secureTextEntry
+                  value={passForm.confirm}
+                  onChangeText={(v: string) => setPassForm({ ...passForm, confirm: v })}
+                />
+                <CustomButton title="CẬP NHẬT MẬT KHẨU" onPress={handleUpdatePassword} loading={loading} className="mt-4" />
+              </View>
             </View>
-            <InputField
-              label="Mật khẩu hiện tại"
-              placeholder="Nhập mật khẩu cũ"
-              secureTextEntry
-              value={passForm.current}
-              onChangeText={(v: string) => setPassForm({ ...passForm, current: v })}
-            />
-            <InputField
-              label="Mật khẩu mới"
-              placeholder="Tối thiểu 6 ký tự"
-              secureTextEntry
-              value={passForm.new}
-              onChangeText={(v: string) => setPassForm({ ...passForm, new: v })}
-            />
-            <InputField
-              label="Xác nhận mật khẩu mới"
-              placeholder="Nhập lại mật khẩu mới"
-              secureTextEntry
-              value={passForm.confirm}
-              onChangeText={(v: string) => setPassForm({ ...passForm, confirm: v })}
-            />
-            <CustomButton title="CẬP NHẬT MẬT KHẨU" onPress={handleUpdatePassword} loading={loading} className="mt-4" />
-          </View>
-        </View>
+          </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* ── Modal Sửa Profile ── */}
       <Modal visible={showEditProfileModal} animationType="slide" transparent>
-        <View className="flex-1 bg-black/50 justify-end">
-          <View className="bg-white rounded-t-3xl p-6 pb-10">
-            <View className="flex-row justify-between items-center mb-6">
-              <Text className="text-xl font-JakartaBold">Chỉnh sửa hồ sơ</Text>
-              <TouchableOpacity onPress={() => setShowEditProfileModal(false)}>
-                <Ionicons name="close" size={24} color="gray" />
-              </TouchableOpacity>
-            </View>
-            <View className="flex-row gap-3">
-              <View className="flex-1">
-                <InputField
-                  label="Họ"
-                  value={profileForm.firstName}
-                  onChangeText={(v: string) => setProfileForm({ ...profileForm, firstName: v })}
-                />
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          className="flex-1"
+        >
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <View className="flex-1 bg-black/50 justify-end">
+              <View className="bg-white rounded-t-3xl p-6 pb-12">
+                <View className="flex-row justify-between items-center mb-6">
+                  <Text className="text-xl font-JakartaBold">Chỉnh sửa hồ sơ</Text>
+                  <TouchableOpacity onPress={() => setShowEditProfileModal(false)}>
+                    <Ionicons name="close" size={26} color="gray" />
+                  </TouchableOpacity>
+                </View>
+                <View className="flex-row gap-3">
+                  <View className="flex-1">
+                    <InputField
+                      label="Họ"
+                      value={profileForm.firstName}
+                      onChangeText={(v: string) => setProfileForm({ ...profileForm, firstName: v })}
+                    />
+                  </View>
+                  <View className="flex-1">
+                    <InputField
+                      label="Tên"
+                      value={profileForm.lastName}
+                      onChangeText={(v: string) => setProfileForm({ ...profileForm, lastName: v })}
+                    />
+                  </View>
+                </View>
+                <CustomButton title="LƯU THAY ĐỔI" onPress={handleUpdateProfile} className="mt-4" />
               </View>
-              <View className="flex-1">
-                <InputField
-                  label="Tên"
-                  value={profileForm.lastName}
-                  onChangeText={(v: string) => setProfileForm({ ...profileForm, lastName: v })}
-                />
-              </View>
             </View>
-            <CustomButton title="LƯU THAY ĐỔI" onPress={handleUpdateProfile} className="mt-4" />
-          </View>
-        </View>
+          </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
       </Modal>
 
       <CustomModal

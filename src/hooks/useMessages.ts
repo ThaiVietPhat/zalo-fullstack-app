@@ -77,3 +77,20 @@ export const useDeleteMessage = (chatId: string) => {
     },
   });
 };
+
+/** Thả cảm xúc tin nhắn */
+export const useReactMessage = (chatId: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ messageId, emoji }: { messageId: string; emoji: string }) => 
+      fetch(`${process.env.EXPO_PUBLIC_SERVER_URL}/message/${messageId}/reactions?emoji=${emoji}`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${queryClient.getQueryData(["token"])}`, // Hoặc lấy từ store
+        }
+      }), // Lưu ý: Nên dùng axios hoặc hàm api chuẩn, đây là ví dụ nhanh
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["messages", chatId] });
+    },
+  });
+};

@@ -8,7 +8,7 @@ import { router } from "expo-router";
 import { useTranslation } from "react-i18next";
 
 import CustomButton from "@/components/Common/CustomButton";
-import { onboarding } from "../../constants";
+import { onboarding } from "@/constants";
 
 const { width: screenWidth } = Dimensions.get("window");
 

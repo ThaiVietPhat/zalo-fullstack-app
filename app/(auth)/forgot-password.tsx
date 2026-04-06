@@ -24,7 +24,7 @@ import { forgotPassword, resetPassword } from "@/api/auth";
 const ForgotPassword = () => {
   const [step, setStep] = useState(1); // 1: Email, 2: OTP & New Pass
   const [isLoading, setIsLoading] = useState(false);
-  const [form, setForm] = useState({ email: "", otp: "", newPassword: "" });
+  const [form, setForm] = useState({ email: "", otp: "", newPassword: "", confirmPassword: "" });
 
   const [alertModal, setAlertModal] = useState({ visible: false, title: "", message: "" });
   const showAlert = (title: string, message: string) => setAlertModal({ visible: true, title, message });
@@ -36,7 +36,6 @@ const ForgotPassword = () => {
     }
     setIsLoading(true);
     try {
-      // API forgotPassword yêu cầu { email }
       await forgotPassword({ email: form.email });
       setStep(2);
       showAlert("Thành công", "Mã khôi phục đã được gửi tới Email của bạn.");
@@ -52,9 +51,13 @@ const ForgotPassword = () => {
       showAlert("Lỗi", "Vui lòng nhập đầy đủ mã và mật khẩu mới (tối thiểu 6 ký tự).");
       return;
     }
+    if (form.newPassword !== form.confirmPassword) {
+      showAlert("Lỗi", "Xác nhận mật khẩu mới không khớp.");
+      return;
+    }
+
     setIsLoading(true);
     try {
-      // API resetPassword yêu cầu { email, code, newPassword }
       await resetPassword({
         email: form.email,
         code: form.otp,
@@ -99,10 +102,11 @@ const ForgotPassword = () => {
                 <>
                   <InputField label="Mã OTP" placeholder="Nhập 6 chữ số từ email" value={form.otp} onChangeText={(v: string) => setForm({ ...form, otp: v.trim() })} keyboardType="numeric" icon="key-outline" />
                   <InputField label="Mật khẩu mới" placeholder="Tối thiểu 6 ký tự" value={form.newPassword} onChangeText={(v: string) => setForm({ ...form, newPassword: v })} secureTextEntry icon="lock-closed-outline" />
+                  <InputField label="Xác nhận mật khẩu mới" placeholder="Nhập lại mật khẩu mới" value={form.confirmPassword} onChangeText={(v: string) => setForm({ ...form, confirmPassword: v })} secureTextEntry icon="shield-checkmark-outline" />
                   <CustomButton title="ĐẶT LẠI MẬT KHẨU" onPress={handleReset} loading={isLoading} className="mt-4" />
                 </>
               )}
-              
+
               <TouchableOpacity onPress={() => router.back()} className="mt-6 items-center"><Text className="text-primary-500 font-JakartaBold">Quay lại</Text></TouchableOpacity>
             </View>
           </ScrollView>

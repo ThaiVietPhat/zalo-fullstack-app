@@ -25,16 +25,23 @@ import selectedMarker2 from "@/assets/icons/selected-marker2.png";
 import star from "@/assets/icons/star.png";
 import target from "@/assets/icons/target.png";
 import to from "@/assets/icons/to.png";
+
 import check from "@/assets/images/check.png";
 import message from "@/assets/images/message.png";
 import noResult from "@/assets/images/no-result.png";
 import signUpCuate from "@/assets/images/Sign up-cuate.png";
+
+// Import các ảnh mới cho Zalo Clone
+import callingCuate from "@/assets/images/Calling-cuate.png";
+import groupChatCuate from "@/assets/images/Group Chat-cuate.png";
 
 export const images = {
     signUpCuate,
     check,
     noResult,
     message,
+    callingCuate,
+    groupChatCuate,
 };
 
 export const icons = {
@@ -72,56 +79,22 @@ export const onboarding = [
         id: 1,
         title: "Gọi video ổn định",
         description: "Trò chuyện thật đã với hình ảnh sắc nét, tiếng chất, âm chuẩn dưới mọi điều kiện mạng.",
-        image: images.signUpCuate,
+        image: images.callingCuate,
     },
     {
         id: 2,
         title: "Nhắn tin nhanh chóng",
-        description: "Gửi tin nhắn, hình ảnh, file và sticker đến bạn bè và gia đình.",
-        image: images.signUpCuate,
+        description: "Gửi tin nhắn, hình ảnh, file và sticker đến bạn bè và gia đình mọi lúc.",
+        image: images.message,
     },
     {
         id: 3,
-        title: "Kết nối mọi lúc mọi nơi",
-        description: "Luôn kết nối với những người quan trọng dù bạn ở đâu.",
-        image: images.signUpCuate,
+        title: "Nhóm chat tiện lợi",
+        description: "Kết nối cộng đồng, trao đổi công việc và chia sẻ khoảnh khắc cùng nhóm bạn.",
+        image: images.groupChatCuate,
     },
 ];
 
-
 export const data = {
     onboarding,
-};
-
-export const basePrices = {
-    BIKE: 15000,
-    VAN: 50000,
-    TRUCK: 80000,
-};
-
-export const perKmPrices = {
-    BIKE: 5000,
-    VAN: 12000,
-    TRUCK: 18000,
-};
-
-export const vehicleTypes = {
-    BIKE: {
-        label: "Xe máy",
-        icon: "bicycle-outline",
-        color: "#10B981",
-        description: "Dành cho các đơn hàng nhỏ, gọn, cần giao nhanh.",
-    },
-    VAN: {
-        label: "Xe tải van",
-        icon: "car-sport-outline",
-        color: "#3B82F6",
-        description: "Phù hợp cho hàng hóa vừa phải, đồ điện tử hoặc chuyển nhà nhỏ.",
-    },
-    TRUCK: {
-        label: "Xe tải",
-        icon: "bus-outline",
-        color: "#EF4444",
-        description: "Dành cho hàng hóa lớn, cồng kềnh, khối lượng nặng.",
-    },
 };

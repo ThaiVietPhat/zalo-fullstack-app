@@ -4,7 +4,7 @@
     "slug": "Zalo-Clone",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./src/assets/images/icon.png",
     "scheme": "zalo-clone",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -17,7 +17,7 @@
       "package": "com.ZaloClone.driver",
       "edgeToEdgeEnabled": true,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/icon.png",
+        "foregroundImage": "./src/assets/images/icon.png",
         "backgroundColor": "#ffffff"
       },
       "config": {}
@@ -25,7 +25,7 @@
     "web": {
       "bundler": "metro",
       "output": "server",
-      "favicon": "./assets/images/icon.png"
+      "favicon": "./src/assets/images/icon.png"
     },
     "plugins": [
       [
@@ -37,12 +37,12 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash.png",
+          "image": "./src/assets/images/splash.png",
           "resizeMode": "cover",
           "backgroundColor": "#ffffff",
           "android": {
             "splash": {
-              "image": "./assets/images/splash.png",
+              "image": "./src/assets/images/splash.png",
               "resizeMode": "cover",
               "backgroundColor": "#ffffff"
             }
