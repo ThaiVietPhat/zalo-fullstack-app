@@ -3,56 +3,62 @@ package com.example.backend.auth.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.WebClient;
 
-import jakarta.mail.internet.MimeMessage;
+import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class EmailService {
 
-    private final JavaMailSender mailSender;
+    private final WebClient.Builder webClientBuilder;
 
-    @Value("${app.mail.from}")
-    private String fromEmail;
+    @Value("${brevo.api.key}")
+    private String brevoApiKey;
+
+    @Value("${brevo.sender.email}")
+    private String senderEmail;
+
+    @Value("${brevo.sender.name:Zalo Clone}")
+    private String senderName;
 
     @Async
     public void sendVerificationEmail(String toEmail, String firstName, String code) {
-        try {
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-
-            helper.setFrom(fromEmail);
-            helper.setTo(toEmail);
-            helper.setSubject("[Zalo Clone] Xác thực tài khoản");
-            helper.setText(buildVerificationHtml(firstName, code), true);
-
-            mailSender.send(message);
-            log.info("Verification email sent to: {}", toEmail);
-        } catch (Exception e) {
-            log.error("Failed to send verification email to {}: {}", toEmail, e.getMessage());
-        }
+        sendEmail(toEmail, "[Zalo Clone] Xác thực tài khoản", buildVerificationHtml(firstName, code));
     }
 
     @Async
     public void sendResetPasswordEmail(String toEmail, String firstName, String code) {
+        sendEmail(toEmail, "[Zalo Clone] Đặt lại mật khẩu", buildResetPasswordHtml(firstName, code));
+    }
+
+    private void sendEmail(String toEmail, String subject, String htmlContent) {
         try {
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            Map<String, Object> body = Map.of(
+                "sender", Map.of("name", senderName, "email", senderEmail),
+                "to", List.of(Map.of("email", toEmail)),
+                "subject", subject,
+                "htmlContent", htmlContent
+            );
 
-            helper.setFrom(fromEmail);
-            helper.setTo(toEmail);
-            helper.setSubject("[Zalo Clone] Đặt lại mật khẩu");
-            helper.setText(buildResetPasswordHtml(firstName, code), true);
-
-            mailSender.send(message);
-            log.info("Reset password email sent to: {}", toEmail);
+            webClientBuilder.build()
+                .post()
+                .uri("https://api.brevo.com/v3/smtp/email")
+                .header("api-key", brevoApiKey)
+                .header("Content-Type", "application/json")
+                .bodyValue(body)
+                .retrieve()
+                .bodyToMono(String.class)
+                .subscribe(
+                    response -> log.info("Email sent to {}: {}", toEmail, response),
+                    error -> log.error("Failed to send email to {}: {}", toEmail, error.getMessage())
+                );
         } catch (Exception e) {
-            log.error("Failed to send reset password email to {}: {}", toEmail, e.getMessage());
+            log.error("Failed to send email to {}: {}", toEmail, e.getMessage());
         }
     }
 
