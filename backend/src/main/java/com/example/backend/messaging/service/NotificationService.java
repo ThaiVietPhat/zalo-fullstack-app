@@ -27,6 +27,11 @@ public class NotificationService {
         );
     }
 
+    public void sendChatBroadcast(UUID chatId, MessageDto messageDto) {
+        log.info("Broadcasting message to chat topic: {}", chatId);
+        messagingTemplate.convertAndSend("/topic/chat/" + chatId, messageDto);
+    }
+
     public void sendMessageSeenNotification(String recipientEmail, UUID chatId) {
         log.info("Sending message seen notification to user: {} for chat: {}", recipientEmail, chatId);
         messagingTemplate.convertAndSendToUser(

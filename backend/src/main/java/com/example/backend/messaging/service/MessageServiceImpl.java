@@ -88,7 +88,10 @@ public class MessageServiceImpl implements MessageService {
         MessageDto savedDto = messageMapper.toDto(savedMessage);
 
         User receiver = chat.getOtherUser(sender.getId());
-        log.info("Sending real-time message from {} to {}", sender.getId(), receiver.getId());
+        log.info("Broadcasting real-time message in chat {} from {}", chat.getId(), sender.getId());
+        // Broadcast to chat topic (both sender & receiver subscribe) — same pattern as group messages
+        notificationService.sendChatBroadcast(chat.getId(), savedDto);
+        // Also notify receiver via user queue for background unread count updates
         notificationService.sendMessageNotification(receiver.getEmail(), savedDto);
         return savedDto;
     }
@@ -132,7 +135,10 @@ public class MessageServiceImpl implements MessageService {
         MessageDto savedDto = messageMapper.toDto(savedMessage);
 
         User receiver = chat.getOtherUser(sender.getId());
-        log.info("Sending media message notification from {} to {}", sender.getId(), receiver.getId());
+        log.info("Broadcasting media message in chat {} from {}", chat.getId(), sender.getId());
+        // Broadcast to chat topic (both sender & receiver subscribe) — same pattern as group messages
+        notificationService.sendChatBroadcast(chat.getId(), savedDto);
+        // Also notify receiver via user queue for background unread count updates
         notificationService.sendMessageNotification(receiver.getEmail(), savedDto);
         return savedDto;
     }

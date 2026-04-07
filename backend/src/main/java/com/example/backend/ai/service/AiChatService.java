@@ -29,16 +29,16 @@ public class AiChatService {
     private final UserRepository userRepository;
     private final WebClient aiWebClient;
 
-    @Value("${app.claude.api-key:}")
+    @Value("${app.gemini.api-key:}")
     private String apiKey;
 
-    @Value("${app.claude.model:claude-haiku-4-5-20251001}")
+    @Value("${app.gemini.model:gemini-2.0-flash}")
     private String model;
 
-    @Value("${app.claude.max-tokens:1024}")
+    @Value("${app.gemini.max-tokens:1024}")
     private int maxTokens;
 
-    @Value("${app.claude.context-turns:20}")
+    @Value("${app.gemini.context-turns:20}")
     private int contextTurns;
 
     // ─── Gửi tin nhắn tới AI ─────────────────────────────────────────────────
@@ -59,8 +59,8 @@ public class AiChatService {
                 .findTop20ByUserIdOrderByCreatedDateDesc(user.getId());
         Collections.reverse(history);
 
-        // Gọi Claude API
-        String assistantReply = callClaudeApi(history);
+        // Gọi Gemini API
+        String assistantReply = callGeminiApi(history);
 
         // Lưu phản hồi của AI
         AiMessage assistantMsg = new AiMessage();
@@ -91,23 +91,34 @@ public class AiChatService {
         log.info("AI chat history cleared for user {}", user.getId());
     }
 
-    // ─── Gọi Claude API ──────────────────────────────────────────────────────
+    // ─── Gọi Gemini API ──────────────────────────────────────────────────────
 
     @SuppressWarnings("unchecked")
-    private String callClaudeApi(List<AiMessage> history) {
-        List<Map<String, String>> messages = history.stream()
-                .map(m -> Map.of("role", m.getRole(), "content", m.getContent()))
+    private String callGeminiApi(List<AiMessage> history) {
+        // Gemini dùng role "user" và "model" (không phải "assistant")
+        List<Map<String, Object>> contents = history.stream()
+                .map(m -> {
+                    String geminiRole = "assistant".equals(m.getRole()) ? "model" : "user";
+                    Map<String, String> part = Map.of("text", m.getContent());
+                    return Map.<String, Object>of(
+                            "role", geminiRole,
+                            "parts", List.of(part)
+                    );
+                })
                 .collect(Collectors.toList());
 
+        Map<String, Object> generationConfig = Map.of("maxOutputTokens", maxTokens);
+
         Map<String, Object> requestBody = new HashMap<>();
-        requestBody.put("model", model);
-        requestBody.put("max_tokens", maxTokens);
-        requestBody.put("messages", messages);
+        requestBody.put("contents", contents);
+        requestBody.put("generationConfig", generationConfig);
 
         try {
             Map<String, Object> response = aiWebClient.post()
-                    .uri("/v1/messages")
-                    .header("x-api-key", apiKey)
+                    .uri(uriBuilder -> uriBuilder
+                            .path("/v1beta/models/" + model + ":generateContent")
+                            .queryParam("key", apiKey)
+                            .build())
                     .bodyValue(requestBody)
                     .retrieve()
                     .bodyToMono(Map.class)
@@ -117,15 +128,29 @@ public class AiChatService {
                 return "Xin lỗi, tôi không thể xử lý yêu cầu của bạn lúc này.";
             }
 
-            List<Map<String, Object>> content = (List<Map<String, Object>>) response.get("content");
-            if (content != null && !content.isEmpty()) {
-                return (String) content.get(0).get("text");
+            List<Map<String, Object>> candidates = (List<Map<String, Object>>) response.get("candidates");
+            if (candidates != null && !candidates.isEmpty()) {
+                Map<String, Object> content = (Map<String, Object>) candidates.get(0).get("content");
+                if (content != null) {
+                    List<Map<String, Object>> parts = (List<Map<String, Object>>) content.get("parts");
+                    if (parts != null && !parts.isEmpty()) {
+                        return (String) parts.get(0).get("text");
+                    }
+                }
             }
 
+            log.warn("Gemini API returned unexpected response: {}", response);
             return "Xin lỗi, tôi không thể xử lý yêu cầu của bạn lúc này.";
 
+        } catch (org.springframework.web.reactive.function.client.WebClientResponseException e) {
+            if (e.getStatusCode().value() == 429) {
+                log.warn("Gemini API rate limit: {}", e.getResponseBodyAsString());
+                return "Trợ lý AI đang bận, vui lòng thử lại sau vài giây.";
+            }
+            log.error("Gemini API HTTP {}: {}", e.getStatusCode().value(), e.getResponseBodyAsString());
+            return "Xin lỗi, đã xảy ra lỗi khi kết nối với AI. Vui lòng thử lại sau.";
         } catch (Exception e) {
-            log.error("Error calling Claude API: {}", e.getMessage());
+            log.error("Gemini API exception: {} — {}", e.getClass().getSimpleName(), e.getMessage());
             return "Xin lỗi, đã xảy ra lỗi khi kết nối với AI. Vui lòng thử lại sau.";
         }
     }

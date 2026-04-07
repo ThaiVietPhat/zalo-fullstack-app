@@ -12,9 +12,8 @@ public class AiConfig {
     @Bean
     public WebClient aiWebClient() {
         return WebClient.builder()
-                .baseUrl("https://api.anthropic.com")
+                .baseUrl("https://generativelanguage.googleapis.com")
                 .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-                .defaultHeader("anthropic-version", "2023-06-01")
                 .build();
     }
 }
