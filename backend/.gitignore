@@ -41,14 +41,22 @@ application-local.properties
 application-local.client.properties
 application-dev.properties
 application-prod.properties
+*.pem
+*.key
+*.p12
+*.jks
+*.pfx
+*.keystore
 
 # ── Logs ─────────────────────────────────────────────
 *.log
 logs/
+spring-shell.log
 
 # ── OS ───────────────────────────────────────────────
 .DS_Store
 Thumbs.db
+desktop.ini
 
 # ── Docs tự sinh ─────────────────────────────────────
 HELP.md
