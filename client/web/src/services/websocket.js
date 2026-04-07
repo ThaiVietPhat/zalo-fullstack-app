@@ -4,22 +4,19 @@ import SockJS from 'sockjs-client/dist/sockjs.js';
 class WebSocketService {
   constructor() {
     this.client = null;
-    this.subscriptions = {};
     this.connected = false;
-    this.onConnectCallbacks = [];
+    this.connectCallbacks = [];  // one-time, cleared after first connect
+    this.handlers = {};          // { destination: callback } — survives reconnects
+    this.stompSubs = {};         // { destination: stompSub } — active STOMP subs
   }
 
   connect(token, onConnect) {
-    // Already connected — run callback immediately
     if (this.connected) {
       if (onConnect) onConnect();
       return;
     }
 
-    // Queue the callback (works whether we're mid-connect or just starting)
-    if (onConnect) this.onConnectCallbacks.push(onConnect);
-
-    // Already connecting — don't create a second client
+    if (onConnect) this.connectCallbacks.push(onConnect);
     if (this.client) return;
 
     this.client = new Client({
@@ -30,8 +27,18 @@ class WebSocketService {
       reconnectDelay: 5000,
       onConnect: () => {
         this.connected = true;
-        this.onConnectCallbacks.forEach((cb) => cb());
-        this.onConnectCallbacks = [];
+        this.stompSubs = {};
+
+        // Re-establish all registered subscriptions (handles initial connect + every reconnect)
+        Object.entries(this.handlers).forEach(([dest, cb]) => {
+          this.stompSubs[dest] = this.client.subscribe(dest, (msg) => {
+            try { cb(JSON.parse(msg.body)); } catch { cb(msg.body); }
+          });
+        });
+
+        // Run one-time connect callbacks (they call subscribe() which adds to handlers/stompSubs)
+        this.connectCallbacks.forEach((cb) => cb());
+        this.connectCallbacks = [];
       },
       onDisconnect: () => {
         this.connected = false;
@@ -46,10 +53,9 @@ class WebSocketService {
 
   disconnect() {
     if (this.client) {
-      Object.values(this.subscriptions).forEach((sub) => {
-        try { sub.unsubscribe(); } catch {}
-      });
-      this.subscriptions = {};
+      this.handlers = {};
+      this.stompSubs = {};
+      this.connectCallbacks = [];
       this.client.deactivate();
       this.client = null;
       this.connected = false;
@@ -57,35 +63,26 @@ class WebSocketService {
   }
 
   subscribe(destination, callback) {
-    if (!this.client) return null;
+    // Always store the handler so it survives reconnects
+    this.handlers[destination] = callback;
 
-    if (this.connected) {
-      if (this.subscriptions[destination]) {
-        try { this.subscriptions[destination].unsubscribe(); } catch {}
-      }
-      const sub = this.client.subscribe(destination, (message) => {
-        try {
-          const data = JSON.parse(message.body);
-          callback(data);
-        } catch (e) {
-          callback(message.body);
-        }
-      });
-      this.subscriptions[destination] = sub;
-      return sub;
-    } else {
-      // Queue for after connect
-      this.onConnectCallbacks.push(() => {
-        this.subscribe(destination, callback);
-      });
-      return null;
+    if (!this.client || !this.connected) return null;
+
+    // Replace existing STOMP sub if any (prevents duplicates)
+    if (this.stompSubs[destination]) {
+      try { this.stompSubs[destination].unsubscribe(); } catch {}
     }
+    this.stompSubs[destination] = this.client.subscribe(destination, (msg) => {
+      try { callback(JSON.parse(msg.body)); } catch { callback(msg.body); }
+    });
+    return this.stompSubs[destination];
   }
 
   unsubscribe(destination) {
-    if (this.subscriptions[destination]) {
-      try { this.subscriptions[destination].unsubscribe(); } catch {}
-      delete this.subscriptions[destination];
+    delete this.handlers[destination];
+    if (this.stompSubs[destination]) {
+      try { this.stompSubs[destination].unsubscribe(); } catch {}
+      delete this.stompSubs[destination];
     }
   }
 

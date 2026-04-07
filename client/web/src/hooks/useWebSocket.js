@@ -66,7 +66,6 @@ export function useWebSocket() {
 
       // Subscribe to seen notifications
       wsService.subscribe('/user/queue/seen', (data) => {
-        // Mark all messages in the chat as seen
         const { chatId } = data;
         clearUnread(chatId);
       });

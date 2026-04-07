@@ -4,7 +4,7 @@ import { getChatDetail } from '../../api/chat';
 import { getMessages, sendMessage, uploadMedia, markSeen } from '../../api/message';
 import useChatStore from '../../store/chatStore';
 import useAuthStore from '../../store/authStore';
-import { useWebSocket } from '../../hooks/useWebSocket';
+import wsService from '../../services/websocket';
 import Avatar from '../common/Avatar';
 import MessageBubble from './MessageBubble';
 import MessageInput from './MessageInput';
@@ -13,9 +13,27 @@ import ChatInfoPanel from './ChatInfoPanel';
 import toast from 'react-hot-toast';
 
 export default function ChatWindow() {
-  const { activeChatId, messages, typingUsers, setMessages, prependMessages, addMessage, updateChatLastMessage, updateChat, setActiveChatId, clearUnread } = useChatStore();
+  const { activeChatId, messages, typingUsers, setMessages, prependMessages, addMessage, updateChatLastMessage, updateChat, setActiveChatId, clearUnread, setTyping } = useChatStore();
   const { auth } = useAuthStore();
-  const { subscribeToChat, unsubscribeFromChat, sendTyping } = useWebSocket();
+
+  const subscribeToChat = (chatId) => {
+    wsService.subscribe(`/topic/chat/${chatId}/typing`, (data) => {
+      const { userId, isTyping } = data;
+      if (userId === auth?.userId) return;
+      setTyping(`chat_${chatId}`, userId, isTyping);
+      if (isTyping) {
+        setTimeout(() => setTyping(`chat_${chatId}`, userId, false), 3000);
+      }
+    });
+  };
+
+  const unsubscribeFromChat = (chatId) => {
+    wsService.unsubscribe(`/topic/chat/${chatId}/typing`);
+  };
+
+  const sendTyping = (chatId, isTypingNow) => {
+    wsService.publish(`/app/chat/${chatId}/typing`, { typing: isTypingNow });
+  };
   const [chatDetail, setChatDetail] = useState(null);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);

@@ -4,7 +4,7 @@ import { getGroupDetail, getGroupMessages, sendGroupMessage, uploadGroupMedia, l
 import { getContacts } from '../../api/friendRequest';
 import useChatStore from '../../store/chatStore';
 import useAuthStore from '../../store/authStore';
-import { useWebSocket } from '../../hooks/useWebSocket';
+import wsService from '../../services/websocket';
 import Avatar from '../common/Avatar';
 import MessageInput from '../chat/MessageInput';
 import TypingIndicator from '../chat/TypingIndicator';
@@ -183,9 +183,36 @@ function GroupMessageBubble({ message, groupId }) {
 }
 
 export default function GroupWindow() {
-  const { activeGroupId, groupMessages, typingUsers, setGroupMessages, prependGroupMessages, setActiveGroupId, groups, setGroups } = useChatStore();
+  const { activeGroupId, groupMessages, typingUsers, setGroupMessages, prependGroupMessages, setActiveGroupId, groups, setGroups, addGroupMessage, updateGroupLastMessage, updateGroupMessageReactions, setTyping } = useChatStore();
   const { auth } = useAuthStore();
-  const { subscribeToGroup, unsubscribeFromGroup, sendGroupTyping } = useWebSocket();
+
+  const subscribeToGroup = (groupId) => {
+    wsService.subscribe(`/topic/group/${groupId}`, (data) => {
+      if (data.messageId !== undefined && data.reactions !== undefined && !data.id) {
+        updateGroupMessageReactions(groupId, data.messageId, data.reactions);
+      } else {
+        addGroupMessage(groupId, data);
+        updateGroupLastMessage(groupId, data);
+      }
+    });
+    wsService.subscribe(`/topic/group/${groupId}/typing`, (data) => {
+      const { userId, isTyping } = data;
+      if (userId === auth?.userId) return;
+      setTyping(`group_${groupId}`, userId, isTyping);
+      if (isTyping) {
+        setTimeout(() => setTyping(`group_${groupId}`, userId, false), 3000);
+      }
+    });
+  };
+
+  const unsubscribeFromGroup = (groupId) => {
+    wsService.unsubscribe(`/topic/group/${groupId}`);
+    wsService.unsubscribe(`/topic/group/${groupId}/typing`);
+  };
+
+  const sendGroupTyping = (groupId, isTypingNow) => {
+    wsService.publish(`/app/group/${groupId}/typing`, { typing: isTypingNow });
+  };
   const [groupDetail, setGroupDetail] = useState(null);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);

@@ -38,6 +38,7 @@ uploads/
 .env
 .env.*
 application-local.properties
+application-local.client.properties
 application-dev.properties
 application-prod.properties
 
