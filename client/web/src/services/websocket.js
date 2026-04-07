@@ -19,12 +19,17 @@ class WebSocketService {
     if (onConnect) this.connectCallbacks.push(onConnect);
     if (this.client) return;
 
+    const WS_BASE = import.meta.env.VITE_WS_URL
+      || `${window.location.protocol}//${window.location.hostname}:8080`;
+
     this.client = new Client({
-      webSocketFactory: () => new SockJS(`${window.location.protocol}//${window.location.hostname}:8080/ws`),
+      webSocketFactory: () => new SockJS(`${WS_BASE}/ws`),
       connectHeaders: {
         Authorization: `Bearer ${token}`,
       },
       reconnectDelay: 5000,
+      heartbeatIncoming: 10000,
+      heartbeatOutgoing: 10000,
       onConnect: () => {
         this.connected = true;
         this.stompSubs = {};

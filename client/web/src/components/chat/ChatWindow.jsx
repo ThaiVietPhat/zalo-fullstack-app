@@ -17,6 +17,12 @@ export default function ChatWindow() {
   const { auth } = useAuthStore();
 
   const subscribeToChat = (chatId) => {
+    // Subscribe to message delivery topic (broadcast, same pattern as group messages)
+    wsService.subscribe(`/topic/chat/${chatId}`, (message) => {
+      addMessage(chatId, message);
+      updateChatLastMessage(chatId, message);
+    });
+    // Subscribe to typing indicator
     wsService.subscribe(`/topic/chat/${chatId}/typing`, (data) => {
       const { userId, isTyping } = data;
       if (userId === auth?.userId) return;
@@ -28,6 +34,7 @@ export default function ChatWindow() {
   };
 
   const unsubscribeFromChat = (chatId) => {
+    wsService.unsubscribe(`/topic/chat/${chatId}`);
     wsService.unsubscribe(`/topic/chat/${chatId}/typing`);
   };
 

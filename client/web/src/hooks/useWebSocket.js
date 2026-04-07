@@ -116,6 +116,14 @@ export function useWebSocket() {
   }, [auth?.accessToken]);
 
   const subscribeToChat = (chatId) => {
+    // Subscribe to message delivery topic (broadcast, same pattern as group messages)
+    wsService.subscribe(`/topic/chat/${chatId}`, (message) => {
+      addMessage(chatId, message);
+      updateChatLastMessage(chatId, message);
+      if (activeChatIdRef.current !== chatId) {
+        incrementUnread(chatId);
+      }
+    });
     wsService.subscribe(`/topic/chat/${chatId}/typing`, (data) => {
       const { userId, isTyping } = data;
       if (userId === auth?.userId) return;
@@ -129,6 +137,7 @@ export function useWebSocket() {
   };
 
   const unsubscribeFromChat = (chatId) => {
+    wsService.unsubscribe(`/topic/chat/${chatId}`);
     wsService.unsubscribe(`/topic/chat/${chatId}/typing`);
   };
 
