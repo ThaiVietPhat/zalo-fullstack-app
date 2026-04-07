@@ -30,4 +30,10 @@ public class ChatController {
     public ResponseEntity<ChatDto> startChat(@PathVariable UUID otherUserId, Authentication currentUser) {
         return ResponseEntity.ok(chatService.getOrCreateChat(otherUserId, currentUser));
     }
+
+    @DeleteMapping("/{chatId}")
+    public ResponseEntity<Void> deleteChat(@PathVariable UUID chatId, Authentication currentUser) {
+        chatService.deleteChat(chatId, currentUser);
+        return ResponseEntity.ok().build();
+    }
 }

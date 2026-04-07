@@ -68,6 +68,9 @@ public class User extends BaseAuditingEntity {
     @Column(name = "reset_password_code_expiry")
     private LocalDateTime resetPasswordCodeExpiry;
 
+    @Column(name = "token_version", nullable = false)
+    private int tokenVersion = 1;
+
     @Transient
     public boolean isAdmin() {
         return "ADMIN".equals(this.role);

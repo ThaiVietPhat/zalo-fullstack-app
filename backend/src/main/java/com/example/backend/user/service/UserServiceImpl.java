@@ -1,11 +1,14 @@
 package com.example.backend.user.service;
 
+import com.example.backend.user.entity.FriendRequest;
+import com.example.backend.user.entity.FriendRequestStatus;
 import com.example.backend.user.entity.User;
 import com.example.backend.shared.exception.ResourceNotFoundException;
 import com.example.backend.user.mapper.UserMapper;
 import com.example.backend.auth.dto.ChangePasswordRequest;
 import com.example.backend.user.dto.UpdateProfileRequest;
 import com.example.backend.user.dto.UserDto;
+import com.example.backend.user.repository.FriendRequestRepository;
 import com.example.backend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -16,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import com.example.backend.file.service.FileStorageService;
 
@@ -26,14 +30,13 @@ public class UserServiceImpl implements UserService {
     private final UserMapper userMapper;
     private final FileStorageService fileStorageService;
     private final PasswordEncoder passwordEncoder;
+    private final FriendRequestRepository friendRequestRepository;
 
     @Override
     public List<UserDto> getAllUsersExceptSelf(Authentication currentUser) {
         String email = currentUser.getName();
-
         User self = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-
         return userRepository.findByIdNot(self.getId())
                 .stream()
                 .map(userMapper::toDto)
@@ -56,7 +59,33 @@ public class UserServiceImpl implements UserService {
 
         return userRepository.searchByNameOrEmail(keyword, self.getId())
                 .stream()
-                .map(userMapper::toDto)
+                .map(user -> {
+                    UserDto dto = userMapper.toDto(user);
+                    // Admin users always appear as accepted
+                    if (user.isAdmin()) {
+                        dto.setFriendshipStatus("ACCEPTED");
+                        return dto;
+                    }
+                    Optional<FriendRequest> relation = friendRequestRepository
+                            .findBetweenUsers(self.getId(), user.getId());
+                    if (relation.isEmpty()) {
+                        dto.setFriendshipStatus("NONE");
+                    } else {
+                        FriendRequest fr = relation.get();
+                        if (fr.getStatus() == FriendRequestStatus.ACCEPTED) {
+                            dto.setFriendshipStatus("ACCEPTED");
+                        } else if (fr.getStatus() == FriendRequestStatus.PENDING) {
+                            if (fr.getSender().getId().equals(self.getId())) {
+                                dto.setFriendshipStatus("PENDING_SENT");
+                            } else {
+                                dto.setFriendshipStatus("PENDING_RECEIVED");
+                            }
+                        } else {
+                            dto.setFriendshipStatus("NONE");
+                        }
+                    }
+                    return dto;
+                })
                 .collect(Collectors.toList());
     }
 
@@ -92,7 +121,7 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         String filename = fileStorageService.saveFile(file);
-        user.setAvatarUrl("/api/v1/message/media/" + filename);
+        user.setAvatarUrl(filename);
 
         return userMapper.toDto(userRepository.save(user));
     }

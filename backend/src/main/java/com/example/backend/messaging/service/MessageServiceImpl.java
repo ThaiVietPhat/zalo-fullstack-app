@@ -26,6 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -62,6 +63,19 @@ public class MessageServiceImpl implements MessageService {
                 && (messageDto.getContent() == null || messageDto.getContent().isBlank())) {
             throw new IllegalArgumentException("Message content cannot be empty");
         }
+
+        // Khi gửi tin nhắn: restore chat cho cả người gửi lẫn người nhận
+        boolean needSave = false;
+        if (chat.getUser1().getId().equals(sender.getId())) {
+            // sender là user1: restore user1 (người gửi) + user2 (người nhận)
+            if (chat.isDeletedByUser1()) { chat.setDeletedByUser1(false); needSave = true; }
+            if (chat.isDeletedByUser2()) { chat.setDeletedByUser2(false); needSave = true; }
+        } else {
+            // sender là user2: restore user2 (người gửi) + user1 (người nhận)
+            if (chat.isDeletedByUser2()) { chat.setDeletedByUser2(false); needSave = true; }
+            if (chat.isDeletedByUser1()) { chat.setDeletedByUser1(false); needSave = true; }
+        }
+        if (needSave) chatRepository.save(chat);
 
         Message message = new Message();
         message.setChat(chat);
@@ -137,9 +151,13 @@ public class MessageServiceImpl implements MessageService {
             throw new UnauthorizedException("Access denied: you are not a member of this chat");
         }
 
+        // Lấy timestamp xóa của user hiện tại để lọc tin nhắn cũ
+        LocalDateTime deletedAt = chat.getDeletedAtFor(user.getId());
+
         Page<Message> messagePage = messageRepository.findByChatIdForUser(
                 chatUuid,
                 user.getId(),
+                deletedAt,
                 PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdDate"))
         );
 

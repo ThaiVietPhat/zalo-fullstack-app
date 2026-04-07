@@ -28,6 +28,11 @@ public interface MessageMapper {
         if (message.getContent() == null || message.getContent().isBlank()) {
             return null;
         }
-        return "/api/v1/message/media/" + message.getContent();
+        String content = message.getContent();
+        // Nếu đã là S3 URL đầy đủ thì dùng luôn
+        if (content.startsWith("http")) {
+            return content;
+        }
+        return "/api/v1/message/media/" + content;
     }
 }

@@ -2,6 +2,7 @@ import React from 'react';
 import Sidebar from '../components/layout/Sidebar';
 import ChatWindow from '../components/chat/ChatWindow';
 import GroupWindow from '../components/group/GroupWindow';
+import SessionReplacedModal from '../components/common/SessionReplacedModal';
 import useChatStore from '../store/chatStore';
 import { useWebSocket } from '../hooks/useWebSocket';
 
@@ -17,6 +18,7 @@ export default function ChatPage() {
 
   return (
     <div className="h-screen flex bg-gray-100 overflow-hidden">
+      <SessionReplacedModal />
       {/* Sidebar - 320px fixed */}
       <div className="w-80 flex-shrink-0 h-full border-r border-gray-200 shadow-sm">
         <Sidebar />

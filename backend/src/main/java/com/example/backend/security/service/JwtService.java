@@ -28,23 +28,35 @@ public class JwtService {
 
     // ─── Tạo access token ────────────────────────────────────────────────────
 
-    public String generateAccessToken(String email, String userId, String role) {
+    public String generateAccessToken(String email, String userId, String role, int tokenVersion) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("sub", userId);
         claims.put("email", email);
         claims.put("type", "access");
         claims.put("role", role != null ? role : "USER");
+        claims.put("tv", tokenVersion);
         return buildToken(claims, email, expirationMs);
+    }
+
+    @Deprecated
+    public String generateAccessToken(String email, String userId, String role) {
+        return generateAccessToken(email, userId, role, 1);
     }
 
     // ─── Tạo refresh token ───────────────────────────────────────────────────
 
-    public String generateRefreshToken(String email, String userId) {
+    public String generateRefreshToken(String email, String userId, int tokenVersion) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("sub", userId);
         claims.put("email", email);
         claims.put("type", "refresh");
+        claims.put("tv", tokenVersion);
         return buildToken(claims, email, refreshExpirationMs);
+    }
+
+    @Deprecated
+    public String generateRefreshToken(String email, String userId) {
+        return generateRefreshToken(email, userId, 1);
     }
 
     // ─── Xây dựng token ──────────────────────────────────────────────────────
@@ -86,6 +98,15 @@ public class JwtService {
 
     public String extractUserId(String token) {
         return extractAllClaims(token).getSubject();
+    }
+
+    public int extractTokenVersion(String token) {
+        try {
+            Object tv = extractAllClaims(token).get("tv");
+            return tv instanceof Number n ? n.intValue() : 1;
+        } catch (Exception e) {
+            return 1;
+        }
     }
 
     public String extractRole(String token) {

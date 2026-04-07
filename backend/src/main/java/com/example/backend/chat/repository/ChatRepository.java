@@ -12,7 +12,8 @@ import java.util.UUID;
 public interface ChatRepository extends JpaRepository<Chat, UUID> {
 
     @Query("SELECT c FROM Chat c " +
-           "WHERE c.user1.id = :userId OR c.user2.id = :userId " +
+           "WHERE (c.user1.id = :userId AND c.deletedByUser1 = false) " +
+           "OR (c.user2.id = :userId AND c.deletedByUser2 = false) " +
            "ORDER BY c.lastModifiedDate DESC")
     List<Chat> findAllChatsByUserId(@Param("userId") UUID userId);
 

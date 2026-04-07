@@ -1,8 +1,5 @@
 import api from './axios';
 
-export const getAllUsers = () =>
-  api.get('/api/v1/user');
-
 export const getMyProfile = () =>
   api.get('/api/v1/user/me');
 

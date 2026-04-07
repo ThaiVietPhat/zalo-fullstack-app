@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, X, Check } from 'lucide-react';
 import Modal from '../common/Modal';
 import Avatar from '../common/Avatar';
-import { getAllUsers } from '../../api/user';
+import { getContacts } from '../../api/friendRequest';
 import { createGroup } from '../../api/group';
 import useChatStore from '../../store/chatStore';
 import toast from 'react-hot-toast';
@@ -19,7 +19,7 @@ export default function CreateGroupModal({ isOpen, onClose }) {
 
   useEffect(() => {
     if (isOpen) {
-      getAllUsers().then((res) => setUsers(res.data || [])).catch(() => {});
+      getContacts().then((res) => setUsers(res.data || [])).catch(() => {});
       setStep(1);
       setName('');
       setDescription('');

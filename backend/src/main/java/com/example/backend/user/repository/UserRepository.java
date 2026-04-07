@@ -27,4 +27,5 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     long countByBannedTrue();
     long countByOnlineTrue();
     List<User> findByIdIn(List<UUID> ids);
+    List<User> findByRole(String role);
 }

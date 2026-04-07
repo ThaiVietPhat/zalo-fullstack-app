@@ -15,6 +15,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -81,6 +82,32 @@ public class ChatServiceImpl implements ChatService {
                 });
 
         return mapChatToDto(chat, user);
+    }
+
+    @Override
+    @Transactional
+    public void deleteChat(UUID chatId, Authentication currentUser) {
+        String email = currentUser.getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        Chat chat = chatRepository.findById(chatId)
+                .orElseThrow(() -> new ResourceNotFoundException("Chat not found with id: " + chatId));
+
+        if (!chat.containsUser(user.getId())) {
+            throw new UnauthorizedException("Access denied: you are not a member of this chat");
+        }
+
+        // Soft-delete: chỉ ẩn phía user này, lưu timestamp để lọc tin nhắn cũ khi mở lại
+        LocalDateTime now = LocalDateTime.now();
+        if (chat.getUser1().getId().equals(user.getId())) {
+            chat.setDeletedByUser1(true);
+            chat.setDeletedAtByUser1(now);
+        } else {
+            chat.setDeletedByUser2(true);
+            chat.setDeletedAtByUser2(now);
+        }
+        chatRepository.save(chat);
     }
 
     private ChatDto mapChatToDto(Chat chat, User currentUser) {

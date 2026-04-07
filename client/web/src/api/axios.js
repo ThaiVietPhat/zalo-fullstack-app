@@ -1,4 +1,5 @@
 import axios from 'axios';
+import useAuthStore from '../store/authStore';
 
 const BASE_URL = '';
 
@@ -33,11 +34,32 @@ const processQueue = (error, token = null) => {
   failedQueue = [];
 };
 
+const isSessionReplaced = (responseData) =>
+  responseData?.error === 'SESSION_REPLACED' ||
+  (typeof responseData === 'string' && responseData.includes('SESSION_REPLACED'));
+
+const showSessionReplacedModal = () => {
+  useAuthStore.getState().setSessionReplaced();
+};
+
+const forceLogout = () => {
+  // Nếu modal session replaced đang hiện → không redirect, để user bấm OK
+  if (useAuthStore.getState().sessionReplaced) return;
+  localStorage.removeItem('auth');
+  window.location.href = '/login';
+};
+
 // Response interceptor: handle 401 with token refresh
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+
+    // Session bị thay thế → hiện modal, không refresh
+    if (error.response?.status === 401 && isSessionReplaced(error.response?.data)) {
+      showSessionReplacedModal();
+      return Promise.reject(error);
+    }
 
     if (error.response?.status === 401 && !originalRequest._retry) {
       if (isRefreshing) {
@@ -57,8 +79,7 @@ api.interceptors.response.use(
       const auth = JSON.parse(localStorage.getItem('auth') || '{}');
       if (!auth.refreshToken) {
         isRefreshing = false;
-        localStorage.removeItem('auth');
-        window.location.href = '/login';
+        forceLogout();
         return Promise.reject(error);
       }
 
@@ -81,8 +102,13 @@ api.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError, null);
         isRefreshing = false;
-        localStorage.removeItem('auth');
-        window.location.href = '/login';
+        // Refresh token hết hạn do session replaced → hiện modal
+        const refreshErrData = refreshError.response?.data;
+        if (isSessionReplaced(refreshErrData) || refreshErrData?.message === 'SESSION_REPLACED') {
+          showSessionReplacedModal();
+        } else {
+          forceLogout();
+        }
         return Promise.reject(refreshError);
       }
     }

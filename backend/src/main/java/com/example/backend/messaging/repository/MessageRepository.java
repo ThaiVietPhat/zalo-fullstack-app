@@ -25,11 +25,18 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
      *  - Tin bị thu hồi (deleted = true)
      *  - Tin user xóa phía mình (deletedBySender nếu là người gửi, deletedByReceiver nếu là người nhận)
      */
+    /**
+     * Lấy tin nhắn cho user, loại trừ tin bị xóa cá nhân.
+     * Nếu user đã "xóa cuộc trò chuyện" và cung cấp deletedAt,
+     * chỉ trả về tin nhắn được gửi SAU thời điểm đó.
+     */
     @Query("SELECT m FROM Message m WHERE m.chat.id = :chatId AND m.deleted = false " +
            "AND NOT (m.deletedBySender = true AND m.sender.id = :userId) " +
-           "AND NOT (m.deletedByReceiver = true AND m.sender.id <> :userId)")
+           "AND NOT (m.deletedByReceiver = true AND m.sender.id <> :userId) " +
+           "AND (:deletedAt IS NULL OR m.createdDate > :deletedAt)")
     Page<Message> findByChatIdForUser(@Param("chatId") UUID chatId,
                                       @Param("userId") UUID userId,
+                                      @Param("deletedAt") LocalDateTime deletedAt,
                                       Pageable pageable);
 
     @Query("SELECT COUNT(m) FROM Message m WHERE m.chat.id = :chatId " +
@@ -45,6 +52,13 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
             @Param("userId") UUID userId,
             @Param("state") MessageState state
     );
+
+    @Modifying
+    @Query("DELETE FROM Message m WHERE m.chat.id = :chatId")
+    void deleteByChatId(@Param("chatId") UUID chatId);
+
+    @Query("SELECT m.id FROM Message m WHERE m.chat.id = :chatId")
+    List<UUID> findIdsByChatId(@Param("chatId") UUID chatId);
 
     long countByDeletedFalse();
 

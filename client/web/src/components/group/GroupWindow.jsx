@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Info, Users, LogOut, ChevronLeft, UserPlus, Pencil, Camera } from 'lucide-react';
 import { getGroupDetail, getGroupMessages, sendGroupMessage, uploadGroupMedia, leaveGroup, addGroupMembers, removeGroupMember, updateGroup, uploadGroupAvatar, recallGroupMessage, setMemberAsAdmin, dissolveGroup } from '../../api/group';
-import { getAllUsers } from '../../api/user';
+import { getContacts } from '../../api/friendRequest';
 import useChatStore from '../../store/chatStore';
 import useAuthStore from '../../store/authStore';
 import { useWebSocket } from '../../hooks/useWebSocket';
@@ -388,7 +388,7 @@ export default function GroupWindow() {
             <p className="text-xs text-gray-400">{groupDetail?.memberCount} thành viên</p>
           </div>
           <div className="flex items-center gap-1">
-            <button onClick={() => { getAllUsers().then((r) => setAllUsers(r.data || [])); setShowInfo(true); }}
+            <button onClick={() => { getContacts().then((r) => setAllUsers(r.data || [])); setShowInfo(true); }}
               className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
               <Info size={18} className="text-gray-600" />
             </button>
@@ -474,7 +474,7 @@ export default function GroupWindow() {
             <div className="flex items-center justify-between mb-3">
               <h4 className="font-semibold text-gray-700 text-sm">Thành viên ({groupDetail?.members?.length || 0})</h4>
               {isAdmin && (
-                <button onClick={() => { getAllUsers().then((r) => setAllUsers(r.data || [])); setShowAddMember(true); }}
+                <button onClick={() => { getContacts().then((r) => setAllUsers(r.data || [])); setShowAddMember(true); }}
                   className="flex items-center gap-1 text-xs text-blue-500 hover:underline">
                   <UserPlus size={14} /> Thêm
                 </button>

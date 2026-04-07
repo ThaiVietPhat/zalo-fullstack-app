@@ -19,11 +19,6 @@ import java.util.List;
 public class UserController {
     private final UserService userService;
 
-    @GetMapping
-    public ResponseEntity<List<UserDto>> getAllUsers(Authentication currentUser) {
-        return ResponseEntity.ok(userService.getAllUsersExceptSelf(currentUser));
-    }
-
     @GetMapping("/me")
     public ResponseEntity<UserDto> getMyProfile(Authentication currentUser) {
         return ResponseEntity.ok(userService.getMyProfile(currentUser));

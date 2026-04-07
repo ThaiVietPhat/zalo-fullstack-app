@@ -128,7 +128,7 @@ public class GroupService {
         Group group = getGroupAndCheckAdmin(groupId, user.getId());
 
         String filename = fileStorageService.saveFile(file);
-        group.setAvatarUrl("/api/v1/message/media/" + filename);
+        group.setAvatarUrl(filename);
 
         groupRepository.save(group);
         log.info("Group '{}' avatar updated by {}", group.getName(), user.getEmail());
@@ -434,8 +434,9 @@ public class GroupService {
 
     private GroupMessageDto toMessageDto(GroupMessage msg, UUID currentUserId) {
         boolean isMedia = msg.getType() != null && msg.getType() != com.example.backend.messaging.enums.MessageType.TEXT;
-        String mediaUrl = (!msg.isDeleted() && isMedia && msg.getContent() != null)
-                ? "/api/v1/message/media/" + msg.getContent()
+        String rawContent = msg.getContent();
+        String mediaUrl = (!msg.isDeleted() && isMedia && rawContent != null)
+                ? (rawContent.startsWith("http") ? rawContent : "/api/v1/message/media/" + rawContent)
                 : null;
         String content = msg.isDeleted() ? null : (isMedia ? null : msg.getContent());
 

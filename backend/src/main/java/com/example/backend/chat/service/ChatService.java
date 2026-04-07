@@ -10,4 +10,6 @@ public interface ChatService {
     List<ChatDto> getChatByReceiverId(Authentication currentUser);
     ChatDto getChatById(UUID chatId, Authentication currentUser);
     ChatDto getOrCreateChat(UUID otherUserId, Authentication currentUser);
+
+    void deleteChat(UUID chatId, Authentication currentUser);
 }

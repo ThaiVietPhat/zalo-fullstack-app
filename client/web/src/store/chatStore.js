@@ -3,6 +3,9 @@ import { create } from 'zustand';
 const useChatStore = create((set) => ({
   chats: [],
   groups: [],
+  contacts: [], // accepted friends (UserDto[])
+  pendingRequests: [], // incoming friend requests (FriendRequestDto[])
+  sentRequests: [], // outgoing pending requests (FriendRequestDto[])
   activeChatId: null,
   activeGroupId: null,
   activeTab: 'chats', // 'chats' | 'groups' | 'ai' | 'contacts'
@@ -13,6 +16,47 @@ const useChatStore = create((set) => ({
 
   setChats: (chats) =>
     set((state) => ({ chats: typeof chats === 'function' ? chats(state.chats) : chats })),
+
+  setContacts: (contacts) => set({ contacts }),
+  addContact: (contact) =>
+    set((state) => {
+      if (state.contacts.find((c) => c.id === contact.id)) return state;
+      return { contacts: [...state.contacts, contact] };
+    }),
+  removeContact: (userId) =>
+    set((state) => ({ contacts: state.contacts.filter((c) => c.id !== userId) })),
+
+  setPendingRequests: (pendingRequests) => set({ pendingRequests }),
+  addPendingRequest: (req) =>
+    set((state) => {
+      if (state.pendingRequests.find((r) => r.id === req.id)) return state;
+      return { pendingRequests: [...state.pendingRequests, req] };
+    }),
+  removePendingRequest: (requestId) =>
+    set((state) => ({ pendingRequests: state.pendingRequests.filter((r) => r.id !== requestId) })),
+
+  setSentRequests: (sentRequests) => set({ sentRequests }),
+  addSentRequest: (req) =>
+    set((state) => {
+      if (state.sentRequests.find((r) => r.id === req.id)) return state;
+      return { sentRequests: [...state.sentRequests, req] };
+    }),
+  updateSentRequest: (requestId, updates) =>
+    set((state) => ({
+      sentRequests: state.sentRequests.map((r) => (r.id === requestId ? { ...r, ...updates } : r)),
+    })),
+
+  removeChat: (chatId) =>
+    set((state) => {
+      // eslint-disable-next-line no-unused-vars
+      const { [chatId]: _removed, ...remainingMessages } = state.messages;
+      return {
+        chats: state.chats.filter((c) => c.id !== chatId),
+        activeChatId: state.activeChatId === chatId ? null : state.activeChatId,
+        messages: remainingMessages,
+      };
+    }),
+
   updateChat: (chatId, updates) =>
     set((state) => ({
       chats: state.chats.map((c) => (c.id === chatId ? { ...c, ...updates } : c)),

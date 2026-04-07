@@ -17,4 +17,5 @@ public class UserDto {
     private String role;
     private boolean banned;
     private String avatarUrl;
+    private String friendshipStatus; // NONE, PENDING_SENT, PENDING_RECEIVED, ACCEPTED
 }

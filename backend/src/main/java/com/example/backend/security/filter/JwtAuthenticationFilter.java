@@ -1,6 +1,7 @@
 package com.example.backend.security.filter;
 
 import com.example.backend.security.service.JwtService;
+import com.example.backend.user.repository.UserRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -24,6 +25,7 @@ import java.util.List;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
+    private final UserRepository userRepository;
 
     private static final List<String> SKIP_PATHS = List.of(
             "/swagger-ui",
@@ -53,9 +55,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             try {
                 if (jwtService.isTokenValid(token) && jwtService.isAccessToken(token)) {
                     String email = jwtService.extractEmail(token);
+                    int tokenVersion = jwtService.extractTokenVersion(token);
 
-                    // Set authentication vào SecurityContext
-                    // (giống cách Keycloak trả về email làm principal name)
+                    // Kiểm tra tokenVersion so với DB để phát hiện session cũ
+                    boolean versionValid = userRepository.findByEmail(email)
+                            .map(u -> u.getTokenVersion() == tokenVersion)
+                            .orElse(false);
+
+                    if (!versionValid) {
+                        log.warn("Token version mismatch for user: {} — session đã bị thay thế", email);
+                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                        response.setContentType("application/json");
+                        response.getWriter().write("{\"error\":\"SESSION_REPLACED\"}");
+                        return;
+                    }
+
                     String role = jwtService.extractRole(token);
                     UsernamePasswordAuthenticationToken auth =
                             new UsernamePasswordAuthenticationToken(

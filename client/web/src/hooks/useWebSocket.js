@@ -2,9 +2,11 @@ import { useEffect, useRef } from 'react';
 import wsService from '../services/websocket';
 import useAuthStore from '../store/authStore';
 import useChatStore from '../store/chatStore';
+import { getChatDetail } from '../api/chat';
+import toast from 'react-hot-toast';
 
 export function useWebSocket() {
-  const { auth } = useAuthStore();
+  const { auth, setSessionReplaced } = useAuthStore();
   const {
     addMessage,
     updateMessage,
@@ -21,7 +23,15 @@ export function useWebSocket() {
     activeGroupId,
     clearUnread,
     groups,
+    chats,
+    setChats,
+    addPendingRequest,
+    addContact,
+    updateSentRequest,
   } = useChatStore();
+
+  const chatsRef = useRef(chats);
+  useEffect(() => { chatsRef.current = chats; }, [chats]);
 
   const activeChatIdRef = useRef(activeChatId);
   const activeGroupIdRef = useRef(activeGroupId);
@@ -41,6 +51,12 @@ export function useWebSocket() {
       // Subscribe to personal message queue
       wsService.subscribe('/user/queue/messages', (message) => {
         const chatId = message.chatId;
+        // If chat was deleted (removed from local list), re-fetch and add it back
+        if (!chatsRef.current.find((c) => c.id === chatId)) {
+          getChatDetail(chatId)
+            .then((res) => setChats((prev) => [res.data, ...prev.filter((c) => c.id !== chatId)]))
+            .catch(() => {});
+        }
         addMessage(chatId, message);
         updateChatLastMessage(chatId, message);
         if (activeChatIdRef.current !== chatId) {
@@ -65,6 +81,33 @@ export function useWebSocket() {
       wsService.subscribe('/user/queue/reactions', (data) => {
         const { messageId, chatId, reactions } = data;
         updateMessageReactions(chatId, messageId, reactions);
+      });
+
+      // Subscribe to incoming friend requests
+      wsService.subscribe('/user/queue/friend-request', (data) => {
+        addPendingRequest(data);
+        toast(`${data.senderName.trim()} đã gửi lời mời kết bạn`);
+      });
+
+      // Subscribe to force-logout (đăng nhập từ nơi khác)
+      wsService.subscribe('/user/queue/force-logout', () => {
+        wsService.disconnect();
+        setSessionReplaced();
+      });
+
+      // Subscribe to friend request accepted
+      wsService.subscribe('/user/queue/friend-request-accepted', (data) => {
+        const friend = {
+          id: data.receiverId,
+          firstName: data.receiverName.split(' ')[0],
+          lastName: data.receiverName.split(' ').slice(1).join(' '),
+          email: data.receiverEmail,
+          avatarUrl: data.receiverAvatarUrl,
+          friendshipStatus: 'ACCEPTED',
+        };
+        addContact(friend);
+        updateSentRequest(data.id, { status: 'ACCEPTED' });
+        toast.success(`${data.receiverName.trim()} đã chấp nhận lời mời kết bạn`);
       });
     });
 

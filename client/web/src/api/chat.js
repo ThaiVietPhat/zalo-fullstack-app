@@ -8,3 +8,6 @@ export const getChatDetail = (chatId) =>
 
 export const startChat = (otherUserId) =>
   api.post(`/api/v1/chat/start/${otherUserId}`);
+
+export const deleteChat = (chatId) =>
+  api.delete(`/api/v1/chat/${chatId}`);

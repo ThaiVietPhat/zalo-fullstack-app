@@ -11,6 +11,7 @@ const getInitialAuth = () => {
 
 const useAuthStore = create((set) => ({
   auth: getInitialAuth(),
+  sessionReplaced: false,
 
   setAuth: (authData) => {
     localStorage.setItem('auth', JSON.stringify(authData));
@@ -27,8 +28,10 @@ const useAuthStore = create((set) => ({
 
   logout: () => {
     localStorage.removeItem('auth');
-    set({ auth: null });
+    set({ auth: null, sessionReplaced: false });
   },
+
+  setSessionReplaced: () => set({ sessionReplaced: true }),
 
   isLoggedIn: () => {
     const state = getInitialAuth();

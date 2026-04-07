@@ -4,6 +4,7 @@ import com.example.backend.user.entity.User;
 import com.example.backend.auth.dto.AuthRequest;
 import com.example.backend.auth.dto.AuthResponse;
 import com.example.backend.user.repository.UserRepository;
+import com.example.backend.messaging.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -24,9 +25,10 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final EmailService emailService;
+    private final NotificationService notificationService;
 
     private static final int OTP_LENGTH = 6;
-    private static final int OTP_EXPIRY_MINUTES = 10;
+    private static final int OTP_EXPIRY_MINUTES = 1;
 
     // ─── Đăng ký ─────────────────────────────────────────────────────────────
 
@@ -117,6 +119,11 @@ public class AuthService {
             throw new BadCredentialsException("Tài khoản chưa được xác thực. Vui lòng kiểm tra email");
         }
 
+        // Thông báo force-logout cho session cũ trước khi invalidate token
+        notificationService.sendForceLogout(user.getEmail(), "SESSION_REPLACED");
+
+        // Tăng tokenVersion → tất cả token cũ trở nên không hợp lệ
+        user.setTokenVersion(user.getTokenVersion() + 1);
         user.setOnline(true);
         user.setLastSeen(LocalDateTime.now());
         userRepository.save(user);
@@ -182,10 +189,16 @@ public class AuthService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new BadCredentialsException("Người dùng không tồn tại"));
 
+        // Kiểm tra tokenVersion: nếu refresh token của session cũ → từ chối
+        int tokenVersionInToken = jwtService.extractTokenVersion(refreshToken);
+        if (tokenVersionInToken != user.getTokenVersion()) {
+            throw new BadCredentialsException("SESSION_REPLACED");
+        }
+
         String newAccessToken = jwtService.generateAccessToken(
-                user.getEmail(), user.getId().toString(), user.getRole());
+                user.getEmail(), user.getId().toString(), user.getRole(), user.getTokenVersion());
         String newRefreshToken = jwtService.generateRefreshToken(
-                user.getEmail(), user.getId().toString());
+                user.getEmail(), user.getId().toString(), user.getTokenVersion());
 
         return AuthResponse.builder()
                 .accessToken(newAccessToken)
@@ -226,8 +239,8 @@ public class AuthService {
     }
 
     private AuthResponse buildAuthResponse(User user) {
-        String accessToken  = jwtService.generateAccessToken(user.getEmail(), user.getId().toString(), user.getRole());
-        String refreshToken = jwtService.generateRefreshToken(user.getEmail(), user.getId().toString());
+        String accessToken  = jwtService.generateAccessToken(user.getEmail(), user.getId().toString(), user.getRole(), user.getTokenVersion());
+        String refreshToken = jwtService.generateRefreshToken(user.getEmail(), user.getId().toString(), user.getTokenVersion());
 
         return AuthResponse.builder()
                 .accessToken(accessToken)

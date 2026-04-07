@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { Search } from 'lucide-react';
-import { getMyChats } from '../../api/chat';
+import { Search, Trash2 } from 'lucide-react';
+import { getMyChats, deleteChat } from '../../api/chat';
 import useChatStore from '../../store/chatStore';
 import useAuthStore from '../../store/authStore';
 import Avatar from '../common/Avatar';
+import Modal from '../common/Modal';
 import { formatDistanceToNow } from 'date-fns';
 import { vi } from 'date-fns/locale';
+import toast from 'react-hot-toast';
 
 function formatTime(dateStr) {
   if (!dateStr) return '';
@@ -17,10 +19,13 @@ function formatTime(dateStr) {
 }
 
 export default function ChatList() {
-  const { chats, setChats, activeChatId, setActiveChatId } = useChatStore();
+  const { chats, setChats, activeChatId, setActiveChatId, removeChat } = useChatStore();
   const { auth } = useAuthStore();
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
+  const [hoveredId, setHoveredId] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(null); // chat object to delete
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -33,6 +38,21 @@ export default function ChatList() {
   const filtered = chats.filter((c) =>
     c.chatName?.toLowerCase().includes(search.toLowerCase())
   );
+
+  const handleDeleteConfirm = async () => {
+    if (!confirmDelete) return;
+    setDeleting(true);
+    try {
+      await deleteChat(confirmDelete.id);
+      removeChat(confirmDelete.id);
+      toast.success('Đã xóa cuộc trò chuyện');
+    } catch {
+      toast.error('Không thể xóa cuộc trò chuyện');
+    } finally {
+      setDeleting(false);
+      setConfirmDelete(null);
+    }
+  };
 
   return (
     <div className="flex flex-col h-full">
@@ -64,15 +84,17 @@ export default function ChatList() {
 
         {filtered.map((chat) => {
           const isActive = activeChatId === chat.id;
-          const isMyMsg = chat.lastMessage && chat.user1Id === auth?.userId;
+          const isHovered = hoveredId === chat.id;
 
           return (
-            <button
+            <div
               key={chat.id}
-              onClick={() => setActiveChatId(chat.id)}
-              className={`flex items-center gap-3 px-4 py-3 w-full text-left hover:bg-gray-50 transition-colors ${
-                isActive ? 'bg-blue-50 border-r-2 border-blue-500' : ''
+              className={`relative flex items-center gap-3 px-4 py-3 w-full text-left transition-colors cursor-pointer ${
+                isActive ? 'bg-blue-50 border-r-2 border-blue-500' : 'hover:bg-gray-50'
               }`}
+              onClick={() => setActiveChatId(chat.id)}
+              onMouseEnter={() => setHoveredId(chat.id)}
+              onMouseLeave={() => setHoveredId(null)}
             >
               <Avatar
                 src={chat.avatarUrl}
@@ -85,9 +107,11 @@ export default function ChatList() {
                   <span className={`font-medium text-sm truncate ${isActive ? 'text-blue-600' : 'text-gray-800'}`}>
                     {chat.chatName || 'Người dùng'}
                   </span>
-                  <span className="text-xs text-gray-400 ml-1 flex-shrink-0">
-                    {formatTime(chat.lastMessageTime)}
-                  </span>
+                  {!isHovered && (
+                    <span className="text-xs text-gray-400 ml-1 flex-shrink-0">
+                      {formatTime(chat.lastMessageTime)}
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center justify-between mt-0.5">
                   <span className="text-xs text-gray-500 truncate max-w-[150px]">
@@ -101,17 +125,64 @@ export default function ChatList() {
                         : chat.lastMessage
                       : 'Chưa có tin nhắn'}
                   </span>
-                  {chat.unreadCount > 0 && (
+                  {chat.unreadCount > 0 && !isHovered && (
                     <span className="ml-2 bg-blue-500 text-white text-xs rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 flex-shrink-0">
                       {chat.unreadCount > 99 ? '99+' : chat.unreadCount}
                     </span>
                   )}
                 </div>
               </div>
-            </button>
+
+              {/* Delete button — visible on hover */}
+              {isHovered && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setConfirmDelete(chat);
+                  }}
+                  className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-full text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+                  title="Xóa cuộc trò chuyện"
+                >
+                  <Trash2 size={15} />
+                </button>
+              )}
+            </div>
           );
         })}
       </div>
+
+      {/* Confirm delete dialog */}
+      <Modal
+        isOpen={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        title="Xóa cuộc trò chuyện"
+      >
+        <div className="p-6">
+          <p className="text-sm text-gray-600 mb-1">
+            Bạn có chắc muốn xóa cuộc trò chuyện với{' '}
+            <span className="font-semibold text-gray-800">{confirmDelete?.chatName}</span>?
+          </p>
+          <p className="text-xs text-gray-400 mb-6">
+            Tất cả tin nhắn sẽ bị xóa vĩnh viễn và không thể khôi phục.
+          </p>
+          <div className="flex gap-3">
+            <button
+              onClick={() => setConfirmDelete(null)}
+              disabled={deleting}
+              className="flex-1 px-4 py-2.5 rounded-xl border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
+            >
+              Hủy
+            </button>
+            <button
+              onClick={handleDeleteConfirm}
+              disabled={deleting}
+              className="flex-1 px-4 py-2.5 rounded-xl bg-red-500 text-white font-medium hover:bg-red-600 transition-colors disabled:opacity-50"
+            >
+              {deleting ? 'Đang xóa...' : 'Xóa'}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

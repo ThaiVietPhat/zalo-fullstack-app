@@ -2,6 +2,7 @@ package com.example.backend.messaging.service;
 
 import com.example.backend.messaging.dto.MessageDto;
 import com.example.backend.reaction.dto.ReactionDto;
+import com.example.backend.user.dto.FriendRequestDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -68,6 +69,34 @@ public class NotificationService {
         );
     }
 
+    public void sendFriendRequestNotification(String receiverEmail, FriendRequestDto dto) {
+        log.info("Sending friend request notification to user: {}", receiverEmail);
+        messagingTemplate.convertAndSendToUser(
+                receiverEmail,
+                "/queue/friend-request",
+                dto
+        );
+    }
+
+    public void sendForceLogout(String email, String reason) {
+        log.info("Sending force-logout to user: {} — reason: {}", email, reason);
+        messagingTemplate.convertAndSendToUser(
+                email,
+                "/queue/force-logout",
+                new ForceLogoutPayload(reason)
+        );
+    }
+
+    public void sendFriendRequestAcceptedNotification(String senderEmail, FriendRequestDto dto) {
+        log.info("Sending friend request accepted notification to user: {}", senderEmail);
+        messagingTemplate.convertAndSendToUser(
+                senderEmail,
+                "/queue/friend-request-accepted",
+                dto
+        );
+    }
+
+    public record ForceLogoutPayload(String reason) {}
     public record MessageSeenPayload(UUID chatId) {}
     public record TypingPayload(UUID userId, boolean isTyping) {}
     public record UserStatusPayload(UUID userId, boolean isOnline) {}

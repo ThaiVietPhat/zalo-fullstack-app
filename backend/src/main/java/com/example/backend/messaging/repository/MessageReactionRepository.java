@@ -16,4 +16,7 @@ public interface MessageReactionRepository extends JpaRepository<MessageReaction
 
     @Transactional
     void deleteByMessageIdAndUserId(UUID messageId, UUID userId);
+
+    @Transactional
+    void deleteByMessageIdIn(Collection<UUID> messageIds);
 }
