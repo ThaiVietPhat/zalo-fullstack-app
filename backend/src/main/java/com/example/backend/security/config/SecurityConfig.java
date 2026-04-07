@@ -49,6 +49,8 @@ public class SecurityConfig {
                                 response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized")))
                 .authorizeHttpRequests(req ->
                         req.requestMatchers(
+                                        // Health check
+                                        "/actuator/health",
                                         // Auth endpoints - public
                                         "/api/v1/auth/register",
                                         "/api/v1/auth/verify-email",
