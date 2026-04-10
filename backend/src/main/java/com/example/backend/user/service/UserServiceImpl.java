@@ -20,6 +20,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import com.example.backend.file.service.FileStorageService;
 
@@ -41,6 +42,36 @@ public class UserServiceImpl implements UserService {
                 .stream()
                 .map(userMapper::toDto)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public UserDto getUserById(UUID userId, Authentication currentUser) {
+        User self = userRepository.findByEmail(currentUser.getName())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        User target = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        UserDto dto = userMapper.toDto(target);
+        // Set friendship status
+        if (target.getId().equals(self.getId())) {
+            dto.setFriendshipStatus("SELF");
+        } else if (target.isAdmin()) {
+            dto.setFriendshipStatus("ACCEPTED");
+        } else {
+            Optional<FriendRequest> relation = friendRequestRepository.findBetweenUsers(self.getId(), target.getId());
+            if (relation.isEmpty()) {
+                dto.setFriendshipStatus("NONE");
+            } else {
+                FriendRequest fr = relation.get();
+                if (fr.getStatus() == FriendRequestStatus.ACCEPTED) {
+                    dto.setFriendshipStatus("ACCEPTED");
+                } else if (fr.getStatus() == FriendRequestStatus.PENDING) {
+                    dto.setFriendshipStatus(fr.getSender().getId().equals(self.getId()) ? "PENDING_SENT" : "PENDING_RECEIVED");
+                } else {
+                    dto.setFriendshipStatus("NONE");
+                }
+            }
+        }
+        return dto;
     }
 
     @Override

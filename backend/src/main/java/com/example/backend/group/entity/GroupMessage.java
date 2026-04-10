@@ -38,6 +38,8 @@ public class GroupMessage extends BaseAuditingEntity {
     @Column(nullable = false)
     private boolean deleted = false;
 
+    private String fileName;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "group_id", nullable = false)
     private Group group;

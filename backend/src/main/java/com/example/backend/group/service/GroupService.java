@@ -293,6 +293,7 @@ public class GroupService {
         msg.setSender(user);
         msg.setContent(filePath);
         msg.setType(messageType);
+        msg.setFileName(file.getOriginalFilename());
 
         GroupMessage saved = groupMessageRepository.save(msg);
         GroupMessageDto dto = toMessageDto(saved, user.getId());
@@ -436,7 +437,7 @@ public class GroupService {
         boolean isMedia = msg.getType() != null && msg.getType() != com.example.backend.messaging.enums.MessageType.TEXT;
         String rawContent = msg.getContent();
         String mediaUrl = (!msg.isDeleted() && isMedia && rawContent != null)
-                ? (rawContent.startsWith("http") ? rawContent : "/api/v1/message/media/" + rawContent)
+                ? fileStorageService.generatePresignedUrl(rawContent)
                 : null;
         String content = msg.isDeleted() ? null : (isMedia ? null : msg.getContent());
 
@@ -451,6 +452,7 @@ public class GroupService {
                 .isMine(msg.getSender().getId().equals(currentUserId))
                 .createdDate(msg.getCreatedDate())
                 .deleted(msg.isDeleted())
+                .fileName(msg.getFileName())
                 .build();
     }
 }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { MoreHorizontal, Smile, Copy, RotateCcw, Trash2, Share2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
@@ -15,6 +15,29 @@ function getMediaUrl(url) {
   if (!url) return null;
   if (url.startsWith('http')) return url;
   return `${BASE_URL}${url}`;
+}
+
+async function downloadFile(mediaUrl, filename) {
+  try {
+    // Lấy key (uuid.ext) từ S3 URL hoặc relative path
+    const rawName = mediaUrl.split('/').pop()?.split('?')[0] || filename || 'download';
+    const downloadUrl = `${BASE_URL}/api/v1/message/media/${rawName}?download=true`;
+    const auth = JSON.parse(localStorage.getItem('auth') || '{}');
+    const res = await fetch(downloadUrl, {
+      headers: auth.accessToken ? { Authorization: `Bearer ${auth.accessToken}` } : {},
+    });
+    if (!res.ok) throw new Error('fetch failed');
+    const blob = await res.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename || rawName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+  } catch {
+    window.open(mediaUrl, '_blank');
+  }
 }
 
 function formatTime(dateStr) {
@@ -34,6 +57,7 @@ export default function MessageBubble({ message, chatId, isGroup = false }) {
   const [showMenu, setShowMenu] = useState(false);
   const [showForwardModal, setShowForwardModal] = useState(false);
   const [imagePreview, setImagePreview] = useState(null);
+  const [videoPreview, setVideoPreview] = useState(null);
 
   const isMine = isGroup
     ? message.isMine || message.senderId === auth?.userId
@@ -114,50 +138,88 @@ export default function MessageBubble({ message, chatId, isGroup = false }) {
     const mediaUrl = getMediaUrl(message.mediaUrl);
 
     if (type === 'IMAGE' && mediaUrl) {
+      const filename = mediaUrl.split('/').pop()?.split('?')[0] || 'image';
       return (
-        <div className="relative group/img">
+        <div className="flex flex-col gap-1">
           <img
             src={mediaUrl}
             alt="Hình ảnh"
             onClick={() => setImagePreview(mediaUrl)}
             className="rounded-xl cursor-pointer max-w-[240px] max-h-[240px] object-cover"
           />
-          <a
-            href={`${mediaUrl}?download=true`}
-            className="absolute top-1 right-1 bg-black/50 text-white rounded-full p-1 opacity-0 group-hover/img:opacity-100 transition-opacity"
-            title="Tải xuống"
-            onClick={(e) => e.stopPropagation()}
-          >
-            ⬇
-          </a>
+          <div className="flex gap-1">
+            <button
+              onClick={() => setImagePreview(mediaUrl)}
+              className="flex-1 flex items-center justify-center gap-1 text-xs py-1 px-2 rounded-lg bg-black/10 hover:bg-black/20 transition-colors"
+              title="Xem ảnh"
+            >
+              🔍 Xem
+            </button>
+            <button
+              onClick={() => downloadFile(mediaUrl, filename)}
+              className="flex-1 flex items-center justify-center gap-1 text-xs py-1 px-2 rounded-lg bg-black/10 hover:bg-black/20 transition-colors"
+              title="Tải xuống"
+            >
+              ⬇ Tải về
+            </button>
+          </div>
         </div>
       );
     }
 
     if (type === 'VIDEO' && mediaUrl) {
+      const filename = mediaUrl.split('/').pop()?.split('?')[0] || 'video';
       return (
-        <div className="relative group/vid">
-          <video src={mediaUrl} controls className="rounded-xl max-w-[240px] max-h-[240px]" />
-          <a
-            href={`${mediaUrl}?download=true`}
-            className="absolute top-1 right-1 bg-black/50 text-white rounded-full p-1 opacity-0 group-hover/vid:opacity-100 transition-opacity"
-            title="Tải xuống"
-          >
-            ⬇
-          </a>
+        <div className="flex flex-col gap-1">
+          <video
+            src={mediaUrl}
+            controls
+            preload="metadata"
+            className="rounded-xl max-w-[320px] max-h-[240px]"
+          />
+          <div className="flex gap-1">
+            <button
+              onClick={() => setVideoPreview(mediaUrl)}
+              className="flex-1 flex items-center justify-center gap-1 text-xs py-1 px-2 rounded-lg bg-black/10 hover:bg-black/20 transition-colors"
+              title="Xem toàn màn hình"
+            >
+              ⛶ Toàn màn hình
+            </button>
+            <button
+              onClick={() => downloadFile(mediaUrl, filename)}
+              className="flex-1 flex items-center justify-center gap-1 text-xs py-1 px-2 rounded-lg bg-black/10 hover:bg-black/20 transition-colors"
+              title="Tải xuống"
+            >
+              ⬇ Tải về
+            </button>
+          </div>
         </div>
       );
     }
 
     if ((type === 'FILE' || type === 'AUDIO') && mediaUrl) {
-      const filename = message.mediaUrl?.split('/').pop() || 'Tệp đính kèm';
+      const displayName = message.fileName
+        || message.mediaUrl?.split('/').pop()?.split('?')[0]
+        || 'Tệp đính kèm';
       return (
-        <a
-          href={`${mediaUrl}?download=true`}
-          className="flex items-center gap-2 text-sm underline"
-        >
-          📎 {filename}
-        </a>
+        <div className="flex items-center gap-2">
+          <a
+            href={mediaUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 text-sm underline min-w-0"
+            title="Mở file"
+          >
+            📎 <span className="truncate max-w-[180px]">{displayName}</span>
+          </a>
+          <button
+            onClick={() => downloadFile(mediaUrl, displayName)}
+            className="flex-shrink-0 text-xs py-1 px-2 rounded-lg bg-black/10 hover:bg-black/20 transition-colors"
+            title="Tải xuống"
+          >
+            ⬇
+          </button>
+        </div>
       );
     }
 
@@ -315,6 +377,22 @@ export default function MessageBubble({ message, chatId, isGroup = false }) {
         </div>
       )}
 
+      {/* Video fullscreen modal */}
+      {videoPreview && (
+        <div
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
+          onClick={() => setVideoPreview(null)}
+        >
+          <video
+            src={videoPreview}
+            controls
+            autoPlay
+            className="max-w-full max-h-full rounded-lg"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
+
       {/* Forward modal */}
       {showForwardModal && (
         <ForwardModal
@@ -327,7 +405,7 @@ export default function MessageBubble({ message, chatId, isGroup = false }) {
 }
 
 function ForwardModal({ message, onClose }) {
-  const { chats, addMessage } = useChatStore();
+  const { chats } = useChatStore();
   const [selectedChatId, setSelectedChatId] = useState(null);
   const [loading, setLoading] = useState(false);
 

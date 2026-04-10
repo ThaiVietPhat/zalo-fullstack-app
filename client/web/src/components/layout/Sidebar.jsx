@@ -1,16 +1,18 @@
 import React from 'react';
-import { MessageCircle, Users, Bot, BookUser } from 'lucide-react';
+import { MessageCircle, Users, Bot, BookUser, Search } from 'lucide-react';
 import useChatStore from '../../store/chatStore';
 import Header from './Header';
 import ChatList from '../chat/ChatList';
 import GroupList from '../group/GroupList';
 import AiChat from '../ai/AiChat';
 import UserSearch from '../user/UserSearch';
+import UserSearchPanel from '../user/UserSearchPanel';
 
 const tabs = [
   { id: 'chats', icon: MessageCircle, label: 'Tin nhắn' },
   { id: 'groups', icon: Users, label: 'Nhóm' },
   { id: 'ai', icon: Bot, label: 'Trợ lý AI' },
+  { id: 'search', icon: Search, label: 'Tìm kiếm' },
   { id: 'contacts', icon: BookUser, label: 'Danh bạ' },
 ];
 
@@ -48,6 +50,7 @@ export default function Sidebar() {
         {activeTab === 'chats' && <ChatList />}
         {activeTab === 'groups' && <GroupList />}
         {activeTab === 'ai' && <AiChat />}
+        {activeTab === 'search' && <UserSearchPanel />}
         {activeTab === 'contacts' && <UserSearch />}
       </div>
     </div>

@@ -33,6 +33,8 @@ public class Message extends BaseAuditingEntity {
     @Column(nullable = false)
     private boolean deleted = false;
 
+    private String fileName;
+
     /** Người gửi tự xóa khỏi giao diện của mình */
     @Column(nullable = false)
     private boolean deletedBySender = false;

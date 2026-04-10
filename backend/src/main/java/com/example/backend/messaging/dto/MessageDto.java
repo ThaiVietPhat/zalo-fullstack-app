@@ -20,6 +20,7 @@ public class MessageDto {
     private UUID senderId;
     private UUID receiverId;
     private String mediaUrl;
+    private String fileName;
     private boolean deleted;
     private List<ReactionDto> reactions;
 }

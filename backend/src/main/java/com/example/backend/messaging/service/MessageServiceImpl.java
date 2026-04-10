@@ -129,6 +129,7 @@ public class MessageServiceImpl implements MessageService {
         message.setContent(filePath);
         message.setState(MessageState.SENT);
         message.setType(messageType);
+        message.setFileName(file.getOriginalFilename());
         message.setSender(sender);
 
         Message savedMessage = messageRepository.save(message);

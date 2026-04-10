@@ -77,9 +77,19 @@ export default function ChatWindow() {
     getMessages(activeChatId, 0, 30)
       .then((res) => {
         const data = res.data;
-        const msgs = Array.isArray(data) ? data : (data.content || []);
-        setMessages(activeChatId, msgs.reverse ? msgs.slice().reverse() : msgs);
-        setHasMore(msgs.length === 30);
+        const fetchedMsgs = Array.isArray(data) ? data : (data.content || []);
+        const sorted = fetchedMsgs.reverse ? fetchedMsgs.slice().reverse() : fetchedMsgs;
+        // Merge: keep only WS messages newer than the latest API message (avoids re-appending old paginated messages)
+        const alreadyInStore = useChatStore.getState().messages[activeChatId] || [];
+        const fetchedIds = new Set(sorted.map((m) => m.id));
+        const latestFetchedTime = sorted.length > 0
+          ? new Date(sorted[sorted.length - 1].createdDate).getTime()
+          : 0;
+        const wsOnlyMsgs = alreadyInStore.filter(
+          (m) => !fetchedIds.has(m.id) && new Date(m.createdDate).getTime() > latestFetchedTime
+        );
+        setMessages(activeChatId, [...sorted, ...wsOnlyMsgs]);
+        setHasMore(fetchedMsgs.length === 30);
         setTimeout(() => scrollToBottom(false), 100);
       })
       .catch(() => {})
@@ -92,6 +102,27 @@ export default function ChatWindow() {
     return () => {
       unsubscribeFromChat(activeChatId);
     };
+  }, [activeChatId]);
+
+  // Re-fetch messages after WebSocket reconnect to catch any missed during disconnect
+  useEffect(() => {
+    if (!activeChatId) return;
+    const refetch = () => {
+      getMessages(activeChatId, 0, 30)
+        .then((res) => {
+          const data = res.data;
+          const fetchedMsgs = Array.isArray(data) ? data : (data.content || []);
+          const sorted = fetchedMsgs.slice().reverse();
+          const existing = useChatStore.getState().messages[activeChatId] || [];
+          const fetchedIds = new Set(sorted.map((m) => m.id));
+          const latestTime = sorted.length > 0 ? new Date(sorted[sorted.length - 1].createdDate).getTime() : 0;
+          const wsOnly = existing.filter((m) => !fetchedIds.has(m.id) && new Date(m.createdDate).getTime() > latestTime);
+          setMessages(activeChatId, [...sorted, ...wsOnly]);
+        })
+        .catch(() => {});
+    };
+    wsService.onReconnect(refetch);
+    return () => wsService.offReconnect(refetch);
   }, [activeChatId]);
 
   useEffect(() => {
@@ -148,16 +179,18 @@ export default function ChatWindow() {
     }
   };
 
-  const handleSendMedia = async (file) => {
-    try {
-      const res = await uploadMedia(activeChatId, file);
-      const msg = res.data;
-      addMessage(activeChatId, msg);
-      updateChatLastMessage(activeChatId, msg);
-      setTimeout(() => scrollToBottom(), 50);
-    } catch {
-      toast.error('Không thể gửi tệp');
+  const handleSendMedia = async (files) => {
+    const fileList = Array.isArray(files) ? files : [files];
+    for (const file of fileList) {
+      try {
+        const res = await uploadMedia(activeChatId, file);
+        addMessage(activeChatId, res.data);
+        updateChatLastMessage(activeChatId, res.data);
+      } catch {
+        toast.error('Không thể gửi tệp');
+      }
     }
+    setTimeout(() => scrollToBottom(), 50);
   };
 
   const handleTyping = (isTypingNow) => {

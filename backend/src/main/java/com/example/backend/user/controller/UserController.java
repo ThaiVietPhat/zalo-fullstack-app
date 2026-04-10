@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/user")
@@ -44,6 +45,13 @@ public class UserController {
             @RequestParam("file") MultipartFile file,
             Authentication currentUser) {
         return ResponseEntity.ok(userService.uploadAvatar(file, currentUser));
+    }
+
+    @GetMapping("/{userId}")
+    public ResponseEntity<UserDto> getUserById(
+            @PathVariable UUID userId,
+            Authentication currentUser) {
+        return ResponseEntity.ok(userService.getUserById(userId, currentUser));
     }
 
     @GetMapping("/search")

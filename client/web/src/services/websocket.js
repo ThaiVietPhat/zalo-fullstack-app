@@ -8,6 +8,8 @@ class WebSocketService {
     this.connectCallbacks = [];  // one-time, cleared after first connect
     this.handlers = {};          // { destination: callback } — survives reconnects
     this.stompSubs = {};         // { destination: stompSub } — active STOMP subs
+    this.reconnectListeners = []; // callbacks fired after every reconnect (not initial connect)
+    this.reconnectCount = 0;
   }
 
   connect(token, onConnect) {
@@ -44,6 +46,12 @@ class WebSocketService {
         // Run one-time connect callbacks (they call subscribe() which adds to handlers/stompSubs)
         this.connectCallbacks.forEach((cb) => cb());
         this.connectCallbacks = [];
+
+        // Fire reconnect listeners (skip the very first connect)
+        if (this.reconnectCount > 0) {
+          this.reconnectListeners.forEach((cb) => cb());
+        }
+        this.reconnectCount++;
       },
       onDisconnect: () => {
         this.connected = false;
@@ -102,6 +110,14 @@ class WebSocketService {
 
   isConnected() {
     return this.connected;
+  }
+
+  onReconnect(cb) {
+    this.reconnectListeners.push(cb);
+  }
+
+  offReconnect(cb) {
+    this.reconnectListeners = this.reconnectListeners.filter((r) => r !== cb);
   }
 }
 

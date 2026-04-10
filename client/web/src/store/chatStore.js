@@ -8,7 +8,8 @@ const useChatStore = create((set) => ({
   sentRequests: [], // outgoing pending requests (FriendRequestDto[])
   activeChatId: null,
   activeGroupId: null,
-  activeTab: 'chats', // 'chats' | 'groups' | 'ai' | 'contacts'
+  activeTab: 'chats', // 'chats' | 'groups' | 'search' | 'ai' | 'contacts'
+  viewingProfileId: null,
   messages: {}, // { chatId: [MessageDto] }
   groupMessages: {}, // { groupId: [GroupMessageDto] }
   typingUsers: {}, // { 'chat_chatId': Set<userId>, 'group_groupId': Set<userId> }
@@ -63,6 +64,8 @@ const useChatStore = create((set) => ({
     })),
   setGroups: (groups) => set({ groups }),
   setActiveTab: (tab) => set({ activeTab: tab }),
+
+  setViewingProfileId: (id) => set({ viewingProfileId: id }),
 
   setActiveChatId: (id) => set({ activeChatId: id, activeGroupId: null }),
   setActiveGroupId: (id) => set({ activeGroupId: id, activeChatId: null }),
@@ -156,33 +159,31 @@ const useChatStore = create((set) => ({
     })),
 
   updateChatLastMessage: (chatId, message) =>
-    set((state) => ({
-      chats: state.chats.map((c) =>
-        c.id === chatId
-          ? {
-              ...c,
-              lastMessage: message.content,
-              lastMessageType: message.type,
-              lastMessageTime: message.createdAt,
-            }
-          : c
-      ),
-    })),
+    set((state) => {
+      const chat = state.chats.find((c) => c.id === chatId);
+      if (!chat) return state;
+      const updated = {
+        ...chat,
+        lastMessage: message.content,
+        lastMessageType: message.type,
+        lastMessageTime: message.createdAt,
+      };
+      return { chats: [updated, ...state.chats.filter((c) => c.id !== chatId)] };
+    }),
 
   updateGroupLastMessage: (groupId, message) =>
-    set((state) => ({
-      groups: state.groups.map((g) =>
-        g.id === groupId
-          ? {
-              ...g,
-              lastMessage: message.content,
-              lastMessageType: message.type,
-              lastMessageTime: message.createdDate,
-              lastMessageSenderName: message.senderName,
-            }
-          : g
-      ),
-    })),
+    set((state) => {
+      const group = state.groups.find((g) => g.id === groupId);
+      if (!group) return state;
+      const updated = {
+        ...group,
+        lastMessage: message.content,
+        lastMessageType: message.type,
+        lastMessageTime: message.createdDate,
+        lastMessageSenderName: message.senderName,
+      };
+      return { groups: [updated, ...state.groups.filter((g) => g.id !== groupId)] };
+    }),
 
   setTyping: (key, userId, isTyping) =>
     set((state) => {

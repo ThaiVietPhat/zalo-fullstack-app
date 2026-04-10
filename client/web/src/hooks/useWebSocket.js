@@ -21,6 +21,7 @@ export function useWebSocket() {
     incrementUnread,
     activeChatId,
     activeGroupId,
+    activeTab,
     clearUnread,
     groups,
     chats,
@@ -35,6 +36,7 @@ export function useWebSocket() {
 
   const activeChatIdRef = useRef(activeChatId);
   const activeGroupIdRef = useRef(activeGroupId);
+  const activeTabRef = useRef(activeTab);
 
   useEffect(() => {
     activeChatIdRef.current = activeChatId;
@@ -45,23 +47,41 @@ export function useWebSocket() {
   }, [activeGroupId]);
 
   useEffect(() => {
+    activeTabRef.current = activeTab;
+  }, [activeTab]);
+
+  // Subscribe to all inactive chat topics so the sidebar list updates in real-time
+  // (the reliable path — personal queue can have STOMP routing issues)
+  useEffect(() => {
+    chats.forEach((chat) => {
+      if (chat.id === activeChatId) return; // ChatWindow manages the active chat's subscription
+      wsService.subscribe(`/topic/chat/${chat.id}`, (message) => {
+        addMessage(chat.id, message);
+        updateChatLastMessage(chat.id, message);
+        if (activeChatIdRef.current !== chat.id) {
+          incrementUnread(chat.id);
+        }
+      });
+    });
+  }, [chats.length, activeChatId]); // re-run when chat list size changes or active chat changes
+
+  useEffect(() => {
     if (!auth?.accessToken) return;
 
     wsService.connect(auth.accessToken, () => {
-      // Subscribe to personal message queue
+      // Personal queue: handles new chats (not yet in list) and stores messages.
+      // UI updates (lastMessage, unreadCount) are handled by the topic subscriptions above.
       wsService.subscribe('/user/queue/messages', (message) => {
         const chatId = message.chatId;
-        // If chat was deleted (removed from local list), re-fetch and add it back
+        // New chat not yet in local list — fetch its detail and prepend to list
         if (!chatsRef.current.find((c) => c.id === chatId)) {
           getChatDetail(chatId)
             .then((res) => setChats((prev) => [res.data, ...prev.filter((c) => c.id !== chatId)]))
             .catch(() => {});
         }
         addMessage(chatId, message);
-        updateChatLastMessage(chatId, message);
-        if (activeChatIdRef.current !== chatId) {
-          incrementUnread(chatId);
-        }
+        // Do NOT call updateChatLastMessage / incrementUnread here —
+        // the topic subscription handler above does that to avoid double-counting.
       });
 
       // Subscribe to seen notifications

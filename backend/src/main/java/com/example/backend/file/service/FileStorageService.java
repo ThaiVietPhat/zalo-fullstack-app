@@ -11,10 +11,13 @@ import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 
 import jakarta.annotation.PostConstruct;
 import java.io.IOException;
-import java.util.List;
+import java.io.InputStream;
+import java.time.Duration;
 import java.util.Set;
 import java.util.UUID;
 
@@ -34,6 +37,9 @@ public class FileStorageService {
     private String region;
 
     private S3Client s3Client;
+    private S3Presigner s3Presigner;
+
+    private static final Duration PRESIGN_DURATION = Duration.ofMinutes(30);
 
     private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of(
             "image/jpeg", "image/png", "image/gif", "image/webp",
@@ -55,56 +61,34 @@ public class FileStorageService {
 
     @PostConstruct
     public void init() {
+        var credentials = StaticCredentialsProvider.create(
+                AwsBasicCredentials.create(accessKeyId, secretAccessKey));
+        var regionObj = Region.of(region);
+
         s3Client = S3Client.builder()
-                .region(Region.of(region))
-                .credentialsProvider(StaticCredentialsProvider.create(
-                        AwsBasicCredentials.create(accessKeyId, secretAccessKey)))
+                .region(regionObj)
+                .credentialsProvider(credentials)
                 .build();
+
+        s3Presigner = S3Presigner.builder()
+                .region(regionObj)
+                .credentialsProvider(credentials)
+                .build();
+
         configureBucket();
     }
 
     private void configureBucket() {
-        // Tắt block public access để có thể set bucket policy public
-        s3Client.putPublicAccessBlock(PutPublicAccessBlockRequest.builder()
-                .bucket(bucketName)
-                .publicAccessBlockConfiguration(PublicAccessBlockConfiguration.builder()
-                        .blockPublicAcls(false)
-                        .ignorePublicAcls(false)
-                        .blockPublicPolicy(false)
-                        .restrictPublicBuckets(false)
-                        .build())
-                .build());
-
-        // Bucket policy: public read cho tất cả objects
-        String policy = """
-                {
-                  "Version": "2012-10-17",
-                  "Statement": [
-                    {
-                      "Sid": "PublicReadGetObject",
-                      "Effect": "Allow",
-                      "Principal": "*",
-                      "Action": "s3:GetObject",
-                      "Resource": "arn:aws:s3:::%s/*"
-                    }
-                  ]
-                }
-                """.formatted(bucketName);
-
-        s3Client.putBucketPolicy(PutBucketPolicyRequest.builder()
-                .bucket(bucketName)
-                .policy(policy)
-                .build());
-
-        // CORS cho frontend upload trực tiếp
+        // Bucket private — truy cập qua presigned URL, không public
+        // Chỉ cần CORS để presigned URL hoạt động từ browser
         s3Client.putBucketCors(PutBucketCorsRequest.builder()
                 .bucket(bucketName)
                 .corsConfiguration(CORSConfiguration.builder()
                         .corsRules(CORSRule.builder()
                                 .allowedOrigins("*")
-                                .allowedMethods("GET", "PUT", "POST", "DELETE", "HEAD")
+                                .allowedMethods("GET", "HEAD")
                                 .allowedHeaders("*")
-                                .exposeHeaders("ETag")
+                                .exposeHeaders("Content-Range", "Accept-Ranges", "Content-Length")
                                 .maxAgeSeconds(3000)
                                 .build())
                         .build())
@@ -112,7 +96,8 @@ public class FileStorageService {
     }
 
     /**
-     * Upload file lên S3, trả về public URL đầy đủ.
+     * Upload file lên S3, trả về S3 key (không phải URL).
+     * Key được lưu vào DB; dùng generatePresignedUrl(key) để lấy URL truy cập.
      */
     public String saveFile(MultipartFile file) {
         if (file == null || file.isEmpty()) {
@@ -139,17 +124,26 @@ public class FileStorageService {
                             .build(),
                     RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
 
-            return getPublicUrl(key);
+            return key;
         } catch (IOException e) {
             throw new RuntimeException("Could not save file: " + e.getMessage());
         }
     }
 
     /**
-     * Trả về public URL cho một S3 key.
+     * Tạo presigned URL có hiệu lực 30 phút cho một S3 key.
+     * Chấp nhận cả raw key lẫn URL cũ (backward compat).
      */
-    public String getPublicUrl(String key) {
-        return "https://%s.s3.%s.amazonaws.com/%s".formatted(bucketName, region, key);
+    public String generatePresignedUrl(String identifier) {
+        String key = extractKey(identifier);
+        var presignRequest = GetObjectPresignRequest.builder()
+                .signatureDuration(PRESIGN_DURATION)
+                .getObjectRequest(GetObjectRequest.builder()
+                        .bucket(bucketName)
+                        .key(key)
+                        .build())
+                .build();
+        return s3Presigner.presignGetObject(presignRequest).url().toString();
     }
 
     /**
@@ -166,6 +160,26 @@ public class FileStorageService {
         } catch (Exception e) {
             throw new RuntimeException("Could not load file: " + e.getMessage());
         }
+    }
+
+    /** Returns file size in bytes using S3 HEAD request (no download). */
+    public long getFileSize(String identifier) {
+        String key = extractKey(identifier);
+        HeadObjectResponse head = s3Client.headObject(
+                HeadObjectRequest.builder().bucket(bucketName).key(key).build());
+        return head.contentLength();
+    }
+
+    /** Returns an InputStream for a byte range of the file from S3. */
+    public InputStream loadFileStream(String identifier, long start, long length) {
+        String key = extractKey(identifier);
+        String range = "bytes=" + start + "-" + (start + length - 1);
+        return s3Client.getObject(
+                GetObjectRequest.builder()
+                        .bucket(bucketName)
+                        .key(key)
+                        .range(range)
+                        .build());
     }
 
     public void deleteFile(String identifier) {

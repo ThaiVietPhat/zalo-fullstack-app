@@ -4,12 +4,15 @@ import com.example.backend.messaging.dto.MessageDto;
 import com.example.backend.file.service.FileStorageService;
 import com.example.backend.messaging.service.MessageService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
+import java.io.InputStream;
 import java.util.List;
 
 @RestController
@@ -70,16 +73,42 @@ public class MessageController {
     }
 
     @GetMapping("/media/{filename}")
-    public ResponseEntity<byte[]> getMediaFile(
+    public ResponseEntity<StreamingResponseBody> getMediaFile(
             @PathVariable String filename,
-            @RequestParam(required = false, defaultValue = "false") boolean download) {
-        byte[] file = fileStorageService.loadFile(filename);
+            @RequestParam(required = false, defaultValue = "false") boolean download,
+            @RequestHeader(value = "Range", required = false) String rangeHeader) {
+
+        long fileSize = fileStorageService.getFileSize(filename);
         String contentType = fileStorageService.detectContentType(filename);
-        var builder = ResponseEntity.ok()
-                .contentType(MediaType.parseMediaType(contentType));
-        if (download) {
-            builder = builder.header("Content-Disposition", "attachment; filename=\"" + filename + "\"");
+
+        long start = 0;
+        long end = fileSize - 1;
+        boolean partial = rangeHeader != null && rangeHeader.startsWith("bytes=");
+
+        if (partial) {
+            String range = rangeHeader.substring("bytes=".length());
+            String[] parts = range.split("-");
+            start = Long.parseLong(parts[0]);
+            end = parts.length > 1 && !parts[1].isBlank() ? Long.parseLong(parts[1]) : fileSize - 1;
         }
-        return builder.body(file);
+
+        final long finalStart = start;
+        final long finalContentLength = end - start + 1;
+
+        StreamingResponseBody body = out -> {
+            try (InputStream in = fileStorageService.loadFileStream(filename, finalStart, finalContentLength)) {
+                in.transferTo(out);
+            }
+        };
+
+        return (partial ? ResponseEntity.status(HttpStatus.PARTIAL_CONTENT) : ResponseEntity.ok())
+                .header("Accept-Ranges", "bytes")
+                .header("Content-Range", "bytes " + start + "-" + end + "/" + fileSize)
+                .header("Content-Length", String.valueOf(finalContentLength))
+                .contentType(MediaType.parseMediaType(contentType))
+                .header("Content-Disposition", download
+                        ? "attachment; filename=\"" + filename + "\""
+                        : "inline")
+                .body(body);
     }
 }

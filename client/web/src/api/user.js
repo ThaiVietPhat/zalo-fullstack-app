@@ -19,3 +19,6 @@ export const uploadAvatar = (file) => {
 
 export const searchUsers = (keyword) =>
   api.get('/api/v1/user/search', { params: { keyword } });
+
+export const getUserById = (userId) =>
+  api.get(`/api/v1/user/${userId}`);

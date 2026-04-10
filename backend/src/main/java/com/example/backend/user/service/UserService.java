@@ -7,9 +7,12 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.UUID;
 
 public interface UserService {
     List<UserDto> getAllUsersExceptSelf(Authentication currentUser);
+
+    UserDto getUserById(UUID userId, Authentication currentUser);
 
     UserDto getMyProfile(Authentication currentUser);
 

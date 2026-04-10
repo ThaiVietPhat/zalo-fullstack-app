@@ -60,3 +60,6 @@ desktop.ini
 
 # ── Docs tự sinh ─────────────────────────────────────
 HELP.md
+
+
+*.claude.md

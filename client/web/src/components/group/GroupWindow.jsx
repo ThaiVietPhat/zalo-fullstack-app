@@ -32,6 +32,28 @@ function GroupMessageBubble({ message, groupId }) {
     return `${BASE_URL}${url}`;
   };
 
+  const downloadFile = async (mediaUrl, filename) => {
+    try {
+      const rawName = mediaUrl.split('/').pop()?.split('?')[0] || filename || 'download';
+      const downloadUrl = `${BASE_URL}/api/v1/message/media/${rawName}?download=true`;
+      const auth = JSON.parse(localStorage.getItem('auth') || '{}');
+      const res = await fetch(downloadUrl, {
+        headers: auth.accessToken ? { Authorization: `Bearer ${auth.accessToken}` } : {},
+      });
+      if (!res.ok) throw new Error('fetch failed');
+      const blob = await res.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = filename || rawName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(a.href);
+    } catch {
+      window.open(mediaUrl, '_blank');
+    }
+  };
+
   const handleRecall = async () => {
     try {
       await recallGroupMessage(groupId, message.id);
@@ -106,11 +128,28 @@ function GroupMessageBubble({ message, groupId }) {
       );
     }
     if ((type === 'FILE' || type === 'AUDIO') && mediaUrl) {
-      const filename = message.mediaUrl?.split('/').pop() || 'Tệp đính kèm';
+      const displayName = message.fileName
+        || message.mediaUrl?.split('/').pop()?.split('?')[0]
+        || 'Tệp đính kèm';
       return (
-        <a href={`${mediaUrl}?download=true`} className="flex items-center gap-2 text-sm underline">
-          📎 {filename}
-        </a>
+        <div className="flex items-center gap-2">
+          <a
+            href={mediaUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 text-sm underline min-w-0"
+            title="Mở file"
+          >
+            📎 <span className="truncate max-w-[180px]">{displayName}</span>
+          </a>
+          <button
+            onClick={(e) => { e.stopPropagation(); downloadFile(mediaUrl, displayName); }}
+            className="flex-shrink-0 text-xs py-1 px-2 rounded-lg bg-black/10 hover:bg-black/20 transition-colors"
+            title="Tải xuống"
+          >
+            ⬇
+          </button>
+        </div>
       );
     }
     return <span className="text-sm whitespace-pre-wrap break-words">{message.content}</span>;
@@ -253,9 +292,19 @@ export default function GroupWindow() {
     getGroupMessages(activeGroupId, 0, 30)
       .then((res) => {
         const data = res.data;
-        const msgList = Array.isArray(data) ? data : (data.content || []);
-        setGroupMessages(activeGroupId, msgList.slice().reverse());
-        setHasMore(msgList.length === 30);
+        const fetchedMsgs = Array.isArray(data) ? data : (data.content || []);
+        const sorted = fetchedMsgs.slice().reverse();
+        // Merge: keep only WS messages newer than the latest API message (avoids re-appending old paginated messages)
+        const alreadyInStore = useChatStore.getState().groupMessages[activeGroupId] || [];
+        const fetchedIds = new Set(sorted.map((m) => m.id));
+        const latestFetchedTime = sorted.length > 0
+          ? new Date(sorted[sorted.length - 1].createdDate).getTime()
+          : 0;
+        const wsOnlyMsgs = alreadyInStore.filter(
+          (m) => !fetchedIds.has(m.id) && new Date(m.createdDate).getTime() > latestFetchedTime
+        );
+        setGroupMessages(activeGroupId, [...sorted, ...wsOnlyMsgs]);
+        setHasMore(fetchedMsgs.length === 30);
         setTimeout(() => messagesEndRef.current?.scrollIntoView(), 100);
       })
       .catch(() => {})
@@ -264,6 +313,27 @@ export default function GroupWindow() {
     subscribeToGroup(activeGroupId);
 
     return () => { unsubscribeFromGroup(activeGroupId); };
+  }, [activeGroupId]);
+
+  // Re-fetch messages after WebSocket reconnect to catch any missed during disconnect
+  useEffect(() => {
+    if (!activeGroupId) return;
+    const refetch = () => {
+      getGroupMessages(activeGroupId, 0, 30)
+        .then((res) => {
+          const data = res.data;
+          const fetchedMsgs = Array.isArray(data) ? data : (data.content || []);
+          const sorted = fetchedMsgs.slice().reverse();
+          const existing = useChatStore.getState().groupMessages[activeGroupId] || [];
+          const fetchedIds = new Set(sorted.map((m) => m.id));
+          const latestTime = sorted.length > 0 ? new Date(sorted[sorted.length - 1].createdDate).getTime() : 0;
+          const wsOnly = existing.filter((m) => !fetchedIds.has(m.id) && new Date(m.createdDate).getTime() > latestTime);
+          setGroupMessages(activeGroupId, [...sorted, ...wsOnly]);
+        })
+        .catch(() => {});
+    };
+    wsService.onReconnect(refetch);
+    return () => wsService.offReconnect(refetch);
   }, [activeGroupId]);
 
   useEffect(() => {
