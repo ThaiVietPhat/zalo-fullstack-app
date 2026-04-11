@@ -270,6 +270,7 @@ public class MessageServiceImpl implements MessageService {
         log.info("User {} marked messages as delivered in chat {}, notifying sender {}",
                 user.getId(), chatUuid, sender.getId());
         notificationService.sendMessageDeliveredNotification(sender.getEmail(), chatUuid);
+        notificationService.sendStateChangeBroadcast(chatUuid, MessageState.DELIVERED, sender.getId());
     }
 
     @Override
@@ -316,5 +317,6 @@ public class MessageServiceImpl implements MessageService {
         log.info("User {} marked messages as seen in chat {}, notifying sender {}",
                 user.getId(), chatUuid, sender.getId());
         notificationService.sendMessageSeenNotification(sender.getEmail(), chatUuid);
+        notificationService.sendStateChangeBroadcast(chatUuid, MessageState.SEEN, sender.getId());
     }
 }

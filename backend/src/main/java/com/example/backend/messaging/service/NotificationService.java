@@ -1,6 +1,7 @@
 package com.example.backend.messaging.service;
 
 import com.example.backend.messaging.dto.MessageDto;
+import com.example.backend.messaging.enums.MessageState;
 import com.example.backend.reaction.dto.ReactionDto;
 import com.example.backend.user.dto.FriendRequestDto;
 import lombok.RequiredArgsConstructor;
@@ -110,9 +111,16 @@ public class NotificationService {
         );
     }
 
+    public void sendStateChangeBroadcast(UUID chatId, MessageState newState, UUID messageSenderId) {
+        log.debug("Broadcasting state change to chat {}: {} for sender {}", chatId, newState, messageSenderId);
+        messagingTemplate.convertAndSend("/topic/chat/" + chatId,
+                new MessageStateChangePayload(chatId, newState, messageSenderId));
+    }
+
     public record ForceLogoutPayload(String reason) {}
     public record MessageDeliveredPayload(UUID chatId) {}
     public record MessageSeenPayload(UUID chatId) {}
+    public record MessageStateChangePayload(UUID chatId, MessageState newState, UUID messageSenderId) {}
     public record TypingPayload(UUID userId, boolean isTyping) {}
     public record UserStatusPayload(UUID userId, boolean isOnline) {}
     public record MessageRecalledPayload(UUID messageId, UUID chatId) {}

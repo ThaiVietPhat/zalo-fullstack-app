@@ -63,13 +63,18 @@ export function useWebSocket() {
   useEffect(() => {
     chats.forEach((chat) => {
       if (chat.id === activeChatId) return; // ChatWindow manages the active chat's subscription
-      wsService.subscribe(`/topic/chat/${chat.id}`, (message) => {
-        addMessage(chat.id, message);
-        updateChatLastMessage(chat.id, message);
+      wsService.subscribe(`/topic/chat/${chat.id}`, (event) => {
+        // State change broadcast (seen/delivered) — cập nhật trạng thái, không phải tin nhắn mới
+        if (event.newState !== undefined && event.messageSenderId !== undefined && !event.id) {
+          updateChatMessagesState(chat.id, event.newState, event.messageSenderId);
+          return;
+        }
+        addMessage(chat.id, event);
+        updateChatLastMessage(chat.id, event);
         if (activeChatIdRef.current !== chat.id) {
           incrementUnread(chat.id);
           // Người nhận đang online nhưng chưa mở chat → DELIVERED
-          if (message.senderId !== authUserIdRef.current) {
+          if (event.senderId !== authUserIdRef.current) {
             markDelivered(chat.id).catch(() => {});
           }
         }
@@ -163,16 +168,21 @@ export function useWebSocket() {
 
   const subscribeToChat = (chatId) => {
     // Subscribe to message delivery topic (broadcast, same pattern as group messages)
-    wsService.subscribe(`/topic/chat/${chatId}`, (message) => {
-      addMessage(chatId, message);
-      updateChatLastMessage(chatId, message);
+    wsService.subscribe(`/topic/chat/${chatId}`, (event) => {
+      // State change broadcast (seen/delivered) — cập nhật trạng thái, không phải tin nhắn mới
+      if (event.newState !== undefined && event.messageSenderId !== undefined && !event.id) {
+        updateChatMessagesState(chatId, event.newState, event.messageSenderId);
+        return;
+      }
+      addMessage(chatId, event);
+      updateChatLastMessage(chatId, event);
       if (activeChatIdRef.current !== chatId) {
         incrementUnread(chatId);
         // Chat không mở nhưng online → DELIVERED
-        if (message.senderId !== authUserIdRef.current) {
+        if (event.senderId !== authUserIdRef.current) {
           markDelivered(chatId).catch(() => {});
         }
-      } else if (message.senderId !== authUserIdRef.current) {
+      } else if (event.senderId !== authUserIdRef.current) {
         // Chat đang mở → SEEN ngay lập tức
         markSeen(chatId).catch(() => {});
       }

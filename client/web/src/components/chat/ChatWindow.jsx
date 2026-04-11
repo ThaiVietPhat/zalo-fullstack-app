@@ -13,16 +13,21 @@ import ChatInfoPanel from './ChatInfoPanel';
 import toast from 'react-hot-toast';
 
 export default function ChatWindow() {
-  const { activeChatId, messages, typingUsers, setMessages, prependMessages, addMessage, updateChatLastMessage, updateChat, setActiveChatId, clearUnread, setTyping } = useChatStore();
+  const { activeChatId, messages, typingUsers, setMessages, prependMessages, addMessage, updateChatLastMessage, updateChatMessagesState, updateChat, setActiveChatId, clearUnread, setTyping } = useChatStore();
   const { auth } = useAuthStore();
 
   const subscribeToChat = (chatId) => {
     // Subscribe to message delivery topic (broadcast, same pattern as group messages)
-    wsService.subscribe(`/topic/chat/${chatId}`, (message) => {
-      addMessage(chatId, message);
-      updateChatLastMessage(chatId, message);
+    wsService.subscribe(`/topic/chat/${chatId}`, (event) => {
+      // State change broadcast từ backend (seen/delivered) — không phải tin nhắn mới
+      if (event.newState !== undefined && event.messageSenderId !== undefined && !event.id) {
+        updateChatMessagesState(chatId, event.newState, event.messageSenderId);
+        return;
+      }
+      addMessage(chatId, event);
+      updateChatLastMessage(chatId, event);
       // Chat đang mở, nhận message từ người khác → mark seen ngay để sender cập nhật real-time
-      if (message.senderId !== auth?.userId) {
+      if (event.senderId !== auth?.userId) {
         markSeen(chatId).catch(() => {});
       }
     });
