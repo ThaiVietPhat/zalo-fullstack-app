@@ -113,6 +113,20 @@ const useChatStore = create((set) => ({
       },
     })),
 
+  // Cập nhật messages trong chat có state !== SEEN sang toState
+  // senderIdFilter: chỉ update messages do user này gửi (tránh update sai messages của người kia)
+  updateChatMessagesState: (chatId, toState, senderIdFilter) =>
+    set((state) => ({
+      messages: {
+        ...state.messages,
+        [chatId]: (state.messages[chatId] || []).map((m) =>
+          m.state !== 'SEEN' && (!senderIdFilter || m.senderId === senderIdFilter)
+            ? { ...m, state: toState }
+            : m
+        ),
+      },
+    })),
+
   setGroupMessages: (groupId, messages) =>
     set((state) => ({
       groupMessages: { ...state.groupMessages, [groupId]: messages },

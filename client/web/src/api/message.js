@@ -17,6 +17,12 @@ export const getMessages = (chatId, page = 0, size = 30) =>
 export const markSeen = (chatId) =>
   api.patch(`/api/v1/message/seen/${chatId}`);
 
+export const markDelivered = (chatId) =>
+  api.patch(`/api/v1/message/delivered/${chatId}`);
+
+export const markAllDelivered = () =>
+  api.patch('/api/v1/message/delivered/all');
+
 export const recallMessage = (messageId) =>
   api.delete(`/api/v1/message/${messageId}/recall`);
 

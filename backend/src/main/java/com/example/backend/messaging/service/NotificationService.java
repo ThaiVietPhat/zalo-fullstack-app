@@ -32,6 +32,15 @@ public class NotificationService {
         messagingTemplate.convertAndSend("/topic/chat/" + chatId, messageDto);
     }
 
+    public void sendMessageDeliveredNotification(String senderEmail, UUID chatId) {
+        log.info("Sending message delivered notification to user: {} for chat: {}", senderEmail, chatId);
+        messagingTemplate.convertAndSendToUser(
+                senderEmail,
+                "/queue/delivered",
+                new MessageDeliveredPayload(chatId)
+        );
+    }
+
     public void sendMessageSeenNotification(String recipientEmail, UUID chatId) {
         log.info("Sending message seen notification to user: {} for chat: {}", recipientEmail, chatId);
         messagingTemplate.convertAndSendToUser(
@@ -102,6 +111,7 @@ public class NotificationService {
     }
 
     public record ForceLogoutPayload(String reason) {}
+    public record MessageDeliveredPayload(UUID chatId) {}
     public record MessageSeenPayload(UUID chatId) {}
     public record TypingPayload(UUID userId, boolean isTyping) {}
     public record UserStatusPayload(UUID userId, boolean isOnline) {}

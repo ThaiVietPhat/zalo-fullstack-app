@@ -263,8 +263,18 @@ export default function MessageBubble({ message, chatId, isGroup = false }) {
               }`}
             >
               {formatTime(message.createdAt || message.createdDate)}
-              {isMine && message.state === 'SEEN' && (
-                <span className="ml-1">✓✓</span>
+              {isMine && (
+                <>
+                  {message.state === 'SEEN' && (
+                    <span className="ml-1 text-white font-semibold" title="Đã xem">✓✓</span>
+                  )}
+                  {message.state === 'DELIVERED' && (
+                    <span className="ml-1 text-white/40" title="Đã nhận">✓✓</span>
+                  )}
+                  {(!message.state || message.state === 'SENT') && (
+                    <span className="ml-1 text-white/40" title="Chưa nhận">✓</span>
+                  )}
+                </>
               )}
             </div>
           </div>

@@ -16,6 +16,8 @@ public interface MessageService {
     List<MessageDto> getMessagesByChatId(String chatId, int page, int size, Authentication currentUser);
 
     void setMessagesToSeen(String chatId, Authentication currentUser);
+    void setMessagesToDelivered(String chatId, Authentication currentUser);
+    void setAllMessagesToDelivered(Authentication currentUser);
     void recallMessage(UUID messageId, Authentication currentUser);
     void deleteMessageForMe(UUID messageId, Authentication currentUser);
 }

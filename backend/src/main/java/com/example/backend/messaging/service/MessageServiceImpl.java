@@ -251,6 +251,49 @@ public class MessageServiceImpl implements MessageService {
 
     @Override
     @Transactional
+    public void setMessagesToDelivered(String chatId, Authentication currentUser) {
+        String email = currentUser.getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        UUID chatUuid = UUID.fromString(chatId);
+        Chat chat = chatRepository.findById(chatUuid)
+                .orElseThrow(() -> new ResourceNotFoundException("Chat not found with id: " + chatId));
+
+        if (!chat.containsUser(user.getId())) {
+            throw new UnauthorizedException("Access denied: you are not a member of this chat");
+        }
+
+        messageRepository.markMessagesAsDelivered(chatUuid, user.getId(), MessageState.DELIVERED);
+
+        User sender = chat.getOtherUser(user.getId());
+        log.info("User {} marked messages as delivered in chat {}, notifying sender {}",
+                user.getId(), chatUuid, sender.getId());
+        notificationService.sendMessageDeliveredNotification(sender.getEmail(), chatUuid);
+    }
+
+    @Override
+    @Transactional
+    public void setAllMessagesToDelivered(Authentication currentUser) {
+        String email = currentUser.getName();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        List<Object[]> pending = messageRepository.findChatsWithSentMessages(user.getId());
+        if (pending.isEmpty()) return;
+
+        messageRepository.markAllMessagesAsDelivered(user.getId(), MessageState.DELIVERED);
+
+        for (Object[] row : pending) {
+            UUID chatId = (UUID) row[0];
+            String senderEmail = (String) row[1];
+            notificationService.sendMessageDeliveredNotification(senderEmail, chatId);
+        }
+        log.info("User {} marked all pending messages as delivered across {} chats", user.getId(), pending.size());
+    }
+
+    @Override
+    @Transactional
     public void setMessagesToSeen(String chatId, Authentication currentUser) {
         String email = currentUser.getName();
         User user = userRepository.findByEmail(email)

@@ -21,6 +21,10 @@ export default function ChatWindow() {
     wsService.subscribe(`/topic/chat/${chatId}`, (message) => {
       addMessage(chatId, message);
       updateChatLastMessage(chatId, message);
+      // Chat đang mở, nhận message từ người khác → mark seen ngay để sender cập nhật real-time
+      if (message.senderId !== auth?.userId) {
+        markSeen(chatId).catch(() => {});
+      }
     });
     // Subscribe to typing indicator
     wsService.subscribe(`/topic/chat/${chatId}/typing`, (data) => {

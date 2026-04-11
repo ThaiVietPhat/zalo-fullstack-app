@@ -39,6 +39,20 @@ public class MessageController {
         return ResponseEntity.ok(saved);
     }
 
+    @PatchMapping("/delivered/{chatId}")
+    public ResponseEntity<Void> setMessagesToDelivered(
+            @PathVariable String chatId,
+            Authentication currentUser) {
+        messageService.setMessagesToDelivered(chatId, currentUser);
+        return ResponseEntity.ok().build();
+    }
+
+    @PatchMapping("/delivered/all")
+    public ResponseEntity<Void> setAllMessagesToDelivered(Authentication currentUser) {
+        messageService.setAllMessagesToDelivered(currentUser);
+        return ResponseEntity.ok().build();
+    }
+
     @PatchMapping("/seen/{chatId}")
     public ResponseEntity<Void> setMessagesToSeen(
             @PathVariable String chatId,

@@ -29,17 +29,11 @@ public class AiChatService {
     private final UserRepository userRepository;
     private final WebClient aiWebClient;
 
-    @Value("${app.gemini.api-key:}")
-    private String apiKey;
-
-    @Value("${app.gemini.model:gemini-2.0-flash}")
+    @Value("${app.groq.model:llama-3.3-70b-versatile}")
     private String model;
 
-    @Value("${app.gemini.max-tokens:1024}")
+    @Value("${app.groq.max-tokens:1024}")
     private int maxTokens;
-
-    @Value("${app.gemini.context-turns:20}")
-    private int contextTurns;
 
     // ─── Gửi tin nhắn tới AI ─────────────────────────────────────────────────
 
@@ -59,8 +53,8 @@ public class AiChatService {
                 .findTop20ByUserIdOrderByCreatedDateDesc(user.getId());
         Collections.reverse(history);
 
-        // Gọi Gemini API
-        String assistantReply = callGeminiApi(history);
+        // Gọi Groq API
+        String assistantReply = callGroqApi(history);
 
         // Lưu phản hồi của AI
         AiMessage assistantMsg = new AiMessage();
@@ -91,34 +85,23 @@ public class AiChatService {
         log.info("AI chat history cleared for user {}", user.getId());
     }
 
-    // ─── Gọi Gemini API ──────────────────────────────────────────────────────
+    // ─── Gọi Groq API (OpenAI-compatible) ───────────────────────────────────
 
     @SuppressWarnings("unchecked")
-    private String callGeminiApi(List<AiMessage> history) {
-        // Gemini dùng role "user" và "model" (không phải "assistant")
-        List<Map<String, Object>> contents = history.stream()
-                .map(m -> {
-                    String geminiRole = "assistant".equals(m.getRole()) ? "model" : "user";
-                    Map<String, String> part = Map.of("text", m.getContent());
-                    return Map.<String, Object>of(
-                            "role", geminiRole,
-                            "parts", List.of(part)
-                    );
-                })
+    private String callGroqApi(List<AiMessage> history) {
+        // Groq dùng OpenAI format: role "user" / "assistant"
+        List<Map<String, String>> messages = history.stream()
+                .map(m -> Map.of("role", m.getRole(), "content", m.getContent()))
                 .collect(Collectors.toList());
 
-        Map<String, Object> generationConfig = Map.of("maxOutputTokens", maxTokens);
-
         Map<String, Object> requestBody = new HashMap<>();
-        requestBody.put("contents", contents);
-        requestBody.put("generationConfig", generationConfig);
+        requestBody.put("model", model);
+        requestBody.put("messages", messages);
+        requestBody.put("max_tokens", maxTokens);
 
         try {
             Map<String, Object> response = aiWebClient.post()
-                    .uri(uriBuilder -> uriBuilder
-                            .path("/v1beta/models/" + model + ":generateContent")
-                            .queryParam("key", apiKey)
-                            .build())
+                    .uri("/openai/v1/chat/completions")
                     .bodyValue(requestBody)
                     .retrieve()
                     .bodyToMono(Map.class)
@@ -128,29 +111,26 @@ public class AiChatService {
                 return "Xin lỗi, tôi không thể xử lý yêu cầu của bạn lúc này.";
             }
 
-            List<Map<String, Object>> candidates = (List<Map<String, Object>>) response.get("candidates");
-            if (candidates != null && !candidates.isEmpty()) {
-                Map<String, Object> content = (Map<String, Object>) candidates.get(0).get("content");
-                if (content != null) {
-                    List<Map<String, Object>> parts = (List<Map<String, Object>>) content.get("parts");
-                    if (parts != null && !parts.isEmpty()) {
-                        return (String) parts.get(0).get("text");
-                    }
+            List<Map<String, Object>> choices = (List<Map<String, Object>>) response.get("choices");
+            if (choices != null && !choices.isEmpty()) {
+                Map<String, Object> message = (Map<String, Object>) choices.get(0).get("message");
+                if (message != null) {
+                    return (String) message.get("content");
                 }
             }
 
-            log.warn("Gemini API returned unexpected response: {}", response);
+            log.warn("Groq API returned unexpected response: {}", response);
             return "Xin lỗi, tôi không thể xử lý yêu cầu của bạn lúc này.";
 
         } catch (org.springframework.web.reactive.function.client.WebClientResponseException e) {
             if (e.getStatusCode().value() == 429) {
-                log.warn("Gemini API rate limit: {}", e.getResponseBodyAsString());
+                log.warn("Groq API rate limit: {}", e.getResponseBodyAsString());
                 return "Trợ lý AI đang bận, vui lòng thử lại sau vài giây.";
             }
-            log.error("Gemini API HTTP {}: {}", e.getStatusCode().value(), e.getResponseBodyAsString());
+            log.error("Groq API HTTP {}: {}", e.getStatusCode().value(), e.getResponseBodyAsString());
             return "Xin lỗi, đã xảy ra lỗi khi kết nối với AI. Vui lòng thử lại sau.";
         } catch (Exception e) {
-            log.error("Gemini API exception: {} — {}", e.getClass().getSimpleName(), e.getMessage());
+            log.error("Groq API exception: {} — {}", e.getClass().getSimpleName(), e.getMessage());
             return "Xin lỗi, đã xảy ra lỗi khi kết nối với AI. Vui lòng thử lại sau.";
         }
     }

@@ -54,6 +54,30 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
     );
 
     @Modifying
+    @Query("UPDATE Message m SET m.state = :state " +
+            "WHERE m.chat.id = :chatId AND m.sender.id <> :receiverId " +
+            "AND m.state = com.example.backend.messaging.enums.MessageState.SENT")
+    void markMessagesAsDelivered(
+            @Param("chatId") UUID chatId,
+            @Param("receiverId") UUID receiverId,
+            @Param("state") MessageState state
+    );
+
+    @Modifying
+    @Query("UPDATE Message m SET m.state = :state " +
+            "WHERE m.sender.id <> :receiverId " +
+            "AND m.state = com.example.backend.messaging.enums.MessageState.SENT")
+    void markAllMessagesAsDelivered(
+            @Param("receiverId") UUID receiverId,
+            @Param("state") MessageState state
+    );
+
+    @Query("SELECT DISTINCT m.chat.id, m.sender.email FROM Message m " +
+            "WHERE m.sender.id <> :receiverId " +
+            "AND m.state = com.example.backend.messaging.enums.MessageState.SENT")
+    List<Object[]> findChatsWithSentMessages(@Param("receiverId") UUID receiverId);
+
+    @Modifying
     @Query("DELETE FROM Message m WHERE m.chat.id = :chatId")
     void deleteByChatId(@Param("chatId") UUID chatId);
 

@@ -3,6 +3,7 @@ import wsService from '../services/websocket';
 import useAuthStore from '../store/authStore';
 import useChatStore from '../store/chatStore';
 import { getChatDetail } from '../api/chat';
+import { markDelivered, markAllDelivered, markSeen } from '../api/message';
 import toast from 'react-hot-toast';
 
 export function useWebSocket() {
@@ -11,6 +12,7 @@ export function useWebSocket() {
     addMessage,
     updateMessage,
     updateMessageReactions,
+    updateChatMessagesState,
     addGroupMessage,
     updateGroupMessage,
     updateGroupMessageReactions,
@@ -37,6 +39,8 @@ export function useWebSocket() {
   const activeChatIdRef = useRef(activeChatId);
   const activeGroupIdRef = useRef(activeGroupId);
   const activeTabRef = useRef(activeTab);
+  // Ref để subscription callbacks luôn dùng userId hiện tại, tránh stale closure
+  const authUserIdRef = useRef(auth?.userId);
 
   useEffect(() => {
     activeChatIdRef.current = activeChatId;
@@ -50,6 +54,10 @@ export function useWebSocket() {
     activeTabRef.current = activeTab;
   }, [activeTab]);
 
+  useEffect(() => {
+    authUserIdRef.current = auth?.userId;
+  }, [auth?.userId]);
+
   // Subscribe to all inactive chat topics so the sidebar list updates in real-time
   // (the reliable path — personal queue can have STOMP routing issues)
   useEffect(() => {
@@ -60,6 +68,10 @@ export function useWebSocket() {
         updateChatLastMessage(chat.id, message);
         if (activeChatIdRef.current !== chat.id) {
           incrementUnread(chat.id);
+          // Người nhận đang online nhưng chưa mở chat → DELIVERED
+          if (message.senderId !== authUserIdRef.current) {
+            markDelivered(chat.id).catch(() => {});
+          }
         }
       });
     });
@@ -69,6 +81,9 @@ export function useWebSocket() {
     if (!auth?.accessToken) return;
 
     wsService.connect(auth.accessToken, () => {
+      // Khi reconnect: đánh dấu tất cả messages chưa nhận → DELIVERED
+      markAllDelivered().catch(() => {});
+
       // Personal queue: handles new chats (not yet in list) and stores messages.
       // UI updates (lastMessage, unreadCount) are handled by the topic subscriptions above.
       wsService.subscribe('/user/queue/messages', (message) => {
@@ -82,11 +97,22 @@ export function useWebSocket() {
         addMessage(chatId, message);
         // Do NOT call updateChatLastMessage / incrementUnread here —
         // the topic subscription handler above does that to avoid double-counting.
+        // Nhưng CẦN markDelivered cho chat không active — đặc biệt new chat chưa có topic sub
+        if (activeChatIdRef.current !== chatId && message.senderId !== authUserIdRef.current) {
+          markDelivered(chatId).catch(() => {});
+        }
+      });
+
+      // Subscribe to delivered notifications (sender nhận được khi receiver online)
+      wsService.subscribe('/user/queue/delivered', (data) => {
+        const { chatId } = data;
+        updateChatMessagesState(chatId, 'DELIVERED', authUserIdRef.current);
       });
 
       // Subscribe to seen notifications
       wsService.subscribe('/user/queue/seen', (data) => {
         const { chatId } = data;
+        updateChatMessagesState(chatId, 'SEEN', authUserIdRef.current);
         clearUnread(chatId);
       });
 
@@ -142,6 +168,13 @@ export function useWebSocket() {
       updateChatLastMessage(chatId, message);
       if (activeChatIdRef.current !== chatId) {
         incrementUnread(chatId);
+        // Chat không mở nhưng online → DELIVERED
+        if (message.senderId !== authUserIdRef.current) {
+          markDelivered(chatId).catch(() => {});
+        }
+      } else if (message.senderId !== authUserIdRef.current) {
+        // Chat đang mở → SEEN ngay lập tức
+        markSeen(chatId).catch(() => {});
       }
     });
     wsService.subscribe(`/topic/chat/${chatId}/typing`, (data) => {
