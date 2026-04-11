@@ -14,8 +14,9 @@
       "config": {}
     },
     "android": {
-      "package": "com.ZaloClone.driver",
+      "package": "com.zaloclone.mobile",
       "edgeToEdgeEnabled": true,
+      "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "foregroundImage": "./src/assets/images/icon.png",
         "backgroundColor": "#ffffff"

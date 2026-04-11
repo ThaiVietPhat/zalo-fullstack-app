@@ -93,10 +93,16 @@ const MessageItem = ({ item, isMe }: { item: Message; isMe: boolean }) => {
             {/* 1. Hình ảnh */}
             {item.type === 'IMAGE' && item.image && !isDeleted ? (
               <View className="mb-1 rounded-xl overflow-hidden">
+                {console.log("🔗 [MessageItem] Rendering Image URL:", getImageUrl(item.image))}
                 <Image
-                  source={{ uri: getImageUrl(item.image) }}
+                  source={{ uri: getImageUrl(item.image) || 'https://via.placeholder.com/300' }}
                   className="w-56 h-72"
                   resizeMode="cover"
+                  onError={(e) => {
+                    console.error("❌ [MessageItem] Image Load Error:", e.nativeEvent.error);
+                    // Có thể thông báo URI bị lỗi để kiểm tra
+                    console.error("❌ [MessageItem] Faulty URI:", getImageUrl(item.image));
+                  }}
                 />
               </View>
             ) : item.type === 'VIDEO' ? (

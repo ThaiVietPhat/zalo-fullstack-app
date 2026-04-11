@@ -34,7 +34,7 @@ const ZaloSearchBar = () => {
       <TouchableOpacity
         style={styles.searchBox}
         activeOpacity={0.85}
-        onPress={() => {}}
+        onPress={() => router.push("/(root)/search")}
       >
         <Ionicons name="search" size={16} color="rgba(255,255,255,0.8)" />
         <Text style={styles.placeholder}>Tìm kiếm</Text>
@@ -42,7 +42,10 @@ const ZaloSearchBar = () => {
 
       {/* Right: actions */}
       <View style={styles.actions}>
-        <TouchableOpacity style={styles.iconBtn}>
+        <TouchableOpacity 
+          style={styles.iconBtn}
+          onPress={() => router.push("/(root)/create-group")}
+        >
           <Ionicons name="add-circle-outline" size={24} color="white" />
         </TouchableOpacity>
       </View>

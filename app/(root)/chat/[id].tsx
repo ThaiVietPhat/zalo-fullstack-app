@@ -18,7 +18,8 @@ import { useChatById } from '@/hooks/useChat';
 import { useAuth } from '@/context/AuthContext';
 
 const ChatScreen = () => {
-  const { id, name } = useLocalSearchParams<{ id: string; name?: string }>();
+  const { id, name, isGroup } = useLocalSearchParams<{ id: string; name?: string; isGroup?: string }>();
+  const isGroupBool = isGroup === 'true';
   const { user } = useAuth();
   const flatListRef = useRef<FlatList<any>>(null);
 
@@ -75,7 +76,7 @@ const ChatScreen = () => {
       />
 
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
         className="flex-1"
         keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
       >
@@ -98,7 +99,7 @@ const ChatScreen = () => {
           />
         )}
 
-        <ChatInput chatId={id} />
+        <ChatInput chatId={id} isGroup={isGroupBool} />
       </KeyboardAvoidingView>
     </View>
   );

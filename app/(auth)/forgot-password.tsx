@@ -79,7 +79,7 @@ const ForgotPassword = () => {
         <SafeAreaView edges={["top"]} />
       </View>
 
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} className="flex-1">
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} className="flex-1">
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <ScrollView contentContainerStyle={{ flexGrow: 1 }} className="px-6 pb-5" showsVerticalScrollIndicator={false}>
             <View className="items-center mt-6">

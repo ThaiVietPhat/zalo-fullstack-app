@@ -19,11 +19,9 @@ const ChatHeader = ({ name, avatarUrl, online, lastSeenText }: ChatHeaderProps) 
   const avatar = getAvatarUrl(name, avatarUrl);
 
   return (
-    <View style={styles.wrapper}>
+    <SafeAreaView edges={['top']} style={styles.wrapper}>
       {/* Hiện lại thanh trạng thái chuẩn */}
-      <StatusBar style="light" />
-
-      <SafeAreaView edges={['top']} />
+      <StatusBar style="light" backgroundColor="#0068FF" />
 
       <View style={styles.container}>
         {/* Nút Back */}
@@ -33,7 +31,10 @@ const ChatHeader = ({ name, avatarUrl, online, lastSeenText }: ChatHeaderProps) 
 
         {/* Ảnh đại diện */}
         <TouchableOpacity style={styles.avatarWrapper}>
-          <Image source={{ uri: avatar }} style={styles.avatar} />
+          <Image
+            source={{ uri: avatar || `https://api.dicebear.com/9.x/avataaars/png?seed=${encodeURIComponent(name)}` }}
+            style={styles.avatar}
+          />
           {online && <View style={styles.onlineDot} />}
         </TouchableOpacity>
 
@@ -58,7 +59,7 @@ const ChatHeader = ({ name, avatarUrl, online, lastSeenText }: ChatHeaderProps) 
           </TouchableOpacity>
         </View>
       </View>
-    </View>
+    </SafeAreaView>
   );
 };
 

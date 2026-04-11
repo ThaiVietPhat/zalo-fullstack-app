@@ -11,6 +11,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import "../global.css";
 import "@/lib/i18n";
 import { AuthProvider } from "@/context/AuthContext";
+import { SocketProvider } from "@/context/SocketContext";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 const queryClient = new QueryClient();
@@ -44,12 +45,14 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <Stack>
-            <Stack.Screen name="index" options={{ headerShown: false }} />
-            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-            <Stack.Screen name="(root)" options={{ headerShown: false }} />
-            <Stack.Screen name="+not-found" />
-          </Stack>
+          <SocketProvider>
+            <Stack>
+              <Stack.Screen name="index" options={{ headerShown: false }} />
+              <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+              <Stack.Screen name="(root)" options={{ headerShown: false }} />
+              <Stack.Screen name="+not-found" />
+            </Stack>
+          </SocketProvider>
         </AuthProvider>
       </QueryClientProvider>
     </GestureHandlerRootView>

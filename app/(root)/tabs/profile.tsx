@@ -13,6 +13,7 @@ import {
   Platform,
   TouchableWithoutFeedback,
   Keyboard,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -28,8 +29,8 @@ import { getAvatarUrl, formatFullName } from "@/lib/utils";
 import MainHeader from "@/components/Common/MainHeader";
 
 const ProfileScreen = () => {
-  const { logout } = useAuth();
-  const { data: profile, isLoading, refetch } = useProfile();
+  const { logout, hasHydrated } = useAuth();
+  const { data: profile, isLoading, refetch, isError } = useProfile();
   const { mutate: updateProfile } = useUpdateProfile();
 
   const [refreshing, setRefreshing] = useState(false);
@@ -62,40 +63,6 @@ const ProfileScreen = () => {
   const handleSignOut = () => {
     logout();
     router.replace("/(auth)/sign-in");
-  };
-
-  const handlePickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.7,
-    });
-
-    if (!result.canceled && result.assets[0].uri) {
-      setUpdatingAvatar(true);
-      try {
-        const uri = result.assets[0].uri;
-        const fileName = uri.split("/").pop();
-        const fileType = fileName?.split(".").pop();
-
-        const formData = new FormData();
-        // @ts-ignore
-        formData.append("file", {
-          uri,
-          name: fileName || "avatar.jpg",
-          type: `image/${fileType || "jpeg"}`,
-        });
-
-        await uploadAvatar(formData);
-        await refetch();
-        showAlert("Thành công", "Ảnh đại diện đã được cập nhật.");
-      } catch (err: any) {
-        showAlert("Lỗi", "Không thể tải ảnh lên. Vui lòng thử lại.");
-      } finally {
-        setUpdatingAvatar(false);
-      }
-    }
   };
 
   const handleUpdatePassword = async () => {
@@ -137,10 +104,29 @@ const ProfileScreen = () => {
     );
   };
 
-  if (isLoading && !refreshing) {
+  // Đợi nạp Token từ kho lưu trữ xong mới xử lý tiếp
+  if (!hasHydrated || (isLoading && !refreshing)) {
     return (
       <View className="flex-1 justify-center items-center bg-white">
         <ActivityIndicator size="large" color="#0068FF" />
+      </View>
+    );
+  }
+
+  // Xử lý khi không lấy được dữ liệu Profile (Lỗi mạng hoặc Token hết hạn)
+  if (isError && !profile) {
+    return (
+      <View className="flex-1 bg-gray-50">
+        <MainHeader title="Cá nhân" showSearch={true} />
+        <View className="flex-1 justify-center items-center px-6">
+          <Ionicons name="cloud-offline-outline" size={64} color="#CBD5E1" />
+          <Text className="text-gray-500 font-JakartaMedium text-center mt-4">
+            Không thể tải thông tin. Vui lòng kiểm tra kết nối mạng.
+          </Text>
+          <TouchableOpacity onPress={onRefresh} className="mt-6 bg-primary-500 px-8 py-3 rounded-full">
+            <Text className="text-white font-JakartaBold">Thử lại</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
@@ -157,14 +143,16 @@ const ProfileScreen = () => {
         {/* Profile Card */}
         <View className="items-center mt-6 px-4">
           <View className="bg-white w-full rounded-3xl p-6 shadow-sm items-center">
-            <TouchableOpacity onPress={handlePickImage} className="relative">
+            <TouchableOpacity onPress={() => router.push('/(root)/personal-wall')} className="relative" activeOpacity={0.8}>
               <Image
-                source={{ uri: getAvatarUrl(formatFullName(profile?.firstName, profile?.lastName || ""), profile?.avatarUrl) }}
-                className="w-24 h-24 rounded-full bg-gray-100"
+                source={{ 
+                  uri: getAvatarUrl(
+                    formatFullName(profile?.firstName, profile?.lastName || ""), 
+                    profile?.avatarUrl
+                  ) || `https://api.dicebear.com/9.x/avataaars/png?seed=User` 
+                }}
+                className="w-24 h-24 rounded-full bg-gray-100 border-4 border-white shadow-sm"
               />
-              <View className="absolute bottom-0 right-0 bg-primary-500 p-1.5 rounded-full border-2 border-white">
-                {updatingAvatar ? <ActivityIndicator size="small" color="white" /> : <Ionicons name="camera" size={16} color="white" />}
-              </View>
             </TouchableOpacity>
 
             <Text className="text-2xl font-JakartaBold text-gray-800 mt-4">{name}</Text>
@@ -212,7 +200,7 @@ const ProfileScreen = () => {
       {/* ── Modal Đổi mật khẩu ── */}
       <Modal visible={showPasswordModal} animationType="slide" transparent>
         <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
           className="flex-1"
         >
           <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
@@ -255,7 +243,7 @@ const ProfileScreen = () => {
       {/* ── Modal Sửa Profile ── */}
       <Modal visible={showEditProfileModal} animationType="slide" transparent>
         <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
           className="flex-1"
         >
           <TouchableWithoutFeedback onPress={Keyboard.dismiss}>

@@ -9,6 +9,7 @@ import {
   uploadMediaMessage,
   MessageDto,
 } from "@/api/message";
+import { fetchAPI } from "@/lib/fetch";
 
 /** Lấy tin nhắn của 1 chat (phân trang) */
 export const useMessages = (chatId: string | null, page = 0, size = 30) => {
@@ -82,13 +83,10 @@ export const useDeleteMessage = (chatId: string) => {
 export const useReactMessage = (chatId: string) => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ messageId, emoji }: { messageId: string; emoji: string }) => 
-      fetch(`${process.env.EXPO_PUBLIC_SERVER_URL}/message/${messageId}/reactions?emoji=${emoji}`, {
+    mutationFn: ({ messageId, emoji }: { messageId: string; emoji: string }) =>
+      fetchAPI(`/message/${messageId}/reactions?emoji=${encodeURIComponent(emoji)}`, {
         method: "POST",
-        headers: {
-          "Authorization": `Bearer ${queryClient.getQueryData(["token"])}`, // Hoặc lấy từ store
-        }
-      }), // Lưu ý: Nên dùng axios hoặc hàm api chuẩn, đây là ví dụ nhanh
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["messages", chatId] });
     },

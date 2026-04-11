@@ -12,10 +12,9 @@ interface MainHeaderProps {
 
 const MainHeader = ({ title, showSearch = true }: MainHeaderProps) => {
   return (
-    <View style={styles.wrapper}>
+    <SafeAreaView edges={["top"]} style={styles.wrapper}>
       {/* Hiện thông tin hệ thống chuẩn trên nền xanh */}
-      <StatusBar style="light" />
-      <SafeAreaView edges={["top"]} />
+      <StatusBar style="light" backgroundColor="#0068FF" />
       
       <View style={styles.container}>
         {showSearch ? (
@@ -38,7 +37,7 @@ const MainHeader = ({ title, showSearch = true }: MainHeaderProps) => {
           </TouchableOpacity>
         </View>
       </View>
-    </View>
+    </SafeAreaView>
   );
 };
 

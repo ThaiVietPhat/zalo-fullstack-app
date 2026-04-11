@@ -66,15 +66,28 @@ export function getAvatarUrl(seed: string, fallback?: string): string {
   return `https://api.dicebear.com/9.x/avataaars/png?seed=${encodeURIComponent(seed)}`;
 }
 
+const S3_BASE_URL = "https://zaloclone-storage.s3.ap-southeast-1.amazonaws.com";
+
 /** Resolve relative API media paths into full URLs */
 export function getImageUrl(path?: string): string | undefined {
   if (!path) return undefined;
+  
+  // 1. Nếu đã là URL hoàn chỉnh (bao gồm Presigned URL từ Backend hoặc DB) thì lấy nguyên bản
   if (path.startsWith('http')) return path;
   
-  // Lấy baseUrl từ .env (ví dụ: http://192.168.1.3:8080/api/v1)
+  // 2. Nếu là raw S3 Key (không có dấu /), chúng ta trỏ thẳng về bucket S3 của bạn
+  if (!path.includes('/')) {
+    return `${S3_BASE_URL}/${path}`;
+  }
+
+  // 3. Fallback cho các trường hợp lấy file từ Local API (nếu có)
   const baseUrl = process.env.EXPO_PUBLIC_SERVER_URL || "";
-  // Tách lấy host (ví dụ: http://192.168.1.3:8080)
   const host = baseUrl.split('/api/v1')[0];
   
-  return `${host}${path}`;
+  if (!host) return undefined;
+
+  const cleanHost = host.endsWith('/') ? host.slice(0, -1) : host;
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  
+  return `${cleanHost}${cleanPath}`;
 }

@@ -12,28 +12,45 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import { useSendMessage, useUploadMedia } from '@/hooks/useMessages';
+import { useSendGroupMessage, useUploadGroupMedia } from '@/hooks/useGroup';
 
 interface ChatInputProps {
   chatId: string;
+  isGroup?: boolean;
 }
 
-const ChatInput = ({ chatId }: ChatInputProps) => {
+const ChatInput = ({ chatId, isGroup = false }: ChatInputProps) => {
   const [text, setText] = useState('');
   const insets = useSafeAreaInsets();
-  const { mutate: sendMessage, isPending: isSendingText } = useSendMessage();
-  const { mutate: uploadMedia, isPending: isUploading } = useUploadMedia(chatId);
+  
+  // Hooks cho Chat cá nhân
+  const { mutate: sendPrivateMessage, isPending: isSendingPrivate } = useSendMessage();
+  const { mutate: uploadPrivateMedia, isPending: isUploadingPrivate } = useUploadMedia(chatId);
+  
+  // Hooks cho Chat nhóm (import từ @/hooks/useGroup nếu cần)
+  const { mutate: sendGroupMessage, isPending: isSendingGroup } = useSendGroupMessage(chatId);
+  const { mutate: uploadGroupMedia, isPending: isUploadingGroup } = useUploadGroupMedia(chatId);
+
+  const isSendingText = isGroup ? isSendingGroup : isSendingPrivate;
+  const isUploading = isGroup ? isUploadingGroup : isUploadingPrivate;
 
   const handleSend = () => {
     const trimmed = text.trim();
     if (!trimmed || isSendingText || isUploading) return;
 
-    sendMessage({
-      chatId,
-      content: trimmed,
-      type: 'TEXT',
-    });
+    if (isGroup) {
+      sendGroupMessage({ content: trimmed });
+    } else {
+      sendPrivateMessage({
+        chatId,
+        content: trimmed,
+        type: 'TEXT',
+      });
+    }
     setText('');
   };
+
+  const uploadMedia = isGroup ? uploadGroupMedia : uploadPrivateMedia;
 
   const handlePickImage = async () => {
     try {
@@ -48,12 +65,16 @@ const ChatInput = ({ chatId }: ChatInputProps) => {
         for (const asset of result.assets) {
           const formData = new FormData();
           const uri = asset.uri;
-          const fileName = uri.split('/').pop() || 'media';
-          const fileType = asset.type === 'video' ? 'video/mp4' : 'image/jpeg';
+          
+          // Chuẩn hóa kiểu file để lách qua bộ lọc của Backend (do BE chỉ nhận image/jpeg)
+          let fileType = asset.mimeType || (asset.type === 'video' ? 'video/mp4' : 'image/jpeg');
+          if (fileType === 'image/jpg') fileType = 'image/jpeg';
+          
+          const fileName = asset.fileName || (uri.split('/').pop() || 'media.jpg').replace('.jpg', '.jpeg');
 
           // @ts-ignore
           formData.append('file', {
-            uri,
+            uri: Platform.OS === 'android' ? uri : uri.replace('file://', ''),
             name: fileName,
             type: fileType,
           });
