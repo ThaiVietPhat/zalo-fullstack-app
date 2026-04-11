@@ -16,6 +16,7 @@ import ChatInput from '@/components/ChatScreen/ChatInput';
 import { useMessages, useMarkSeen } from '@/hooks/useMessages';
 import { useChatById } from '@/hooks/useChat';
 import { useAuth } from '@/context/AuthContext';
+import { getAvatarUrl } from '@/lib/utils';
 
 const ChatScreen = () => {
   const { id, name, isGroup } = useLocalSearchParams<{ id: string; name?: string; isGroup?: string }>();
@@ -55,6 +56,7 @@ const ChatScreen = () => {
   const formattedMessages = (messages || []).map((msg) => ({
     id: msg.id || `${msg.senderId}-${msg.createdAt}`,
     senderId: msg.senderId || "",
+    chatId: id,
     // deleted = true → "Tin nhắn đã bị xóa"
     text: msg.deleted ? "Tin nhắn đã bị xóa" : msg.content,
     image: (!msg.deleted && msg.mediaUrl) ? msg.mediaUrl : undefined,
@@ -64,6 +66,10 @@ const ChatScreen = () => {
     type: (msg.type === "IMAGE" ? "IMAGE" : "TEXT") as "TEXT" | "IMAGE",
     state: msg.state,
     reactions: msg.reactions,
+    avatar: msg.senderId === user?.id
+      ? getAvatarUrl(user?.name || "Me", user?.avatar)
+      : (isGroupBool ? undefined : getAvatarUrl(chat?.chatName || "Other", chat?.avatarUrl)),
+    senderName: msg.senderId === user?.id ? user?.name : (isGroupBool ? "User" : chat?.chatName),
   }));
 
   return (
@@ -90,7 +96,11 @@ const ChatScreen = () => {
             data={[...formattedMessages].reverse()}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
-              <MessageItem item={item} isMe={item.senderId === myId} />
+              <MessageItem
+                item={item}
+                isMe={item.senderId === myId}
+                isGroup={isGroupBool}
+              />
             )}
             className="flex-1 pt-4"
             showsVerticalScrollIndicator={false}

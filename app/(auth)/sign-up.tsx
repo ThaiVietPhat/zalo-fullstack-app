@@ -72,8 +72,11 @@ const SignUp = () => {
     setIsLoading(true);
     try {
       await verifyEmail({ email: form.email, code: form.otp });
-      showAlert("Thành công", "Tài khoản của bạn đã được kích hoạt.");
-      router.replace("/(auth)/sign-in");
+      // Chuyển hướng về sign-in với tham báo thành công
+      router.replace({ 
+        pathname: "/(auth)/sign-in", 
+        params: { success: "signup" } 
+      });
     } catch (error: any) {
       showAlert("Lỗi OTP", "Mã xác thực không chính xác.");
     } finally {

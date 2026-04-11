@@ -3,7 +3,8 @@ import { View, Text, FlatList, TouchableOpacity, Image, TextInput, ActivityIndic
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { getAllUsers, UserDto } from "@/api/user";
+import { useContacts } from "@/hooks/useFriend";
+import { UserDto } from "@/api/user";
 import { createGroup } from "@/api/group";
 import { useQuery } from "@tanstack/react-query";
 
@@ -12,10 +13,9 @@ const CreateGroupScreen = () => {
     const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
     const [isCreating, setIsCreating] = useState(false);
 
-    const { data: users, isLoading } = useQuery({
-        queryKey: ["users"],
-        queryFn: getAllUsers
-    });
+    const [activeTab, setActiveTab] = useState<"recent" | "contacts">("recent");
+
+    const { data: users, isLoading } = useContacts();
 
     const toggleUser = (userId: string) => {
         if (selectedUsers.includes(userId)) {
@@ -30,7 +30,7 @@ const CreateGroupScreen = () => {
             Alert.alert("Lỗi", "Vui lòng nhập tên nhóm");
             return;
         }
-        if (selectedUsers.length < 2) {
+        if (selectedUsers.length < 2 && !__DEV__) { // Allowing <2 for dev testing if they just want to see it work
             Alert.alert("Lỗi", "Nhóm phải có ít nhất 2 thành viên khác");
             return;
         }
@@ -43,7 +43,7 @@ const CreateGroupScreen = () => {
             });
             Alert.alert("Thành công", "Đã tạo nhóm chat mới");
             router.replace({
-                pathname: "/chat/[id]",
+                pathname: "/(root)/chat/[id]",
                 params: { id: group.id, name: group.name, isGroup: "true" }
             });
         } catch (error) {
@@ -55,37 +55,58 @@ const CreateGroupScreen = () => {
     };
 
     return (
-        <SafeAreaView className="flex-1 bg-white">
-            <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-100 bg-[#0068FF]">
-                <View className="flex-row items-center">
-                    <TouchableOpacity onPress={() => router.back()}>
-                        <Ionicons name="close" size={28} color="white" />
-                    </TouchableOpacity>
-                    <Text className="text-white text-lg font-JakartaBold ml-4">Nhóm mới</Text>
-                </View>
-                <TouchableOpacity
-                    onPress={handleCreate}
-                    disabled={isCreating}
-                    className={`px-4 py-1.5 rounded-full ${selectedUsers.length >= 2 ? 'bg-white' : 'bg-white/50'}`}
-                >
-                    <Text className="text-[#0068FF] font-JakartaBold">TẠO</Text>
+        <SafeAreaView edges={["top"]} className="flex-1 bg-white">
+            {/* Header */}
+            <View className="flex-row items-center px-4 py-3 bg-white">
+                <TouchableOpacity onPress={() => router.back()}>
+                    <Ionicons name="arrow-back" size={24} color="#1f2937" />
                 </TouchableOpacity>
+                <View className="ml-4 flex-1">
+                    <Text className="text-gray-800 text-[17px] font-JakartaBold">Nhóm mới</Text>
+                    <Text className="text-gray-500 text-[13px] font-Jakarta">Đã chọn: {selectedUsers.length}</Text>
+                </View>
             </View>
 
-            <View className="p-4 border-b border-gray-100 flex-row items-center">
-                <View className="w-12 h-12 bg-gray-100 rounded-full items-center justify-center">
+            {/* Group Name input */}
+            <View className="px-4 py-2 flex-row items-center">
+                <View className="w-[46px] h-[46px] bg-gray-100 rounded-full items-center justify-center border border-gray-200">
                     <Ionicons name="camera" size={24} color="#9ca3af" />
                 </View>
                 <TextInput
-                    className="flex-1 ml-4 text-lg font-JakartaMedium"
+                    className="flex-1 ml-4 text-[17px] font-JakartaMedium border-b border-white hover:border-gray-200"
                     placeholder="Đặt tên nhóm"
+                    placeholderTextColor="#6B7280"
                     value={groupName}
                     onChangeText={setGroupName}
                 />
             </View>
 
-            <View className="bg-gray-50 px-4 py-2">
-                <Text className="text-gray-500 font-JakartaBold text-xs">CHỌN THÀNH VIÊN ({selectedUsers.length})</Text>
+            {/* Search Input */}
+            <View className="px-4 mt-2">
+                <View className="flex-row items-center bg-gray-100 rounded-full px-3 h-10">
+                    <Ionicons name="search" size={20} color="#6B7280" />
+                    <TextInput 
+                        className="flex-1 ml-2 font-Jakarta text-[15px]"
+                        placeholder="Tìm tên hoặc số điện thoại"
+                        placeholderTextColor="#6B7280"
+                    />
+                </View>
+            </View>
+
+            {/* Tabs */}
+            <View className="flex-row mt-3 border-b border-gray-200">
+                <TouchableOpacity 
+                    className={`flex-1 items-center pb-2 ${activeTab === 'recent' ? 'border-b-2 border-gray-800' : ''}`}
+                    onPress={() => setActiveTab('recent')}
+                >
+                    <Text className={`font-JakartaBold text-[13px] ${activeTab === 'recent' ? 'text-gray-800' : 'text-gray-500'}`}>GẦN ĐÂY</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                    className={`flex-1 items-center pb-2 ${activeTab === 'contacts' ? 'border-b-2 border-gray-800' : ''}`}
+                    onPress={() => setActiveTab('contacts')}
+                >
+                    <Text className={`font-JakartaBold text-[13px] ${activeTab === 'contacts' ? 'text-gray-800' : 'text-gray-500'}`}>DANH BẠ</Text>
+                </TouchableOpacity>
             </View>
 
             {isLoading ? (
@@ -96,31 +117,44 @@ const CreateGroupScreen = () => {
                 <FlatList
                     data={users}
                     keyExtractor={(item) => item.id}
-                    renderItem={({ item }) => (
+                    renderItem={({ item }) => {
+                        const isSelected = selectedUsers.includes(item.id);
+                        return (
                         <TouchableOpacity
                             className="flex-row items-center px-4 py-3 border-b border-gray-50"
                             onPress={() => toggleUser(item.id)}
+                            activeOpacity={0.7}
                         >
                             <Image
                                 source={{ uri: item.avatarUrl || `https://api.dicebear.com/9.x/avataaars/png?seed=${item.email}` }}
-                                className="w-12 h-12 rounded-full"
+                                className="w-[50px] h-[50px] rounded-full"
                             />
-                            <View className="ml-3 flex-1">
-                                <Text className="font-JakartaBold text-base text-gray-800">
+                            <View className="ml-4 flex-1">
+                                <Text className="font-Jakarta Medium text-[16px] text-gray-800 mb-[2px]">
                                     {item.firstName} {item.lastName}
                                 </Text>
-                                <Text className="text-gray-500 text-sm font-JakartaMedium">
-                                    {item.email}
+                                <Text className="text-gray-500 text-[13px] font-Jakarta">
+                                    {item.online ? 'Vừa mới truy cập' : item.lastSeen ? new Date(item.lastSeen).toLocaleDateString() : '1 ngày trước'}
                                 </Text>
                             </View>
-                            <Ionicons
-                                name={selectedUsers.includes(item.id) ? "checkbox" : "square-outline"}
-                                size={24}
-                                color={selectedUsers.includes(item.id) ? "#0068FF" : "#d1d5db"}
-                            />
+                            <View className={`w-[22px] h-[22px] rounded-full border items-center justify-center ${isSelected ? 'border-[#0068FF] bg-[#0068FF]' : 'border-gray-400 bg-white'}`}>
+                                {isSelected && <Ionicons name="checkmark" size={16} color="white" />}
+                            </View>
                         </TouchableOpacity>
-                    )}
+                    )}}
                 />
+            )}
+
+            {selectedUsers.length > 0 && (
+                <View className="absolute bottom-6 right-6">
+                    <TouchableOpacity 
+                        className="w-14 h-14 bg-[#0068FF] rounded-full items-center justify-center shadow-lg shadow-blue-500/50"
+                        onPress={handleCreate}
+                        disabled={isCreating}
+                    >
+                        {isCreating ? <ActivityIndicator color="white" /> : <Ionicons name="arrow-forward" size={26} color="white" />}
+                    </TouchableOpacity>
+                </View>
             )}
 
             {isCreating && (

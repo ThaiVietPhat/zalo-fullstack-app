@@ -37,7 +37,7 @@ const PersonalWallScreen = () => {
         const uri = result.assets[0].uri;
         const fileName = result.assets[0].fileName || uri.split("/").pop() || "avatar.jpg";
         let fileType = result.assets[0].mimeType || `image/${fileName.split(".").pop() || "jpeg"}`;
-        
+
         if (fileType === 'image/jpg') fileType = 'image/jpeg';
 
         const formData = new FormData();
@@ -111,7 +111,7 @@ const PersonalWallScreen = () => {
             <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn}>
               <Ionicons name="arrow-back" size={26} color="white" />
             </TouchableOpacity>
-            
+
             <View style={styles.headerRight}>
               <TouchableOpacity style={styles.iconBtn}>
                 <Ionicons name="time-outline" size={24} color="white" />
@@ -137,19 +137,12 @@ const PersonalWallScreen = () => {
                 </View>
               )}
             </TouchableOpacity>
-            
-            {/* Status Bubble */}
-            <View style={styles.statusBubble}>
-              <Text style={styles.statusBubbleText}>Trạng thái{'\n'}hiện tại</Text>
-              <View style={styles.statusBubbleTail} />
-            </View>
           </View>
         </View>
 
         {/* INFO */}
         <View style={styles.infoContainer}>
           <Text style={styles.nameText}>{name}</Text>
-          <Text style={styles.subtitleText}>{subtitle.split('@')[0]}</Text>
         </View>
 
         {/* 3 ACTION BUTTONS */}
@@ -158,12 +151,12 @@ const PersonalWallScreen = () => {
             <Ionicons name="color-palette" size={22} color="#0068FF" />
             <Text style={styles.actionCardText}>Cài zStyle</Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity style={styles.actionCard}>
             <Ionicons name="image" size={22} color="#0068FF" />
             <Text style={styles.actionCardText}>Ảnh của tôi</Text>
           </TouchableOpacity>
-          
+
           <TouchableOpacity style={styles.actionCard}>
             <Ionicons name="archive" size={22} color="#0068FF" />
             <Text style={styles.actionCardText}>Kho khoảnh khắc</Text>
@@ -186,7 +179,7 @@ const PersonalWallScreen = () => {
               <Ionicons name="chatbubble-ellipses" size={14} color="#10B981" />
             </View>
           </View>
-          
+
           <Text style={styles.diaryPrompt}>Hôm nay {name} có gì vui?</Text>
           <Text style={styles.diarySubtext}>
             Đây là Nhật ký của bạn - Hãy làm đầy Nhật ký{'\n'}
@@ -197,8 +190,8 @@ const PersonalWallScreen = () => {
           </TouchableOpacity>
         </View>
         <View style={{ height: 100 }} />
-      </ScrollView>
-    </View>
+      </ScrollView >
+    </View >
   );
 };
 

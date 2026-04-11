@@ -63,8 +63,11 @@ const ForgotPassword = () => {
         code: form.otp,
         newPassword: form.newPassword,
       });
-      showAlert("Thành công", "Mật khẩu của bạn đã được đặt lại thành công.");
-      router.replace("/(auth)/sign-in");
+      // Điều hướng về sign-in kèm param thông báo
+      router.replace({ 
+        pathname: "/(auth)/sign-in", 
+        params: { success: "reset" } 
+      });
     } catch (error: any) {
       showAlert("Lỗi", "Mã xác thực không chính xác hoặc hết hạn.");
     } finally {

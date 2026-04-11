@@ -13,7 +13,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
+import { useEffect } from "react";
 
 import CustomButton from "@/components/Common/CustomButton";
 import CustomModal from "@/components/Common/CustomModal";
@@ -23,6 +24,7 @@ import { useAuth } from "@/context/AuthContext";
 
 const SignIn = () => {
   const { login } = useAuth();
+  const { success } = useLocalSearchParams<{ success: string }>();
   const [isLoading, setIsLoading] = useState(false);
   const [account, setAccount] = useState("");
   const [password, setPassword] = useState("");
@@ -37,6 +39,14 @@ const SignIn = () => {
   const showAlert = (title: string, message: string) => {
     setAlertModal({ visible: true, title, message });
   };
+
+  useEffect(() => {
+    if (success === "signup") {
+      showAlert("Đăng ký thành công", "Tài khoản của bạn đã được kích hoạt. Hãy đăng nhập ngay!");
+    } else if (success === "reset") {
+      showAlert("Thành công", "Mật khẩu của bạn đã được đặt lại. Hãy dùng mật khẩu mới để đăng nhập.");
+    }
+  }, [success]);
 
   const handleLogin = async () => {
     setErrors({});

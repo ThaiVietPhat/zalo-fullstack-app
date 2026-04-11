@@ -1,6 +1,7 @@
 // components/Common/MainHeader/index.tsx
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet, TextInput } from "react-native";
+import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -18,12 +19,16 @@ const MainHeader = ({ title, showSearch = true }: MainHeaderProps) => {
       
       <View style={styles.container}>
         {showSearch ? (
-          <View style={styles.searchContainer}>
+          <TouchableOpacity 
+            style={styles.searchContainer} 
+            activeOpacity={0.8}
+            onPress={() => router.push("/(root)/search")}
+          >
             <Ionicons name="search-outline" size={24} color="white" />
-            <TouchableOpacity style={styles.inputArea}>
+            <View style={styles.inputArea}>
                 <Text style={styles.placeholderText}>Tìm kiếm</Text>
-            </TouchableOpacity>
-          </View>
+            </View>
+          </TouchableOpacity>
         ) : (
           <Text style={styles.titleText}>{title}</Text>
         )}
@@ -32,7 +37,10 @@ const MainHeader = ({ title, showSearch = true }: MainHeaderProps) => {
           <TouchableOpacity style={styles.iconBtn}>
             <Ionicons name="qr-code-outline" size={22} color="white" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.iconBtn}>
+          <TouchableOpacity 
+            style={styles.iconBtn}
+            onPress={() => router.push("/(root)/create-group")}
+          >
             <Ionicons name="add-outline" size={28} color="white" />
           </TouchableOpacity>
         </View>

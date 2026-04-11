@@ -1,24 +1,14 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { Client } from '@stomp/stompjs';
-import SockJS from 'sockjs-client';
 import { useAuthStore } from '@/store';
 import { useQueryClient } from '@tanstack/react-query';
-import { Platform } from 'react-native';
-import { Buffer } from 'buffer';
 
-// @ts-ignore
-if (typeof BigInt === 'undefined') {
-    global.BigInt = require('big-integer');
-}
-
-// Bổ sung polyfill cho TextEncoder và TextDecoder (rất quan trọng cho STOMP)
+// Polyfill TextEncoder/TextDecoder cho STOMP trên React Native
 if (typeof TextEncoder === 'undefined') {
     const { TextEncoder, TextDecoder } = require('text-encoding');
     global.TextEncoder = TextEncoder;
     global.TextDecoder = TextDecoder;
 }
-
-global.Buffer = Buffer;
 
 interface SocketContextType {
     isConnected: boolean;
@@ -28,29 +18,34 @@ interface SocketContextType {
 const SocketContext = createContext<SocketContextType | undefined>(undefined);
 
 export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const { token, user } = useAuthStore();
+    const { token } = useAuthStore();
     const [isConnected, setIsConnected] = useState(false);
     const clientRef = useRef<Client | null>(null);
     const queryClient = useQueryClient();
 
     useEffect(() => {
-        if (!token) {
-            if (clientRef.current) {
-                clientRef.current.deactivate();
-            }
-            return;
+        if (clientRef.current) {
+            clientRef.current.deactivate();
+            clientRef.current = null;
         }
 
-        const baseUrl = process.env.EXPO_PUBLIC_SERVER_URL || "";
-        const socketUrl = baseUrl.split('/api/v1')[0] + '/ws';
+        if (!token) return;
+
+        // Chuyển http(s):// -> ws(s):// và thêm /websocket (SockJS raw endpoint)
+        const baseUrl = process.env.EXPO_PUBLIC_SOCKET_URL || process.env.EXPO_PUBLIC_SERVER_URL?.split('/api/v1')[0] + '/ws';
+        const wsUrl = baseUrl!
+            .replace(/^http:\/\//, 'ws://')
+            .replace(/^https:\/\//, 'wss://')
+            .replace(/\/ws$/, '/ws/websocket'); // SockJS raw WebSocket path
 
         const client = new Client({
-            webSocketFactory: () => new SockJS(socketUrl),
+            // Dùng native WebSocket của React Native thay vì SockJS
+            webSocketFactory: () => new WebSocket(wsUrl),
             connectHeaders: {
                 Authorization: `Bearer ${token}`,
             },
             debug: (str) => {
-                if (__DEV__) console.log('📡 [STOMP] ' + str);
+                if (__DEV__) console.log('📡 [STOMP]', str);
             },
             reconnectDelay: 5000,
             heartbeatIncoming: 4000,
@@ -59,28 +54,29 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
         client.onConnect = (frame) => {
             setIsConnected(true);
-            console.log('✅ [Socket] Connected: ' + frame.headers['user-name']);
+            console.log('✅ [Socket] Connected:', frame.headers['user-name']);
 
-            // Subscribe to private messages
             client.subscribe('/user/queue/messages', (message) => {
                 const msgData = JSON.parse(message.body);
                 console.log('📧 New message received:', msgData);
-
-                // Invalidate React Query to refresh UI
                 queryClient.invalidateQueries({ queryKey: ['chats'] });
                 if (msgData.chatId) {
                     queryClient.invalidateQueries({ queryKey: ['messages', msgData.chatId] });
                 }
             });
 
-            // Subscribe to notifications or other events if needed
             client.subscribe('/user/queue/notifications', (notif) => {
                 console.log('🔔 Notification:', JSON.parse(notif.body));
+                queryClient.invalidateQueries({ queryKey: ['chats'] });
             });
         };
 
         client.onStompError = (frame) => {
-            console.error('❌ [Socket] STOMP Error:', frame.headers['message']);
+            console.warn('⚠️ [Socket] STOMP Error:', frame.headers['message']);
+        };
+
+        client.onWebSocketError = (event) => {
+            console.warn('⚠️ [Socket] WebSocket Error:', event);
         };
 
         client.onDisconnect = () => {
@@ -93,6 +89,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
         return () => {
             client.deactivate();
+            clientRef.current = null;
         };
     }, [token, queryClient]);
 

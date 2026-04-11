@@ -22,11 +22,11 @@ interface ChatInputProps {
 const ChatInput = ({ chatId, isGroup = false }: ChatInputProps) => {
   const [text, setText] = useState('');
   const insets = useSafeAreaInsets();
-  
+
   // Hooks cho Chat cá nhân
   const { mutate: sendPrivateMessage, isPending: isSendingPrivate } = useSendMessage();
   const { mutate: uploadPrivateMedia, isPending: isUploadingPrivate } = useUploadMedia(chatId);
-  
+
   // Hooks cho Chat nhóm (import từ @/hooks/useGroup nếu cần)
   const { mutate: sendGroupMessage, isPending: isSendingGroup } = useSendGroupMessage(chatId);
   const { mutate: uploadGroupMedia, isPending: isUploadingGroup } = useUploadGroupMedia(chatId);
@@ -65,11 +65,11 @@ const ChatInput = ({ chatId, isGroup = false }: ChatInputProps) => {
         for (const asset of result.assets) {
           const formData = new FormData();
           const uri = asset.uri;
-          
+
           // Chuẩn hóa kiểu file để lách qua bộ lọc của Backend (do BE chỉ nhận image/jpeg)
           let fileType = asset.mimeType || (asset.type === 'video' ? 'video/mp4' : 'image/jpeg');
           if (fileType === 'image/jpg') fileType = 'image/jpeg';
-          
+
           const fileName = asset.fileName || (uri.split('/').pop() || 'media.jpg').replace('.jpg', '.jpeg');
 
           // @ts-ignore
@@ -97,7 +97,7 @@ const ChatInput = ({ chatId, isGroup = false }: ChatInputProps) => {
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
         const formData = new FormData();
-        
+
         // @ts-ignore
         formData.append('file', {
           uri: asset.uri,

@@ -1,11 +1,11 @@
 // src/components/ChatScreen/MessageItem/index.tsx — Tương tác & Đa phương tiện
 import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  Image, 
-  TouchableOpacity, 
-  StyleSheet, 
+import {
+  View,
+  Text,
+  Image,
+  TouchableOpacity,
+  StyleSheet,
   Alert,
   Modal,
   TouchableWithoutFeedback,
@@ -15,6 +15,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { MessageState } from '@/types/type';
 import { getImageUrl } from '@/lib/utils';
 import { useRecallMessage, useDeleteMessage } from '@/hooks/useMessages';
+import { useReactToMessage, useReactToGroupMessage } from '@/hooks/useReaction';
+import { useAuth } from '@/context/AuthContext';
 
 interface Message {
   id: string;
@@ -26,18 +28,25 @@ interface Message {
   type: 'TEXT' | 'IMAGE' | 'VIDEO' | 'AUDIO' | 'FILE';
   state?: MessageState;
   reactions?: Array<{ emoji: string; userId: string; userFullName?: string }>;
+  avatar?: string;
+  senderName?: string;
 }
 
 const { width: screenWidth } = Dimensions.get('window');
 
 const emojis = ['❤️', '👍', '😆', '😲', '😢', '😡'];
 
-const MessageItem = ({ item, isMe }: { item: Message; isMe: boolean }) => {
+const MessageItem = ({ item, isMe, isGroup }: { item: Message; isMe: boolean; isGroup: boolean }) => {
   const isDeleted = item.text === 'Tin nhắn đã bị xóa' || item.text === 'Tin nhắn đã bị thu hồi';
   const chatId = item.chatId || "";
-  
+
   const { mutate: recall } = useRecallMessage(chatId);
   const { mutate: deleteForMe } = useDeleteMessage(chatId);
+  const { mutate: reactPrivate } = useReactToMessage(chatId);
+  const { mutate: reactGroup } = useReactToGroupMessage(chatId);
+  
+  const react = isGroup ? reactGroup : reactPrivate;
+  const { user } = useAuth();
 
   const [showMenu, setShowMenu] = useState(false);
 
@@ -71,15 +80,16 @@ const MessageItem = ({ item, isMe }: { item: Message; isMe: boolean }) => {
       {/* Avatar người khác */}
       {!isMe && (
         <View className="mr-2 self-end pb-1">
-          <View className="w-8 h-8 rounded-full bg-blue-100 items-center justify-center">
-            <Ionicons name="person" size={18} color="#0068FF" />
-          </View>
+          <Image
+            source={{ uri: item.avatar || `https://api.dicebear.com/9.x/avataaars/png?seed=${encodeURIComponent(item.senderName || "User")}` }}
+            className="w-8 h-8 rounded-full"
+          />
         </View>
       )}
 
       <View className={`${isMe ? 'items-end' : 'items-start'} max-w-[80%]`}>
-        <TouchableOpacity 
-          onLongPress={handleLongPress} 
+        <TouchableOpacity
+          onLongPress={handleLongPress}
           activeOpacity={0.9}
         >
           {/* Bong bóng tin nhắn */}
@@ -93,7 +103,6 @@ const MessageItem = ({ item, isMe }: { item: Message; isMe: boolean }) => {
             {/* 1. Hình ảnh */}
             {item.type === 'IMAGE' && item.image && !isDeleted ? (
               <View className="mb-1 rounded-xl overflow-hidden">
-                {console.log("🔗 [MessageItem] Rendering Image URL:", getImageUrl(item.image))}
                 <Image
                   source={{ uri: getImageUrl(item.image) || 'https://via.placeholder.com/300' }}
                   className="w-56 h-72"
@@ -140,13 +149,20 @@ const MessageItem = ({ item, isMe }: { item: Message; isMe: boolean }) => {
                   <StateIcon />
                 </View>
 
-                {/* Reaction heart (Quick Toggle) */}
-                <TouchableOpacity className="ml-2">
-                  <Ionicons 
-                    name={item.reactions?.some(r => r.emoji === '❤️') ? "heart" : "heart-outline"} 
-                    size={16} 
-                    color={isMe ? "#0068FF" : "#8E8E93"} 
-                  />
+                {/* Reaction heart (Quick Toggle / Display) */}
+                <TouchableOpacity 
+                   className="ml-2"
+                   onPress={() => react({ messageId: item.id, emoji: '❤️' })}
+                >
+                  {item.reactions && item.reactions.length > 0 ? (
+                    <Text style={{ fontSize: 14 }}>{item.reactions[item.reactions.length - 1].emoji}</Text>
+                  ) : (
+                    <Ionicons
+                      name="heart-outline"
+                      size={16}
+                      color={isMe ? "#0068FF" : "#8E8E93"}
+                    />
+                  )}
                 </TouchableOpacity>
               </View>
             )}
@@ -172,10 +188,17 @@ const MessageItem = ({ item, isMe }: { item: Message; isMe: boolean }) => {
           <View className="flex-1 bg-black/30 justify-center items-center px-6">
             <View className="bg-white rounded-3xl p-6 w-full max-w-sm">
               <Text className="text-xl font-JakartaBold mb-6 text-gray-800">Tùy chọn tin nhắn</Text>
-              
+
               <View className="flex-row justify-between mb-8">
                 {emojis.map((emoji) => (
-                  <TouchableOpacity key={emoji} onPress={() => setShowMenu(false)} className="bg-gray-50 p-2.5 rounded-full">
+                  <TouchableOpacity 
+                    key={emoji} 
+                    onPress={() => {
+                      react({ messageId: item.id, emoji });
+                      setShowMenu(false);
+                    }} 
+                    className="bg-gray-50 p-2.5 rounded-full"
+                  >
                     <Text className="text-2xl">{emoji}</Text>
                   </TouchableOpacity>
                 ))}
