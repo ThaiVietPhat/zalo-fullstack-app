@@ -9,7 +9,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -99,6 +101,19 @@ public class NotificationService {
                 email,
                 "/queue/force-logout",
                 new ForceLogoutPayload(reason)
+        );
+    }
+
+    public void sendAccountBanned(String email, String reason, LocalDateTime banUntil) {
+        log.info("Sending account-banned notification to user: {} — reason: {}", email, reason);
+        messagingTemplate.convertAndSendToUser(
+                email,
+                "/queue/force-logout",
+                Map.of(
+                    "reason", "ACCOUNT_BANNED",
+                    "banReason", reason != null ? reason : "",
+                    "banUntil", banUntil != null ? banUntil.toString() : ""
+                )
         );
     }
 

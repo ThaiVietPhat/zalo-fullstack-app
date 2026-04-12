@@ -4,6 +4,8 @@ import com.example.backend.admin.dto.AdminGroupDto;
 import com.example.backend.admin.dto.AdminStatsDto;
 import com.example.backend.admin.dto.AdminUserDto;
 import com.example.backend.admin.dto.AuditLogDto;
+import com.example.backend.admin.dto.BanRequest;
+import jakarta.validation.Valid;
 import com.example.backend.admin.service.AdminService;
 import com.example.backend.shared.exception.ResourceNotFoundException;
 import com.example.backend.user.entity.User;
@@ -42,8 +44,11 @@ public class AdminController {
     }
 
     @PatchMapping("/users/{userId}/ban")
-    public ResponseEntity<AdminUserDto> banUser(@PathVariable UUID userId, Authentication auth) {
-        return ResponseEntity.ok(adminService.banUser(userId, getAdmin(auth)));
+    public ResponseEntity<AdminUserDto> banUser(
+            @PathVariable UUID userId,
+            @Valid @RequestBody BanRequest req,
+            Authentication auth) {
+        return ResponseEntity.ok(adminService.banUser(userId, getAdmin(auth), req));
     }
 
     @PatchMapping("/users/{userId}/unban")

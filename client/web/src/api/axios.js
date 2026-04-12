@@ -1,5 +1,6 @@
 import axios from 'axios';
 import useAuthStore from '../store/authStore';
+import wsService from '../services/websocket';
 
 const BASE_URL = '';
 
@@ -54,6 +55,14 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+
+    // Tài khoản bị ban → hiện BannedModal
+    if (error.response?.status === 403 &&
+        error.response?.data?.error === 'ACCOUNT_BANNED') {
+      useAuthStore.getState().setBannedInfo({ reason: error.response.data.reason || '' });
+      wsService.disconnect();
+      return Promise.reject(error);
+    }
 
     // Session bị thay thế → hiện modal, không refresh
     if (error.response?.status === 401 && isSessionReplaced(error.response?.data)) {

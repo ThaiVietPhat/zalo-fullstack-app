@@ -6,8 +6,8 @@ export const getAdminUsers = (page = 0, size = 20) =>
 export const getUserDetail = (userId) =>
   api.get(`/api/v1/admin/users/${userId}`);
 
-export const banUser = (userId) =>
-  api.patch(`/api/v1/admin/users/${userId}/ban`);
+export const banUser = (userId, data) =>
+  api.patch(`/api/v1/admin/users/${userId}/ban`, data);
 
 export const unbanUser = (userId) =>
   api.patch(`/api/v1/admin/users/${userId}/unban`);

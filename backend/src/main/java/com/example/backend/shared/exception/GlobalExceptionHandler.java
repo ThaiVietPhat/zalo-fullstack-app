@@ -39,6 +39,17 @@ public class GlobalExceptionHandler {
         ));
     }
 
+    // ─── Tài khoản bị ban ────────────────────────────────────────────────────
+    @ExceptionHandler(AccountBannedException.class)
+    public ResponseEntity<Map<String, Object>> handleAccountBanned(AccountBannedException ex) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("error", "ACCOUNT_BANNED");
+        body.put("banReason", ex.getBanReason() != null ? ex.getBanReason() : "");
+        body.put("banUntil", ex.getBanUntil() != null ? ex.getBanUntil().toString() : null);
+        body.put("bannedAt", ex.getBannedAt() != null ? ex.getBannedAt().toString() : null);
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(body);
+    }
+
     // ─── Lỗi đăng nhập sai ───────────────────────────────────────────────────
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<Map<String, Object>> handleBadCredentials(

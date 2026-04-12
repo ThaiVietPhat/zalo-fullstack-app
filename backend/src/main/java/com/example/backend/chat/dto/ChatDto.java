@@ -25,4 +25,5 @@ public class ChatDto {
     private String avatarUrl;
     private UUID recipientId;
     private String recipientEmail;
+    private String blockStatus; // "NONE" | "BLOCKED_BY_ME" | "BLOCKED_BY_THEM"
 }

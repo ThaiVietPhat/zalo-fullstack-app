@@ -131,6 +131,11 @@ public class UserServiceImpl implements UserService {
                             dto.setFriendshipStatus("NONE");
                         }
                     }
+                    boolean blockedByMe = blockService.isBlockedByMe(self.getId(), user.getId());
+                    boolean blockedByThem = blockService.isBlockedByMe(user.getId(), self.getId());
+                    if (blockedByMe) dto.setBlockStatus("BLOCKED_BY_ME");
+                    else if (blockedByThem) dto.setBlockStatus("BLOCKED_BY_THEM");
+                    else dto.setBlockStatus("NONE");
                     return dto;
                 })
                 .collect(Collectors.toList());

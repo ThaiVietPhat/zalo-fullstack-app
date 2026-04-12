@@ -47,6 +47,15 @@ public class User extends BaseAuditingEntity {
     @Column(nullable = false)
     private boolean banned = false;
 
+    @Column(name = "ban_reason", length = 500)
+    private String banReason;
+
+    @Column(name = "ban_until")
+    private LocalDateTime banUntil;
+
+    @Column(name = "banned_at")
+    private LocalDateTime bannedAt;
+
     @Column(name = "is_online", nullable = false)
     private boolean online = false;
 

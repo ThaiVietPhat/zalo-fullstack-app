@@ -129,34 +129,40 @@ export default function UserSearchPanel() {
               </div>
               {!user.banned && (
                 <div className="flex items-center gap-1.5 flex-shrink-0">
-                  {status === 'NONE' && (
-                    <button onClick={() => handleSendRequest(user)} disabled={loadingId === user.id}
-                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-blue-50 text-blue-500 hover:bg-blue-100 text-xs font-medium transition-colors disabled:opacity-50">
-                      {loadingId === user.id ? <Loader size={13} className="animate-spin" /> : <UserPlus size={13} />} Kết bạn
-                    </button>
-                  )}
-                  {status === 'PENDING_SENT' && (
-                    <span className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-gray-100 text-gray-500 text-xs font-medium">
-                      <UserCheck size={13} /> Đã gửi
-                    </span>
-                  )}
-                  {status === 'PENDING_RECEIVED' && (
+                  {user.blockStatus && user.blockStatus !== 'NONE' ? (
+                    <span className="text-xs text-gray-400 px-2">Không thể kết bạn</span>
+                  ) : (
                     <>
-                      <button onClick={() => handleAccept(user)} disabled={loadingId === user.id}
-                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-blue-500 text-white hover:bg-blue-600 text-xs font-medium transition-colors disabled:opacity-50">
-                        {loadingId === user.id ? <Loader size={13} className="animate-spin" /> : <Check size={13} />} Chấp nhận
-                      </button>
-                      <button onClick={() => handleReject(user)} disabled={loadingId === user.id + '_reject'}
-                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-gray-100 text-gray-500 hover:bg-red-50 hover:text-red-400 text-xs font-medium transition-colors disabled:opacity-50">
-                        {loadingId === user.id + '_reject' ? <Loader size={13} className="animate-spin" /> : <X size={13} />} Từ chối
-                      </button>
+                      {status === 'NONE' && (
+                        <button onClick={() => handleSendRequest(user)} disabled={loadingId === user.id}
+                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-blue-50 text-blue-500 hover:bg-blue-100 text-xs font-medium transition-colors disabled:opacity-50">
+                          {loadingId === user.id ? <Loader size={13} className="animate-spin" /> : <UserPlus size={13} />} Kết bạn
+                        </button>
+                      )}
+                      {status === 'PENDING_SENT' && (
+                        <span className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-gray-100 text-gray-500 text-xs font-medium">
+                          <UserCheck size={13} /> Đã gửi
+                        </span>
+                      )}
+                      {status === 'PENDING_RECEIVED' && (
+                        <>
+                          <button onClick={() => handleAccept(user)} disabled={loadingId === user.id}
+                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-blue-500 text-white hover:bg-blue-600 text-xs font-medium transition-colors disabled:opacity-50">
+                            {loadingId === user.id ? <Loader size={13} className="animate-spin" /> : <Check size={13} />} Chấp nhận
+                          </button>
+                          <button onClick={() => handleReject(user)} disabled={loadingId === user.id + '_reject'}
+                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-gray-100 text-gray-500 hover:bg-red-50 hover:text-red-400 text-xs font-medium transition-colors disabled:opacity-50">
+                            {loadingId === user.id + '_reject' ? <Loader size={13} className="animate-spin" /> : <X size={13} />} Từ chối
+                          </button>
+                        </>
+                      )}
+                      {status === 'ACCEPTED' && (
+                        <button onClick={() => handleStartChat(user.id)} disabled={loadingId === user.id + '_chat'}
+                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-green-50 text-green-600 hover:bg-green-100 text-xs font-medium transition-colors disabled:opacity-50">
+                          {loadingId === user.id + '_chat' ? <Loader size={13} className="animate-spin" /> : <MessageCircle size={13} />} Nhắn tin
+                        </button>
+                      )}
                     </>
-                  )}
-                  {status === 'ACCEPTED' && (
-                    <button onClick={() => handleStartChat(user.id)} disabled={loadingId === user.id + '_chat'}
-                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-green-50 text-green-600 hover:bg-green-100 text-xs font-medium transition-colors disabled:opacity-50">
-                      {loadingId === user.id + '_chat' ? <Loader size={13} className="animate-spin" /> : <MessageCircle size={13} />} Nhắn tin
-                    </button>
                   )}
                 </div>
               )}

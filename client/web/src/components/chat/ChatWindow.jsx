@@ -242,8 +242,11 @@ export default function ChatWindow() {
             online={chatDetail?.recipientOnline}
           />
         </div>
-        <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-gray-800 truncate">{recipientName}</h3>
+        <div
+          className="flex-1 min-w-0 cursor-pointer"
+          onClick={() => chatDetail?.recipientId && setViewingProfileId(chatDetail.recipientId)}
+        >
+          <h3 className="font-semibold text-gray-800 truncate hover:text-blue-600 transition-colors">{recipientName}</h3>
           <p className="text-xs text-gray-400">
             {chatDetail?.recipientOnline
               ? 'Đang hoạt động'
@@ -296,12 +299,20 @@ export default function ChatWindow() {
       </div>
 
       {/* Input */}
-      <MessageInput
-        onSendText={handleSendText}
-        onSendMedia={handleSendMedia}
-        onTyping={handleTyping}
-        placeholder="Nhập tin nhắn..."
-      />
+      {chatDetail?.blockStatus && chatDetail.blockStatus !== 'NONE' ? (
+        <div className="px-4 py-3 bg-gray-50 border-t border-gray-200 text-center text-sm text-gray-400 select-none">
+          {chatDetail.blockStatus === 'BLOCKED_BY_ME'
+            ? 'Bạn đã chặn người dùng này. Bỏ chặn để tiếp tục nhắn tin.'
+            : 'Bạn không thể nhắn tin với người dùng này.'}
+        </div>
+      ) : (
+        <MessageInput
+          onSendText={handleSendText}
+          onSendMedia={handleSendMedia}
+          onTyping={handleTyping}
+          placeholder="Nhập tin nhắn..."
+        />
+      )}
     </div>
 
     {showInfo && (

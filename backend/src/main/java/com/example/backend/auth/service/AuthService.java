@@ -3,6 +3,7 @@ package com.example.backend.auth.service;
 import com.example.backend.user.entity.User;
 import com.example.backend.auth.dto.AuthRequest;
 import com.example.backend.auth.dto.AuthResponse;
+import com.example.backend.shared.exception.AccountBannedException;
 import com.example.backend.user.repository.UserRepository;
 import com.example.backend.messaging.service.NotificationService;
 import lombok.RequiredArgsConstructor;
@@ -113,7 +114,16 @@ public class AuthService {
             throw new BadCredentialsException("Email hoặc mật khẩu không đúng");
         }
         if (user.isBanned()) {
-            throw new BadCredentialsException("Tài khoản của bạn đã bị khóa");
+            // Auto-unban nếu hết hạn
+            if (user.getBanUntil() != null && LocalDateTime.now().isAfter(user.getBanUntil())) {
+                user.setBanned(false);
+                user.setBanReason(null);
+                user.setBanUntil(null);
+                user.setBannedAt(null);
+                userRepository.save(user);
+            } else {
+                throw new AccountBannedException(user.getBanReason(), user.getBanUntil(), user.getBannedAt());
+            }
         }
         if (!user.isEmailVerified()) {
             throw new BadCredentialsException("Tài khoản chưa được xác thực. Vui lòng kiểm tra email");

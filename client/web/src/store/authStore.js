@@ -12,6 +12,7 @@ const getInitialAuth = () => {
 const useAuthStore = create((set) => ({
   auth: getInitialAuth(),
   sessionReplaced: false,
+  bannedInfo: null, // { reason: string, banUntil: string }
 
   setAuth: (authData) => {
     localStorage.setItem('auth', JSON.stringify(authData));
@@ -28,10 +29,13 @@ const useAuthStore = create((set) => ({
 
   logout: () => {
     localStorage.removeItem('auth');
-    set({ auth: null, sessionReplaced: false });
+    set({ auth: null, sessionReplaced: false, bannedInfo: null });
   },
 
   setSessionReplaced: () => set({ sessionReplaced: true }),
+
+  setBannedInfo: (info) => set({ bannedInfo: info }),
+  clearBannedInfo: () => set({ bannedInfo: null }),
 
   isLoggedIn: () => {
     const state = getInitialAuth();

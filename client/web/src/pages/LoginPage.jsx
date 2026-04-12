@@ -5,12 +5,18 @@ import useAuthStore from '../store/authStore';
 import wsService from '../services/websocket';
 import toast from 'react-hot-toast';
 
+const daysRemaining = (until) => {
+  const diff = new Date(until) - new Date();
+  return Math.max(1, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+};
+
 export default function LoginPage() {
   const navigate = useNavigate();
   const { setAuth } = useAuthStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [banInfo, setBanInfo] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -36,8 +42,12 @@ export default function LoginPage() {
       toast.success('Đăng nhập thành công!');
       navigate(data.role === 'ADMIN' ? '/admin' : '/chat');
     } catch (err) {
-      const msg = err.response?.data?.message || 'Email hoặc mật khẩu không đúng';
-      toast.error(msg);
+      if (err.response?.status === 403 && err.response?.data?.error === 'ACCOUNT_BANNED') {
+        setBanInfo(err.response.data);
+      } else {
+        const msg = err.response?.data?.message || err.response?.data?.error || 'Email hoặc mật khẩu không đúng';
+        toast.error(msg);
+      }
     }
     setLoading(false);
   };
@@ -59,6 +69,40 @@ export default function LoginPage() {
 
         {/* Card */}
         <div className="bg-white rounded-2xl shadow-2xl p-8">
+          {banInfo ? (
+            <div className="text-center space-y-4">
+              <div className="text-5xl">🔒</div>
+              <h2 className="text-xl font-bold text-red-600">Tài khoản bị khóa</h2>
+              <div className="bg-red-50 border border-red-100 rounded-xl p-4 text-left space-y-2">
+                <p className="text-sm text-gray-700">
+                  <span className="font-medium text-gray-800">Lý do: </span>
+                  {banInfo.banReason || 'Vi phạm điều khoản sử dụng'}
+                </p>
+                {banInfo.banUntil ? (
+                  <p className="text-sm text-gray-700">
+                    <span className="font-medium text-gray-800">Đến ngày: </span>
+                    {new Date(banInfo.banUntil).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                    <span className="ml-1 text-red-500 font-medium">({daysRemaining(banInfo.banUntil)} ngày còn lại)</span>
+                  </p>
+                ) : (
+                  <p className="text-sm text-red-600 font-medium">Khóa vĩnh viễn</p>
+                )}
+                {banInfo.bannedAt && (
+                  <p className="text-xs text-gray-400">
+                    Bị khóa lúc: {new Date(banInfo.bannedAt).toLocaleString('vi-VN')}
+                  </p>
+                )}
+              </div>
+              <p className="text-xs text-gray-400">Nếu bạn cho rằng đây là nhầm lẫn, hãy liên hệ quản trị viên.</p>
+              <button
+                onClick={() => setBanInfo(null)}
+                className="text-sm text-blue-600 hover:underline"
+              >
+                Thử tài khoản khác
+              </button>
+            </div>
+          ) : (
+          <>
           <h2 className="text-xl font-bold text-gray-800 mb-6 text-center">Đăng nhập</h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -117,6 +161,8 @@ export default function LoginPage() {
               Đăng ký ngay
             </Link>
           </p>
+          </>
+          )}
         </div>
       </div>
     </div>

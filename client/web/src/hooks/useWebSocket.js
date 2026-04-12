@@ -7,7 +7,7 @@ import { markDelivered, markAllDelivered, markSeen } from '../api/message';
 import toast from 'react-hot-toast';
 
 export function useWebSocket() {
-  const { auth, setSessionReplaced } = useAuthStore();
+  const { auth, setSessionReplaced, setBannedInfo } = useAuthStore();
   const {
     addMessage,
     updateMessage,
@@ -139,10 +139,14 @@ export function useWebSocket() {
         toast(`${data.senderName.trim()} đã gửi lời mời kết bạn`);
       });
 
-      // Subscribe to force-logout (đăng nhập từ nơi khác)
-      wsService.subscribe('/user/queue/force-logout', () => {
+      // Subscribe to force-logout (đăng nhập từ nơi khác hoặc bị ban)
+      wsService.subscribe('/user/queue/force-logout', (data) => {
         wsService.disconnect();
-        setSessionReplaced();
+        if (data?.reason === 'ACCOUNT_BANNED') {
+          setBannedInfo({ reason: data.banReason || '', banUntil: data.banUntil || null });
+        } else {
+          setSessionReplaced();
+        }
       });
 
       // Subscribe to friend request accepted

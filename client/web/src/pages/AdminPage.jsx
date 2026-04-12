@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  BarChart3, Users, Group, ClipboardList, MessageCircle, LogOut, ShieldCheck,
+  BarChart3, Users, Group, ClipboardList, MessageCircle, LogOut, ShieldCheck, Flag,
 } from 'lucide-react';
 import useAuthStore from '../store/authStore';
 import wsService from '../services/websocket';
@@ -12,12 +12,14 @@ import UserManagement from '../components/admin/UserManagement';
 import GroupManagement from '../components/admin/GroupManagement';
 import AuditLog from '../components/admin/AuditLog';
 import AdminChatPanel from '../components/admin/AdminChatPanel';
+import Reports from '../components/admin/Reports';
 
 const tabs = [
   { id: 'stats', icon: BarChart3, label: 'Thống kê' },
   { id: 'users', icon: Users, label: 'Người dùng' },
   { id: 'groups', icon: Group, label: 'Nhóm' },
   { id: 'audit', icon: ClipboardList, label: 'Nhật ký' },
+  { id: 'reports', icon: Flag, label: 'Báo cáo' },
   { id: 'support', icon: MessageCircle, label: 'Hỗ trợ' },
 ];
 
@@ -121,6 +123,7 @@ export default function AdminPage() {
           {activeTab === 'users' && <UserManagement onChatUser={handleChatUser} />}
           {activeTab === 'groups' && <GroupManagement />}
           {activeTab === 'audit' && <AuditLog />}
+          {activeTab === 'reports' && <Reports onChatUser={handleChatUser} />}
           {activeTab === 'support' && <AdminChatPanel initialUserId={pendingChatUserId} />}
         </div>
       </div>

@@ -10,6 +10,7 @@ import com.example.backend.chat.dto.ChatDto;
 import com.example.backend.chat.repository.ChatRepository;
 import com.example.backend.messaging.repository.MessageRepository;
 import com.example.backend.user.repository.UserRepository;
+import com.example.backend.user.service.BlockService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -28,6 +29,7 @@ public class ChatServiceImpl implements ChatService {
     private final MessageRepository messageRepository;
     private final UserRepository userRepository;
     private final MessageMapper messageMapper;
+    private final BlockService blockService;
 
     @Override
     @Transactional(readOnly = true)
@@ -127,6 +129,12 @@ public class ChatServiceImpl implements ChatService {
                     dto.setLastMessageType(last.getType());
                     dto.setLastMessageTime(last.getCreatedDate());
                 });
+
+        boolean blockedByMe = blockService.isBlockedByMe(currentUser.getId(), otherUser.getId());
+        boolean blockedByThem = blockService.isBlockedByMe(otherUser.getId(), currentUser.getId());
+        if (blockedByMe) dto.setBlockStatus("BLOCKED_BY_ME");
+        else if (blockedByThem) dto.setBlockStatus("BLOCKED_BY_THEM");
+        else dto.setBlockStatus("NONE");
 
         return dto;
     }

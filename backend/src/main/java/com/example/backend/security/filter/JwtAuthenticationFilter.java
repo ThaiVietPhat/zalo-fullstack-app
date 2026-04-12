@@ -17,6 +17,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Component
@@ -57,17 +58,42 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     String email = jwtService.extractEmail(token);
                     int tokenVersion = jwtService.extractTokenVersion(token);
 
-                    // Kiểm tra tokenVersion so với DB để phát hiện session cũ
-                    boolean versionValid = userRepository.findByEmail(email)
-                            .map(u -> u.getTokenVersion() == tokenVersion)
-                            .orElse(false);
+                    // Kiểm tra tokenVersion + ban status từ DB
+                    var userOpt = userRepository.findByEmail(email);
+                    if (userOpt.isEmpty()) {
+                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                        response.setContentType("application/json");
+                        response.getWriter().write("{\"error\":\"USER_NOT_FOUND\"}");
+                        return;
+                    }
+                    var user = userOpt.get();
 
-                    if (!versionValid) {
+                    if (user.getTokenVersion() != tokenVersion) {
                         log.warn("Token version mismatch for user: {} — session đã bị thay thế", email);
                         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                         response.setContentType("application/json");
                         response.getWriter().write("{\"error\":\"SESSION_REPLACED\"}");
                         return;
+                    }
+
+                    if (user.isBanned()) {
+                        // Auto-unban nếu hết hạn
+                        if (user.getBanUntil() != null && LocalDateTime.now().isAfter(user.getBanUntil())) {
+                            user.setBanned(false);
+                            user.setBanReason(null);
+                            user.setBanUntil(null);
+                            user.setBannedAt(null);
+                            userRepository.save(user);
+                        } else {
+                            log.warn("Banned user attempted access: {}", email);
+                            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                            response.setContentType("application/json; charset=UTF-8");
+                            String reason = user.getBanReason() != null
+                                    ? user.getBanReason().replace("\"", "'") : "";
+                            response.getWriter().write(
+                                    "{\"error\":\"ACCOUNT_BANNED\",\"reason\":\"" + reason + "\"}");
+                            return;
+                        }
                     }
 
                     String role = jwtService.extractRole(token);

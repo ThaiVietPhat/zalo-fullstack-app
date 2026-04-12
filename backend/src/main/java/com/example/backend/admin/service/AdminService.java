@@ -4,6 +4,8 @@ import com.example.backend.admin.dto.AdminGroupDto;
 import com.example.backend.admin.dto.AdminStatsDto;
 import com.example.backend.admin.dto.AdminUserDto;
 import com.example.backend.admin.dto.AuditLogDto;
+import com.example.backend.admin.dto.BanRequest;
+import com.example.backend.messaging.service.NotificationService;
 import com.example.backend.admin.entity.AuditLog;
 import com.example.backend.admin.repository.AuditLogRepository;
 import com.example.backend.chat.repository.ChatRepository;
@@ -39,6 +41,7 @@ public class AdminService {
     private final ChatRepository chatRepository;
     private final AuditLogRepository auditLogRepository;
     private final PasswordEncoder passwordEncoder;
+    private final NotificationService notificationService;
 
     // ─── Quản lý User ────────────────────────────────────────────────────────
 
@@ -54,12 +57,19 @@ public class AdminService {
     }
 
     @Transactional
-    public AdminUserDto banUser(UUID userId, User admin) {
+    public AdminUserDto banUser(UUID userId, User admin, BanRequest req) {
         User user = getUser(userId);
         user.setBanned(true);
+        user.setBanReason(req.getReason());
+        user.setBannedAt(LocalDateTime.now());
+        user.setBanUntil(req.getDurationDays() != null
+                ? LocalDateTime.now().plusDays(req.getDurationDays()) : null);
         userRepository.save(user);
-        logAction(admin, "BAN_USER", "USER", user.getId(), getFullName(user), null);
-        log.info("User {} banned by {}", userId, admin.getEmail());
+        String details = "Lý do: " + req.getReason() +
+                (req.getDurationDays() != null ? " | Thời hạn: " + req.getDurationDays() + " ngày" : " | Vĩnh viễn");
+        logAction(admin, "BAN_USER", "USER", user.getId(), getFullName(user), details);
+        log.info("User {} banned by {} — reason: {}", userId, admin.getEmail(), req.getReason());
+        notificationService.sendAccountBanned(user.getEmail(), req.getReason(), user.getBanUntil());
         return toAdminUserDto(user);
     }
 
@@ -67,6 +77,9 @@ public class AdminService {
     public AdminUserDto unbanUser(UUID userId, User admin) {
         User user = getUser(userId);
         user.setBanned(false);
+        user.setBanReason(null);
+        user.setBanUntil(null);
+        user.setBannedAt(null);
         userRepository.save(user);
         logAction(admin, "UNBAN_USER", "USER", user.getId(), getFullName(user), null);
         log.info("User {} unbanned by {}", userId, admin.getEmail());
@@ -288,6 +301,9 @@ public class AdminService {
                 .email(user.getEmail())
                 .role(user.getRole())
                 .banned(user.isBanned())
+                .banReason(user.getBanReason())
+                .banUntil(user.getBanUntil())
+                .bannedAt(user.getBannedAt())
                 .online(user.isOnline())
                 .emailVerified(user.isEmailVerified())
                 .avatarUrl(user.getAvatarUrl())

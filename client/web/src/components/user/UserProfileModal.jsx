@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { MessageCircle, UserPlus, UserCheck, Check, X, Loader, ShieldOff, Shield } from 'lucide-react';
+import { MessageCircle, UserPlus, UserCheck, Check, X, Loader, ShieldOff, Shield, Flag } from 'lucide-react';
 import Modal from '../common/Modal';
 import Avatar from '../common/Avatar';
+import ReportModal from '../common/ReportModal';
 import useAuthStore from '../../store/authStore';
 import useChatStore from '../../store/chatStore';
 import { getUserById, blockUser, unblockUser } from '../../api/user';
@@ -24,6 +25,7 @@ export default function UserProfileModal() {
   const [friendStatus, setFriendStatus] = useState('NONE');
   const [blockStatus, setBlockStatus] = useState('NONE');
   const [loadingAction, setLoadingAction] = useState(null);
+  const [showReport, setShowReport] = useState(false);
 
   useEffect(() => {
     if (!viewingProfileId) return;
@@ -133,6 +135,7 @@ export default function UserProfileModal() {
   const profileName = profile ? `${profile.firstName || ''} ${profile.lastName || ''}`.trim() : '';
 
   return (
+    <>
     <Modal isOpen={isOpen} onClose={() => setViewingProfileId(null)} title="Trang cá nhân" size="xl">
       <div className="p-6 flex flex-col gap-5">
         {loading && (
@@ -210,7 +213,21 @@ export default function UserProfileModal() {
                   <p className="text-xs text-gray-400 italic">Bạn không thể tương tác với người dùng này</p>
                 )}
 
-                {/* Block / Unblock button */}
+                {/* Report button — ẩn với admin */}
+                {viewingProfileId !== auth?.userId && profile.role !== 'ADMIN' && (
+                  <div className="w-full flex justify-center">
+                    <button
+                      onClick={() => setShowReport(true)}
+                      className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-gray-100 text-gray-500 hover:bg-orange-50 hover:text-orange-500 text-xs font-medium transition-colors"
+                    >
+                      <Flag size={12} />
+                      Tố cáo
+                    </button>
+                  </div>
+                )}
+
+                {/* Block / Unblock button — ẩn với admin */}
+                {profile.role !== 'ADMIN' && (
                 <div className="border-t border-gray-100 pt-2 w-full flex justify-center">
                   {blockStatus === 'BLOCKED_BY_ME' ? (
                     <button
@@ -232,11 +249,20 @@ export default function UserProfileModal() {
                     </button>
                   )}
                 </div>
+                )}
               </div>
             )}
           </div>
         )}
       </div>
     </Modal>
+    {showReport && (
+      <ReportModal
+        userId={viewingProfileId}
+        userName={profile ? `${profile.firstName} ${profile.lastName}`.trim() : ''}
+        onClose={() => setShowReport(false)}
+      />
+    )}
+    </>
   );
 }

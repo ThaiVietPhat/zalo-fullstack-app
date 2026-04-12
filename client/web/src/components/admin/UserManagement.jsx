@@ -8,6 +8,7 @@ import {
   promoteUser, demoteUser, resetPassword, createAdminAccount,
 } from '../../api/admin';
 import Avatar from '../common/Avatar';
+import BanModal from './BanModal';
 import toast from 'react-hot-toast';
 
 function CreateAdminModal({ onClose, onCreated }) {
@@ -101,6 +102,7 @@ export default function UserManagement({ onChatUser }) {
   const [search, setSearch] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [actionLoading, setActionLoading] = useState(null);
+  const [banTarget, setBanTarget] = useState(null); // user object to ban
 
   const fetchUsers = (p = 0) => {
     setLoading(true);
@@ -132,18 +134,25 @@ export default function UserManagement({ onChatUser }) {
     );
   });
 
-  const handleBan = async (userId, isBanned) => {
+  const handleUnban = async (userId) => {
     setActionLoading(userId + '_ban');
     try {
-      if (isBanned) {
-        await unbanUser(userId);
-        setUsers((prev) => prev.map((u) => u.id === userId ? { ...u, banned: false } : u));
-        toast.success('Đã mở khóa tài khoản');
-      } else {
-        await banUser(userId);
-        setUsers((prev) => prev.map((u) => u.id === userId ? { ...u, banned: true } : u));
-        toast.success('Đã khóa tài khoản');
-      }
+      await unbanUser(userId);
+      setUsers((prev) => prev.map((u) => u.id === userId
+        ? { ...u, banned: false, banReason: null, banUntil: null } : u));
+      toast.success('Đã mở khóa tài khoản');
+    } catch { toast.error('Thao tác thất bại'); }
+    finally { setActionLoading(null); }
+  };
+
+  const handleBanConfirm = async (reason, durationDays) => {
+    if (!banTarget) return;
+    setActionLoading(banTarget.id + '_ban');
+    try {
+      const res = await banUser(banTarget.id, { reason, durationDays });
+      setUsers((prev) => prev.map((u) => u.id === banTarget.id ? { ...u, ...res.data } : u));
+      toast.success('Đã khóa tài khoản');
+      setBanTarget(null);
     } catch { toast.error('Thao tác thất bại'); }
     finally { setActionLoading(null); }
   };
@@ -191,6 +200,14 @@ export default function UserManagement({ onChatUser }) {
         <CreateAdminModal
           onClose={() => setShowCreateModal(false)}
           onCreated={(newUser) => setUsers((prev) => [newUser, ...prev])}
+        />
+      )}
+      {banTarget && (
+        <BanModal
+          user={banTarget}
+          onConfirm={handleBanConfirm}
+          onClose={() => setBanTarget(null)}
+          loading={actionLoading === banTarget.id + '_ban'}
         />
       )}
 
@@ -265,9 +282,12 @@ export default function UserManagement({ onChatUser }) {
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                          user.banned ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'
-                        }`}>
+                        <span
+                          title={user.banned && user.banReason ? `Lý do: ${user.banReason}` : undefined}
+                          className={`text-xs px-2 py-0.5 rounded-full font-medium cursor-default ${
+                            user.banned ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'
+                          }`}
+                        >
                           {user.banned ? 'Bị khóa' : 'Hoạt động'}
                         </span>
                       </td>
@@ -292,7 +312,7 @@ export default function UserManagement({ onChatUser }) {
                           )}
                           {/* Ban/Unban */}
                           <button
-                            onClick={() => handleBan(user.id, user.banned)}
+                            onClick={() => user.banned ? handleUnban(user.id) : setBanTarget(user)}
                             disabled={actionLoading === user.id + '_ban'}
                             title={user.banned ? 'Mở khóa' : 'Khóa tài khoản'}
                             className={`w-7 h-7 flex items-center justify-center rounded-full transition-colors disabled:opacity-40 ${
