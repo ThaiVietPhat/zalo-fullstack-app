@@ -9,13 +9,16 @@ import {
   Alert,
   Modal,
   TouchableWithoutFeedback,
-  Dimensions
+  Dimensions,
+  Linking
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import ForwardModal from '../ForwardModal';
 import { MessageState } from '@/types/type';
 import { getImageUrl } from '@/lib/utils';
 import { useRecallMessage, useDeleteMessage } from '@/hooks/useMessages';
 import { useReactToMessage, useReactToGroupMessage } from '@/hooks/useReaction';
+import { useRecallGroupMessage, useDeleteGroupMessage } from '@/hooks/useGroup';
 import { useAuth } from '@/context/AuthContext';
 
 interface Message {
@@ -42,13 +45,18 @@ const MessageItem = ({ item, isMe, isGroup }: { item: Message; isMe: boolean; is
 
   const { mutate: recall } = useRecallMessage(chatId);
   const { mutate: deleteForMe } = useDeleteMessage(chatId);
+  const { mutate: recallGroup } = useRecallGroupMessage(chatId);
+  const { mutate: deleteGroupForMe } = useDeleteGroupMessage(chatId);
   const { mutate: reactPrivate } = useReactToMessage(chatId);
   const { mutate: reactGroup } = useReactToGroupMessage(chatId);
-  
+
   const react = isGroup ? reactGroup : reactPrivate;
+  const doRecall = isGroup ? recallGroup : recall;
+  const doDelete = isGroup ? deleteGroupForMe : deleteForMe;
   const { user } = useAuth();
 
   const [showMenu, setShowMenu] = useState(false);
+  const [showForward, setShowForward] = useState(false);
 
   const handleLongPress = () => {
     if (isDeleted) return;
@@ -60,10 +68,12 @@ const MessageItem = ({ item, isMe, isGroup }: { item: Message; isMe: boolean; is
     if (action === 'RECALL') {
       Alert.alert("Thu hồi", "Bạn có muốn thu hồi tin nhắn này?", [
         { text: "Hủy", style: "cancel" },
-        { text: "Thu hồi", style: "destructive", onPress: () => recall(item.id) }
+        { text: "Thu hồi", style: "destructive", onPress: () => doRecall(item.id) }
       ]);
     } else if (action === 'DELETE') {
-      deleteForMe(item.id);
+      doDelete(item.id);
+    } else if (action === 'FORWARD') {
+      setShowForward(true);
     }
   };
 
@@ -88,8 +98,19 @@ const MessageItem = ({ item, isMe, isGroup }: { item: Message; isMe: boolean; is
       )}
 
       <View className={`${isMe ? 'items-end' : 'items-start'} max-w-[80%]`}>
+        {/* Tên người gửi (chỉ hiện trong nhóm, không phải tin của mình) */}
+        {isGroup && !isMe && item.senderName && (
+          <Text style={{ fontSize: 11, color: '#0068FF', fontFamily: 'Jakarta-Bold', marginBottom: 2, marginLeft: 2 }}>
+            {item.senderName}
+          </Text>
+        )}
         <TouchableOpacity
           onLongPress={handleLongPress}
+          onPress={() => {
+            if (item.type !== 'TEXT' && item.image) {
+              Linking.openURL(getImageUrl(item.image) || "");
+            }
+          }}
           activeOpacity={0.9}
         >
           {/* Bong bóng tin nhắn */}
@@ -107,24 +128,21 @@ const MessageItem = ({ item, isMe, isGroup }: { item: Message; isMe: boolean; is
                   source={{ uri: getImageUrl(item.image) || 'https://via.placeholder.com/300' }}
                   className="w-56 h-72"
                   resizeMode="cover"
-                  onError={(e) => {
-                    console.error("❌ [MessageItem] Image Load Error:", e.nativeEvent.error);
-                    // Có thể thông báo URI bị lỗi để kiểm tra
-                    console.error("❌ [MessageItem] Faulty URI:", getImageUrl(item.image));
-                  }}
                 />
               </View>
             ) : item.type === 'VIDEO' ? (
               <View className="mb-1 rounded-xl overflow-hidden bg-black/80 w-56 h-40 items-center justify-center">
                 <Ionicons name="play-circle" size={48} color="white" />
-                <Text className="text-white text-xs mt-1">VIDEO</Text>
+                <Text className="text-white font-JakartaMedium mt-1">XEM VIDEO</Text>
               </View>
             ) : item.type === 'FILE' ? (
-              <View className="flex-row items-center bg-gray-50 border border-gray-100 p-3 rounded-xl mb-1">
-                <Ionicons name="document-text" size={32} color="#0068FF" />
-                <View className="ml-2 flex-1">
-                  <Text className="text-gray-800 font-JakartaMedium text-sm" numberOfLines={1}>{item.text || 'Document'}</Text>
-                  <Text className="text-gray-400 text-xs">FILE</Text>
+              <View className="flex-row items-center bg-gray-50 border border-gray-100 p-3 rounded-xl mb-1 min-w-[200px]">
+                <View className="bg-blue-100 p-2 rounded-lg">
+                  <Ionicons name="document" size={24} color="#0068FF" />
+                </View>
+                <View className="ml-3 flex-1">
+                  <Text className="text-gray-800 font-JakartaBold text-sm" numberOfLines={1}>{item.text || 'Tài liệu'}</Text>
+                  <Text className="text-gray-400 text-[10px] uppercase font-JakartaBold">Nhấn để tải về</Text>
                 </View>
               </View>
             ) : (
@@ -150,9 +168,9 @@ const MessageItem = ({ item, isMe, isGroup }: { item: Message; isMe: boolean; is
                 </View>
 
                 {/* Reaction heart (Quick Toggle / Display) */}
-                <TouchableOpacity 
-                   className="ml-2"
-                   onPress={() => react({ messageId: item.id, emoji: '❤️' })}
+                <TouchableOpacity
+                  className="ml-2"
+                  onPress={() => react({ messageId: item.id, emoji: '❤️' })}
                 >
                   {item.reactions && item.reactions.length > 0 ? (
                     <Text style={{ fontSize: 14 }}>{item.reactions[item.reactions.length - 1].emoji}</Text>
@@ -191,12 +209,12 @@ const MessageItem = ({ item, isMe, isGroup }: { item: Message; isMe: boolean; is
 
               <View className="flex-row justify-between mb-8">
                 {emojis.map((emoji) => (
-                  <TouchableOpacity 
-                    key={emoji} 
+                  <TouchableOpacity
+                    key={emoji}
                     onPress={() => {
                       react({ messageId: item.id, emoji });
                       setShowMenu(false);
-                    }} 
+                    }}
                     className="bg-gray-50 p-2.5 rounded-full"
                   >
                     <Text className="text-2xl">{emoji}</Text>
@@ -206,7 +224,7 @@ const MessageItem = ({ item, isMe, isGroup }: { item: Message; isMe: boolean; is
 
               <View className="gap-2">
                 <MenuAction icon="copy-outline" label="Sao chép" onPress={() => setShowMenu(false)} />
-                <MenuAction icon="arrow-redo-outline" label="Chuyển tiếp" onPress={() => setShowMenu(false)} />
+                <MenuAction icon="arrow-redo-outline" label="Chuyển tiếp" onPress={() => handleAction('FORWARD')} />
                 {isMe && <MenuAction icon="refresh-outline" label="Thu hồi" color="#EF4444" onPress={() => handleAction('RECALL')} />}
                 <MenuAction icon="trash-outline" label="Xóa phía mình" color="#EF4444" onPress={() => handleAction('DELETE')} />
               </View>
@@ -214,6 +232,14 @@ const MessageItem = ({ item, isMe, isGroup }: { item: Message; isMe: boolean; is
           </View>
         </TouchableWithoutFeedback>
       </Modal>
+
+      <ForwardModal
+        visible={showForward}
+        onClose={() => setShowForward(false)}
+        messageContent={item.text || ""}
+        messageType={item.type}
+        mediaUrl={item.image}
+      />
     </View>
   );
 };

@@ -20,8 +20,10 @@ export interface MessageDto {
   type: MessageType;
   createdAt?: string;    // LocalDateTime → ISO string
   senderId?: string;     // UUID
+  senderName?: string;   // Tên người gửi (dành cho Group)
   receiverId?: string;   // UUID
   mediaUrl?: string;
+  createdDate?: string;  // Trường thay thế cho createdAt từ BE Group
   deleted?: boolean;
   reactions?: ReactionDto[];
 }

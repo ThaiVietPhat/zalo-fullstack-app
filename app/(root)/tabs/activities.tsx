@@ -59,6 +59,22 @@ export default function ActivitiesScreen() {
     );
   };
 
+  const renderAiChatButton = () => (
+    <TouchableOpacity
+      className="flex-row items-center px-4 py-4 border-b border-gray-100 bg-white"
+      onPress={() => router.push("/(root)/ai-chat")}
+    >
+      <View className="w-12 h-12 rounded-xl bg-[#7C3AED] justify-center items-center shadow-lg shadow-purple-500/50">
+        <Ionicons name="sparkles" size={24} color="white" />
+      </View>
+      <View className="flex-1 ml-3">
+        <Text className="font-JakartaBold text-base text-[#7C3AED]">Zalo Clone AI Assistant</Text>
+        <Text className="font-Jakarta text-sm text-gray-400">Trợ lý AI thông minh của bạn</Text>
+      </View>
+      <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
+    </TouchableOpacity>
+  );
+
   const renderPhonebookItem = () => (
     <TouchableOpacity className="flex-row items-center px-4 py-4 border-b-4 border-gray-100 bg-white">
       <View className="w-12 h-12 rounded-xl bg-[#22C55E] justify-center items-center">
@@ -98,6 +114,7 @@ export default function ActivitiesScreen() {
           refreshControl={<RefreshControl refreshing={isLoadingContacts} onRefresh={refetchContacts} />}
           ListHeaderComponent={
             <View>
+              {renderAiChatButton()}
               {renderFriendRequestsItem()}
               {renderPhonebookItem()}
               <View className="px-4 py-2 bg-gray-50 border-b border-gray-200">

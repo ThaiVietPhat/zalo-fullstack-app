@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, Image, TouchableOpacity, ScrollView, ActivityIndicator } from "react-native";
+import { View, Text, Image, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, router } from "expo-router";
@@ -42,10 +42,11 @@ export default function UserProfileScreen() {
 
   const handleFriendAction = () => {
     if (isFriend) {
-      // Unfriend
-      unfriend(id);
+      Alert.alert("Hủy kết bạn", `Bạn có chắc chắn muốn hủy kết bạn với ${name}?`, [
+        { text: "Hủy", style: "cancel" },
+        { text: "Đồng ý", style: "destructive", onPress: () => unfriend(id) }
+      ]);
     } else if (!isSent) {
-      // Send Request
       sendReq(id);
     }
   };
@@ -112,18 +113,27 @@ export default function UserProfileScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              className={`w-14 items-center justify-center rounded-full ${isFriend ? 'bg-gray-100' : isSent ? 'bg-orange-100' : 'bg-gray-100'}`}
+              className={`w-14 items-center justify-center rounded-full ${isFriend ? 'bg-gray-100' : isSent ? 'bg-orange-50' : 'bg-gray-100'}`}
               onPress={handleFriendAction}
               disabled={isSendingReq || isUnfriending || isSent}
             >
               {isSendingReq || isUnfriending ? (
                 <ActivityIndicator color="#0068FF" />
               ) : isFriend ? (
-                <Ionicons name="person-remove" size={20} color="#EF4444" />
+                <View className="items-center">
+                  <Ionicons name="person-remove" size={20} color="#EF4444" />
+                  <Text className="text-[10px] text-red-500 font-JakartaMedium">Hủy</Text>
+                </View>
               ) : isSent ? (
-                <Ionicons name="time" size={20} color="#F97316" />
+                <View className="items-center">
+                  <Ionicons name="time" size={20} color="#F97316" />
+                  <Text className="text-[10px] text-orange-500 font-JakartaMedium">Đã gửi</Text>
+                </View>
               ) : (
-                <Ionicons name="person-add" size={20} color="#0068FF" />
+                <View className="items-center">
+                  <Ionicons name="person-add" size={20} color="#0068FF" />
+                  <Text className="text-[10px] text-blue-500 font-JakartaMedium">Kết bạn</Text>
+                </View>
               )}
             </TouchableOpacity>
           </View>

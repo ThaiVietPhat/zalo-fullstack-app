@@ -1,6 +1,7 @@
 import { useAuthStore } from "@/store";
 import { useQuery } from "@tanstack/react-query";
 import { router } from "expo-router";
+import { showLogoutAlert } from "./logout-guard";
 
 export const fetchAPI = async (url: string, options?: RequestInit) => {
     try {
@@ -51,32 +52,43 @@ export const fetchAPI = async (url: string, options?: RequestInit) => {
             const errorText = await response.text();
             console.warn(`⚠️ [fetchAPI] HTTP ${response.status}:`, errorText);
 
-            // --- Tạm tắt tự động logout khi gặp 401 ---
-            /*
             if (response.status === 401) {
-                console.warn("🚨 [fetchAPI] 401 Unauthorized detected! Logging out...");
-                useAuthStore.getState().logout();
-
-                setTimeout(() => {
-                    router.replace("/(auth)/sign-in");
-                }, 0);
+                console.warn("🚨 [fetchAPI] 401 Unauthorized detected! Token expired or replaced. Logging out...");
+                
+                // Show notification BEFORE logging out
+                showLogoutAlert(
+                  "Phiên đăng nhập hết hạn", 
+                  "Tài khoản của bạn đã được đăng nhập ở thiết bị khác hoặc phiên đã hết hạn.",
+                  () => {
+                    useAuthStore.getState().logout();
+                    setTimeout(() => {
+                        router.replace("/(auth)/sign-in");
+                    }, 0);
+                  }
+                );
             }
-            */
             throw new Error(`Lỗi HTTP! trạng thái: ${response.status} - ${errorText.substring(0, 200)}`);
+        }
+
+        const text = await response.text();
+        if (!text) {
+            return null; // Trả về null nếu body trống (VD: DELETE 200 OK)
         }
 
         const contentType = response.headers.get('content-type');
         if (contentType && contentType.includes('application/json')) {
-            const jsonData = await response.json();
-            return jsonData;
-        } else {
-            const text = await response.text();
             try {
-                const parsedData = JSON.parse(text);
-                return parsedData;
-            } catch (parseError) {
+                return JSON.parse(text);
+            } catch (e) {
+                console.warn('⚠️ [fetchAPI] JSON parse error on JSON content type:', e);
                 return text;
             }
+        }
+
+        try {
+            return JSON.parse(text);
+        } catch (parseError) {
+            return text;
         }
     } catch (error) {
         throw error;

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, FlatList, TouchableOpacity, Image, ActivityIndicator } from "react-native";
+import { View, Text, FlatList, TouchableOpacity, Image, ActivityIndicator, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -66,9 +66,13 @@ export default function FriendRequestsScreen() {
               const name = item.senderName;
               return (
                 <View className="flex-row items-center px-4 py-3 border-b border-gray-50">
-                  <Image source={{ uri: getAvatarUrl(name, item.senderAvatarUrl) }} className="w-14 h-14 rounded-full bg-gray-200" />
+                  <TouchableOpacity onPress={() => router.push({ pathname: "/(root)/user/[id]", params: { id: item.senderId } })}>
+                    <Image source={{ uri: getAvatarUrl(name, item.senderAvatarUrl) }} className="w-14 h-14 rounded-full bg-gray-200" />
+                  </TouchableOpacity>
                   <View className="flex-1 ml-3">
-                    <Text className="text-base font-JakartaMedium">{name}</Text>
+                    <TouchableOpacity onPress={() => router.push({ pathname: "/(root)/user/[id]", params: { id: item.senderId } })}>
+                      <Text className="text-base font-JakartaMedium">{name}</Text>
+                    </TouchableOpacity>
                     <Text className="text-xs text-gray-400 mt-1">{new Date(item.createdDate).toLocaleDateString()}</Text>
                     <View className="flex-row gap-2 mt-2">
                       <TouchableOpacity
@@ -109,14 +113,25 @@ export default function FriendRequestsScreen() {
               const name = item.receiverName;
               return (
                 <View className="flex-row items-center px-4 py-3 border-b border-gray-50">
-                  <Image source={{ uri: getAvatarUrl(name, item.receiverAvatarUrl) }} className="w-14 h-14 rounded-full bg-gray-200" />
+                  <TouchableOpacity onPress={() => router.push({ pathname: "/(root)/user/[id]", params: { id: item.receiverId } })}>
+                    <Image source={{ uri: getAvatarUrl(name, item.receiverAvatarUrl) }} className="w-14 h-14 rounded-full bg-gray-200" />
+                  </TouchableOpacity>
                   <View className="flex-1 ml-3">
-                    <Text className="text-base font-JakartaMedium">{name}</Text>
+                    <TouchableOpacity onPress={() => router.push({ pathname: "/(root)/user/[id]", params: { id: item.receiverId } })}>
+                      <Text className="text-base font-JakartaMedium">{name}</Text>
+                    </TouchableOpacity>
                     <View className="flex-row gap-2 mt-2">
                       <TouchableOpacity
-                        className="bg-gray-100 px-4 py-1.5 rounded-full"
+                        disabled={rejecting}
+                        className="bg-red-50 px-4 py-1.5 rounded-full border border-red-100"
+                        onPress={() => {
+                          Alert.alert("Hủy lời mời", "Bạn có chắc chắn muốn thu hồi lời mời này?", [
+                            { text: "Không", style: "cancel" },
+                            { text: "Hủy lời mời", style: "destructive", onPress: () => rejectReq(item.id) }
+                          ]);
+                        }}
                       >
-                        <Text className="font-JakartaMedium text-gray-700">Đã gửi lời mời</Text>
+                        <Text className="font-JakartaMedium text-red-500">Hủy lời mời</Text>
                       </TouchableOpacity>
                     </View>
                   </View>

@@ -15,6 +15,7 @@ import MessageItem from '@/components/ChatScreen/MessageItem';
 import ChatInput from '@/components/ChatScreen/ChatInput';
 import { useMessages, useMarkSeen } from '@/hooks/useMessages';
 import { useChatById } from '@/hooks/useChat';
+import { useGroupById, useGroupMessages } from '@/hooks/useGroup';
 import { useAuth } from '@/context/AuthContext';
 import { getAvatarUrl } from '@/lib/utils';
 
@@ -25,26 +26,35 @@ const ChatScreen = () => {
   const flatListRef = useRef<FlatList<any>>(null);
 
   // Lấy chi tiết chat để có chatName nếu không có params
-  const { data: chat } = useChatById(id);
-  const { data: messages, isLoading } = useMessages(id);
+  // Lấy chi tiết chat (1-1 hoặc Nhóm)
+  const { data: chat } = useChatById(!isGroupBool ? id : null);
+  const { data: group } = useGroupById(isGroupBool ? id : null);
+
+  // Lấy tin nhắn (1-1 hoặc Nhóm) — polling mỗi 3 giây để tự động cập nhật
+  const { data: soloMessages, isLoading: loadingSolo } = useMessages(!isGroupBool ? id : null);
+  const { data: groupMessages, isLoading: loadingGroup } = useGroupMessages(isGroupBool ? id : null, 0, 50);
+
+  const messages = isGroupBool ? groupMessages : soloMessages;
+  const isLoading = isGroupBool ? loadingGroup : loadingSolo;
+
   const { mutate: markSeen } = useMarkSeen();
 
   useEffect(() => {
-    if (id) markSeen(id);
-    // Tự động cuộn xuống cuối khi có tin nhắn mới
-    setTimeout(() => {
-      flatListRef.current?.scrollToEnd({ animated: true });
-    }, 300);
+    // Chỉ markSeen cho chat 1-1 (BE hiện tại chưa có API markSeen cho Group)
+    if (id && !isGroupBool) markSeen(id);
   }, [id, messages]);
 
   // chatName: ưu tiên param truyền vào, sau đó dùng chatName từ ChatDto
-  const chatName = (name as string) || chat?.chatName || "Chat";
+  // chatName: ưu tiên param truyền vào, sau đó dùng chatName từ ChatDto hoặc GroupDto
+  const chatName = (name as string) || (isGroupBool ? group?.name : chat?.chatName) || "Chat";
+  const avatarUrl = isGroupBool ? group?.avatarUrl : chat?.avatarUrl;
+  const isOnline = isGroupBool ? false : chat?.recipientOnline;
   const myId = user?.id || "";
 
   if (isLoading) {
     return (
       <View className="flex-1 bg-[#E2E9F1]">
-        <ChatHeader name={chatName} avatarUrl={chat?.avatarUrl} online={chat?.recipientOnline} />
+        <ChatHeader name={chatName} avatarUrl={avatarUrl} online={isOnline} />
         <View className="flex-1 justify-center items-center">
           <ActivityIndicator size="large" color="#0068FF" />
         </View>
@@ -60,40 +70,47 @@ const ChatScreen = () => {
     // deleted = true → "Tin nhắn đã bị xóa"
     text: msg.deleted ? "Tin nhắn đã bị xóa" : msg.content,
     image: (!msg.deleted && msg.mediaUrl) ? msg.mediaUrl : undefined,
-    time: msg.createdAt
-      ? new Date(msg.createdAt).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })
+    time: (msg.createdAt || msg.createdDate)
+      ? new Date((msg.createdAt || msg.createdDate)!).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })
       : "",
     type: (msg.type === "IMAGE" ? "IMAGE" : "TEXT") as "TEXT" | "IMAGE",
     state: msg.state,
     reactions: msg.reactions,
     avatar: msg.senderId === user?.id
       ? getAvatarUrl(user?.name || "Me", user?.avatar)
-      : (isGroupBool ? undefined : getAvatarUrl(chat?.chatName || "Other", chat?.avatarUrl)),
-    senderName: msg.senderId === user?.id ? user?.name : (isGroupBool ? "User" : chat?.chatName),
+      : (isGroupBool ? getAvatarUrl(msg.senderName || "User", undefined) : getAvatarUrl(chat?.chatName || "Other", chat?.avatarUrl)),
+    senderName: msg.senderId === user?.id ? user?.name : (isGroupBool ? (msg.senderName || "User") : (chat?.chatName || "Người dùng")),
   }));
+
+  // BE không đồng bộ: Private trả về DESC (Newest first), Group trả về ASC (Oldest first)
+  // Để dùng inverted FlatList (Index 0 ở đáy), ta cần mảng luôn là DESC (Newest first)
+  const finalMessages = isGroupBool ? [...formattedMessages].reverse() : formattedMessages;
 
   return (
     <View className="flex-1 bg-[#E2E9F1]">
       <ChatHeader
         name={chatName}
-        avatarUrl={chat?.avatarUrl}
-        online={chat?.recipientOnline}
-        lastSeenText={chat?.recipientLastSeenText}
+        avatarUrl={avatarUrl}
+        online={isOnline}
+        lastSeenText={isGroupBool ? undefined : chat?.recipientLastSeenText}
+        isGroup={isGroupBool}
+        groupId={isGroupBool ? id : undefined}
       />
 
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
         className="flex-1"
-        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
+        keyboardVerticalOffset={0}
       >
-        {formattedMessages.length === 0 ? (
+        {finalMessages.length === 0 ? (
           <View className="flex-1 justify-center items-center">
             <Text className="text-gray-400 font-JakartaMedium">Bắt đầu cuộc trò chuyện</Text>
           </View>
         ) : (
           <FlatList
             ref={flatListRef}
-            data={[...formattedMessages].reverse()}
+            data={finalMessages}
+            inverted // Đảo ngược danh sách: index 0 ở dưới cùng (tin nhắn mới nhất)
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
               <MessageItem
@@ -102,10 +119,9 @@ const ChatScreen = () => {
                 isGroup={isGroupBool}
               />
             )}
-            className="flex-1 pt-4"
+            className="flex-1"
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingVertical: 16 }}
-            onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+            contentContainerStyle={{ paddingVertical: 16, paddingHorizontal: 0 }}
           />
         )}
 

@@ -9,14 +9,22 @@ import { StatusBar } from 'expo-status-bar';
 
 interface ChatHeaderProps {
   name: string;
-  avatarUrl?: string;
+  avatarUrl?: string | null;
   online?: boolean;
   lastSeenText?: string;
+  isGroup?: boolean;
+  groupId?: string;
 }
 
-const ChatHeader = ({ name, avatarUrl, online, lastSeenText }: ChatHeaderProps) => {
+const ChatHeader = ({ name, avatarUrl, online, lastSeenText, isGroup, groupId }: ChatHeaderProps) => {
   const router = useRouter();
   const avatar = getAvatarUrl(name, avatarUrl);
+
+  const handlePressInfo = () => {
+    if (isGroup && groupId) {
+      router.push(`/(root)/group-info?id=${groupId}` as any);
+    }
+  };
 
   return (
     <SafeAreaView edges={['top']} style={styles.wrapper}>
@@ -30,7 +38,7 @@ const ChatHeader = ({ name, avatarUrl, online, lastSeenText }: ChatHeaderProps) 
         </TouchableOpacity>
 
         {/* Ảnh đại diện */}
-        <TouchableOpacity style={styles.avatarWrapper}>
+        <TouchableOpacity style={styles.avatarWrapper} onPress={handlePressInfo}>
           <Image
             source={{ uri: avatar || `https://api.dicebear.com/9.x/avataaars/png?seed=${encodeURIComponent(name)}` }}
             style={styles.avatar}
@@ -39,10 +47,10 @@ const ChatHeader = ({ name, avatarUrl, online, lastSeenText }: ChatHeaderProps) 
         </TouchableOpacity>
 
         {/* Thông tin tên & trạng thái */}
-        <TouchableOpacity style={styles.info}>
+        <TouchableOpacity style={styles.info} onPress={handlePressInfo}>
           <Text style={styles.name} numberOfLines={1}>{name}</Text>
           <Text style={styles.status} numberOfLines={1}>
-            {online ? 'Đang hoạt động' : (lastSeenText || 'Vừa mới truy cập')}
+            {isGroup ? 'Nhấn để xem thông tin nhóm' : (online ? 'Đang hoạt động' : (lastSeenText || 'Vừa mới truy cập'))}
           </Text>
         </TouchableOpacity>
 
