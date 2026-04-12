@@ -10,9 +10,13 @@ public class AdminStatsDto {
     private long totalUsers;
     private long totalMessages;
     private long totalGroups;
+    private long totalChats;
     private long onlineUsers;
     private long bannedUsers;
+    private long verifiedUsers;
     private List<DailyCountDto> dailyMessageCounts;
+    private List<DailyCountDto> dailyNewUsers;
+    private List<DailyCountDto> dailyNewGroups;
     private List<TopUserDto> topActiveUsers;
 
     @Data @Builder @NoArgsConstructor @AllArgsConstructor

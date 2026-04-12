@@ -34,7 +34,7 @@ export default function LoginPage() {
       });
       wsService.connect(data.accessToken);
       toast.success('Đăng nhập thành công!');
-      navigate('/chat');
+      navigate(data.role === 'ADMIN' ? '/admin' : '/chat');
     } catch (err) {
       const msg = err.response?.data?.message || 'Email hoặc mật khẩu không đúng';
       toast.error(msg);

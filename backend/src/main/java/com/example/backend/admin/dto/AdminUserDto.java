@@ -14,6 +14,8 @@ public class AdminUserDto {
     private String role;
     private boolean banned;
     private boolean online;
+    private boolean emailVerified;
+    private String avatarUrl;
     private LocalDateTime lastSeen;
     private LocalDateTime createdDate;
 }

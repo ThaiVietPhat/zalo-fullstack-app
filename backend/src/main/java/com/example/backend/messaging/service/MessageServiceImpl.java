@@ -43,6 +43,7 @@ public class MessageServiceImpl implements MessageService {
     private final UserRepository userRepository;
     private final NotificationService notificationService;
     private final MessageReactionRepository messageReactionRepository;
+    private final com.example.backend.user.service.BlockService blockService;
 
     @Override
     @Transactional
@@ -57,6 +58,11 @@ public class MessageServiceImpl implements MessageService {
 
         if (!chat.containsUser(sender.getId())) {
             throw new UnauthorizedException("Access denied: you are not a member of this chat");
+        }
+
+        User receiver = chat.getOtherUser(sender.getId());
+        if (blockService.isBlocked(sender.getId(), receiver.getId())) {
+            throw new UnauthorizedException("Không thể gửi tin nhắn: người dùng đã bị chặn");
         }
 
         if (messageDto.getType() == MessageType.TEXT
@@ -87,7 +93,6 @@ public class MessageServiceImpl implements MessageService {
         Message savedMessage = messageRepository.save(message);
         MessageDto savedDto = messageMapper.toDto(savedMessage);
 
-        User receiver = chat.getOtherUser(sender.getId());
         log.info("Broadcasting real-time message in chat {} from {}", chat.getId(), sender.getId());
         // Broadcast to chat topic (both sender & receiver subscribe) — same pattern as group messages
         notificationService.sendChatBroadcast(chat.getId(), savedDto);
@@ -108,6 +113,11 @@ public class MessageServiceImpl implements MessageService {
 
         if (!chat.containsUser(sender.getId())) {
             throw new UnauthorizedException("Access denied: you are not a member of this chat");
+        }
+
+        User mediaReceiver = chat.getOtherUser(sender.getId());
+        if (blockService.isBlocked(sender.getId(), mediaReceiver.getId())) {
+            throw new UnauthorizedException("Không thể gửi tin nhắn: người dùng đã bị chặn");
         }
 
         String contentType = file.getContentType() != null ? file.getContentType() : "";

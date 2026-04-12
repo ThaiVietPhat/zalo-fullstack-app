@@ -37,15 +37,15 @@ public class DataSeeder implements ApplicationRunner {
     @Override
     @Transactional
     public void run(ApplicationArguments args) throws Exception {
-        if (userRepository.count() > 0) {
-            log.info("Data đã tồn tại — bỏ qua seeding");
+        // Luôn upsert admin account mỗi lần start (đảm bảo admin luôn tồn tại và login được)
+        seedDefaultAdmin();
+
+        if (userRepository.count() > 1) {
+            log.info("Data đã tồn tại — bỏ qua CSV seeding");
             return;
         }
 
         log.info("Bắt đầu seeding dữ liệu ban đầu...");
-
-        // Tạo tài khoản admin mặc định
-        seedDefaultAdmin();
 
         // Import CSV nếu có
         importCsvIfExists("csvdata/user.csv",
@@ -79,17 +79,18 @@ public class DataSeeder implements ApplicationRunner {
     }
 
     private void seedDefaultAdmin() {
-        User admin = new User();
+        User admin = userRepository.findByEmail("admin@zalo.com").orElse(new User());
         admin.setEmail("admin@zalo.com");
-        admin.setPassword(passwordEncoder.encode("Admin@123"));
+        admin.setPassword(passwordEncoder.encode("Admin@1234"));
         admin.setFirstName("Admin");
         admin.setLastName("System");
         admin.setRole("ADMIN");
         admin.setBanned(false);
         admin.setOnline(false);
+        admin.setEmailVerified(true);
         admin.setLastSeen(LocalDateTime.now());
         userRepository.save(admin);
-        log.info("  ✓ Admin mặc định đã được tạo: admin@zalo.com / Admin@123");
+        log.info("  ✓ Admin upsert thành công: admin@zalo.com / Admin@1234");
     }
 
     // ─── Helper: đọc CSV và batch insert ─────────────────────────────────────

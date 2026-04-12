@@ -18,4 +18,5 @@ public class UserDto {
     private boolean banned;
     private String avatarUrl;
     private String friendshipStatus; // NONE, PENDING_SENT, PENDING_RECEIVED, ACCEPTED
+    private String blockStatus; // NONE, BLOCKED_BY_ME, BLOCKED_BY_THEM
 }

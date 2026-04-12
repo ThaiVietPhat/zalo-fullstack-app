@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   Ban, CheckCircle, Trash2, ShieldCheck, ShieldOff,
-  ChevronLeft, ChevronRight, Search, KeyRound, UserPlus, X, Loader,
+  ChevronLeft, ChevronRight, Search, KeyRound, UserPlus, X, Loader, MessageCircle,
 } from 'lucide-react';
 import {
   getAdminUsers, banUser, unbanUser, deleteUser,
@@ -92,7 +92,7 @@ function CreateAdminModal({ onClose, onCreated }) {
   );
 }
 
-export default function UserManagement() {
+export default function UserManagement({ onChatUser }) {
   const [users, setUsers] = useState([]);
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
@@ -280,6 +280,16 @@ export default function UserManagement() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1">
+                          {/* Chat */}
+                          {onChatUser && (
+                            <button
+                              onClick={() => onChatUser(user.id)}
+                              title="Nhắn tin với người dùng"
+                              className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-blue-100 text-blue-400 transition-colors"
+                            >
+                              <MessageCircle size={15} />
+                            </button>
+                          )}
                           {/* Ban/Unban */}
                           <button
                             onClick={() => handleBan(user.id, user.banned)}

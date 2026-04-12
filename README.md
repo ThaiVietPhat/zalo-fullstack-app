@@ -988,7 +988,7 @@ Migration files: `src/main/resources/db/migration/V1__init_schema.sql` → `V5__
 
 | Email | Password | Role |
 |---|---|---|
-| `admin@zalo.com` | `Admin@123` | ADMIN |
+| `admin@zalo.com` | `Admin@1234` | ADMIN |
 
 Dữ liệu mẫu (chats, messages, groups) được import từ `src/main/resources/csvdata/` nếu tồn tại các file CSV.
 

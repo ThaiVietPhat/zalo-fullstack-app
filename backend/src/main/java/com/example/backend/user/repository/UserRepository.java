@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -26,6 +27,10 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     Page<User> findAll(Pageable pageable);
     long countByBannedTrue();
     long countByOnlineTrue();
+    long countByEmailVerifiedTrue();
     List<User> findByIdIn(List<UUID> ids);
     List<User> findByRole(String role);
+
+    @Query("SELECT DATE(u.createdDate), COUNT(u) FROM User u WHERE u.createdDate >= :since GROUP BY DATE(u.createdDate)")
+    List<Object[]> countDailyNewUsers(@Param("since") LocalDateTime since);
 }

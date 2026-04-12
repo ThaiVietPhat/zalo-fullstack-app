@@ -32,6 +32,7 @@ public class UserServiceImpl implements UserService {
     private final FileStorageService fileStorageService;
     private final PasswordEncoder passwordEncoder;
     private final FriendRequestRepository friendRequestRepository;
+    private final BlockService blockService;
 
     @Override
     public List<UserDto> getAllUsersExceptSelf(Authentication currentUser) {
@@ -51,6 +52,21 @@ public class UserServiceImpl implements UserService {
         User target = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
         UserDto dto = userMapper.toDto(target);
+        // Set block status
+        if (!target.getId().equals(self.getId())) {
+            boolean iBlockedThem = blockService.isBlockedByMe(self.getId(), target.getId());
+            boolean theyBlockedMe = blockService.isBlockedByMe(target.getId(), self.getId());
+            if (iBlockedThem) {
+                dto.setBlockStatus("BLOCKED_BY_ME");
+            } else if (theyBlockedMe) {
+                dto.setBlockStatus("BLOCKED_BY_THEM");
+            } else {
+                dto.setBlockStatus("NONE");
+            }
+        } else {
+            dto.setBlockStatus("NONE");
+        }
+
         // Set friendship status
         if (target.getId().equals(self.getId())) {
             dto.setFriendshipStatus("SELF");
