@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Users, MessageCircle, Group, Wifi, Ban, TrendingUp } from 'lucide-react';
+import { Users, MessageCircle, Wifi, Ban, TrendingUp, UserCheck, MessagesSquare, LayoutList } from 'lucide-react';
 import { getStats } from '../../api/admin';
 
 function StatCard({ icon: Icon, label, value, color }) {
@@ -13,6 +13,37 @@ function StatCard({ icon: Icon, label, value, color }) {
         <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${color.replace('text-', 'bg-').replace('-600', '-100')}`}>
           <Icon size={22} className={color} />
         </div>
+      </div>
+    </div>
+  );
+}
+
+function MiniChart({ data, color = 'bg-blue-500', label }) {
+  if (!data || data.length === 0) return null;
+  const last14 = data.slice(-14);
+  const maxCount = Math.max(...last14.map((d) => d.count || 0), 1);
+  return (
+    <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+      <div className="flex items-center gap-2 mb-4">
+        <TrendingUp size={18} className="text-blue-500" />
+        <h3 className="font-semibold text-gray-700">{label}</h3>
+      </div>
+      <div className="flex items-end gap-1.5 h-28">
+        {last14.map((item, i) => {
+          const height = ((item.count || 0) / maxCount) * 100;
+          return (
+            <div key={i} className="flex-1 flex flex-col items-center gap-1">
+              {item.count > 0 && <span className="text-[9px] text-gray-400">{item.count}</span>}
+              <div
+                className={`w-full ${color} rounded-t-sm transition-all`}
+                style={{ height: `${Math.max(height, 3)}%` }}
+              />
+              <span className="text-[9px] text-gray-400 truncate w-full text-center">
+                {item.date ? new Date(item.date).toLocaleDateString('vi-VN', { day: 'numeric', month: 'numeric' }) : ''}
+              </span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -39,57 +70,40 @@ export default function Stats() {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+      {/* Stat cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard icon={Users} label="Tổng người dùng" value={stats?.totalUsers} color="text-blue-600" />
-        <StatCard icon={MessageCircle} label="Tổng tin nhắn" value={stats?.totalMessages} color="text-green-600" />
-        <StatCard icon={Users} label="Tổng nhóm" value={stats?.totalGroups} color="text-purple-600" />
-        <StatCard icon={Wifi} label="Đang trực tuyến" value={stats?.onlineUsers} color="text-emerald-600" />
-        <StatCard icon={Ban} label="Người dùng bị khóa" value={stats?.bannedUsers} color="text-red-600" />
+        <StatCard icon={UserCheck} label="Đã xác thực email" value={stats?.verifiedUsers} color="text-emerald-600" />
+        <StatCard icon={MessagesSquare} label="Tổng tin nhắn" value={stats?.totalMessages} color="text-green-600" />
+        <StatCard icon={LayoutList} label="Tổng nhóm" value={stats?.totalGroups} color="text-purple-600" />
+        <StatCard icon={MessageCircle} label="Cuộc trò chuyện" value={stats?.totalChats} color="text-indigo-600" />
+        <StatCard icon={Wifi} label="Đang trực tuyến" value={stats?.onlineUsers} color="text-teal-600" />
+        <StatCard icon={Ban} label="Tài khoản bị khóa" value={stats?.bannedUsers} color="text-red-600" />
       </div>
 
-      {/* Daily message chart (simple bar) */}
-      {stats?.dailyMessageCounts && stats.dailyMessageCounts.length > 0 && (
-        <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
-          <div className="flex items-center gap-2 mb-4">
-            <TrendingUp size={18} className="text-blue-500" />
-            <h3 className="font-semibold text-gray-700">Tin nhắn theo ngày (7 ngày qua)</h3>
-          </div>
-          <div className="flex items-end gap-2 h-32">
-            {stats.dailyMessageCounts.map((item, i) => {
-              const maxCount = Math.max(...stats.dailyMessageCounts.map((d) => d.count || 0), 1);
-              const height = ((item.count || 0) / maxCount) * 100;
-              return (
-                <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                  <span className="text-xs text-gray-500">{item.count || 0}</span>
-                  <div
-                    className="w-full bg-blue-500 rounded-t-sm transition-all"
-                    style={{ height: `${Math.max(height, 4)}%` }}
-                  />
-                  <span className="text-[10px] text-gray-400 truncate w-full text-center">
-                    {item.date ? new Date(item.date).toLocaleDateString('vi-VN', { month: 'short', day: 'numeric' }) : `Ngày ${i + 1}`}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      {/* Charts row */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <MiniChart data={stats?.dailyMessageCounts} color="bg-blue-500" label="Tin nhắn theo ngày (14 ngày)" />
+        <MiniChart data={stats?.dailyNewUsers} color="bg-emerald-500" label="Người dùng mới (14 ngày)" />
+        <MiniChart data={stats?.dailyNewGroups} color="bg-purple-500" label="Nhóm mới (14 ngày)" />
+      </div>
 
       {/* Top active users */}
       {stats?.topActiveUsers && stats.topActiveUsers.length > 0 && (
         <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
-          <h3 className="font-semibold text-gray-700 mb-4">Người dùng hoạt động nhất</h3>
-          <div className="space-y-3">
+          <h3 className="font-semibold text-gray-700 mb-4">Top người dùng hoạt động nhất</h3>
+          <div className="space-y-2">
             {stats.topActiveUsers.map((user, i) => (
-              <div key={user.id || i} className="flex items-center gap-3">
-                <span className="text-sm font-bold text-gray-400 w-6">{i + 1}</span>
+              <div key={user.userId || i} className="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0">
+                <span className={`text-sm font-bold w-6 text-center ${i < 3 ? 'text-blue-500' : 'text-gray-400'}`}>
+                  {i + 1}
+                </span>
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-800">
-                    {user.firstName} {user.lastName}
-                  </p>
-                  <p className="text-xs text-gray-400">{user.email}</p>
+                  <p className="text-sm font-medium text-gray-800">{user.fullName}</p>
                 </div>
-                <span className="text-sm font-semibold text-blue-600">{user.messageCount || 0} tin nhắn</span>
+                <span className="text-sm font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
+                  {user.messageCount} tin nhắn
+                </span>
               </div>
             ))}
           </div>

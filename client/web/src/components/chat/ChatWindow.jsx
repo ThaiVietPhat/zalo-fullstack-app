@@ -13,7 +13,7 @@ import ChatInfoPanel from './ChatInfoPanel';
 import toast from 'react-hot-toast';
 
 export default function ChatWindow() {
-  const { activeChatId, messages, typingUsers, setMessages, prependMessages, addMessage, updateChatLastMessage, updateChatMessagesState, updateChat, setActiveChatId, clearUnread, setTyping } = useChatStore();
+  const { activeChatId, messages, typingUsers, setMessages, prependMessages, addMessage, updateChatLastMessage, updateChatMessagesState, updateChat, setActiveChatId, clearUnread, setTyping, setViewingProfileId } = useChatStore();
   const { auth } = useAuthStore();
 
   const subscribeToChat = (chatId) => {
@@ -231,12 +231,17 @@ export default function ChatWindow() {
         >
           <ChevronLeft size={20} />
         </button>
-        <Avatar
-          src={chatDetail?.avatarUrl}
-          name={recipientName}
-          size={40}
-          online={chatDetail?.recipientOnline}
-        />
+        <div
+          onClick={() => chatDetail?.recipientId && setViewingProfileId(chatDetail.recipientId)}
+          className="cursor-pointer flex-shrink-0"
+        >
+          <Avatar
+            src={chatDetail?.avatarUrl}
+            name={recipientName}
+            size={40}
+            online={chatDetail?.recipientOnline}
+          />
+        </div>
         <div className="flex-1 min-w-0">
           <h3 className="font-semibold text-gray-800 truncate">{recipientName}</h3>
           <p className="text-xs text-gray-400">

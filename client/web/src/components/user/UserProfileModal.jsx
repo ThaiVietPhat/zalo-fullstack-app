@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { MessageCircle, UserPlus, UserCheck, Check, X, Loader } from 'lucide-react';
+import { MessageCircle, UserPlus, UserCheck, Check, X, Loader, ShieldOff, Shield } from 'lucide-react';
 import Modal from '../common/Modal';
 import Avatar from '../common/Avatar';
 import useAuthStore from '../../store/authStore';
 import useChatStore from '../../store/chatStore';
-import { getUserById } from '../../api/user';
+import { getUserById, blockUser, unblockUser } from '../../api/user';
 import { sendFriendRequest, acceptFriendRequest, rejectFriendRequest } from '../../api/friendRequest';
 import { startChat } from '../../api/chat';
 import toast from 'react-hot-toast';
@@ -22,6 +22,7 @@ export default function UserProfileModal() {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [friendStatus, setFriendStatus] = useState('NONE');
+  const [blockStatus, setBlockStatus] = useState('NONE');
   const [loadingAction, setLoadingAction] = useState(null);
 
   useEffect(() => {
@@ -33,6 +34,7 @@ export default function UserProfileModal() {
       .then((res) => {
         setProfile(res.data);
         setFriendStatus(res.data.friendshipStatus || 'NONE');
+        setBlockStatus(res.data.blockStatus || 'NONE');
       })
       .catch(() => toast.error('Không thể tải thông tin người dùng'))
       .finally(() => setLoading(false));
@@ -100,6 +102,33 @@ export default function UserProfileModal() {
     }
   };
 
+  const handleBlock = async () => {
+    setLoadingAction('block');
+    try {
+      await blockUser(viewingProfileId);
+      setBlockStatus('BLOCKED_BY_ME');
+      setFriendStatus('NONE');
+      toast.success('Đã chặn người dùng');
+    } catch {
+      toast.error('Không thể chặn người dùng');
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
+  const handleUnblock = async () => {
+    setLoadingAction('unblock');
+    try {
+      await unblockUser(viewingProfileId);
+      setBlockStatus('NONE');
+      toast.success('Đã bỏ chặn người dùng');
+    } catch {
+      toast.error('Không thể bỏ chặn người dùng');
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
   const isSelf = auth?.userId === viewingProfileId;
   const profileName = profile ? `${profile.firstName || ''} ${profile.lastName || ''}`.trim() : '';
 
@@ -124,52 +153,85 @@ export default function UserProfileModal() {
             </div>
 
             {!isSelf && !profile.banned && (
-              <div className="flex items-center gap-2 mt-1">
-                {friendStatus === 'NONE' && (
-                  <button
-                    onClick={handleSendRequest}
-                    disabled={loadingAction === 'add'}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-blue-500 text-white hover:bg-blue-600 text-sm font-medium transition-colors disabled:opacity-50"
-                  >
-                    {loadingAction === 'add' ? <Loader size={14} className="animate-spin" /> : <UserPlus size={14} />}
-                    Kết bạn
-                  </button>
+              <div className="flex flex-col items-center gap-2 mt-1 w-full">
+                {/* Friend actions — hidden if blocked */}
+                {blockStatus === 'NONE' && (
+                  <div className="flex items-center gap-2">
+                    {friendStatus === 'NONE' && (
+                      <button
+                        onClick={handleSendRequest}
+                        disabled={loadingAction === 'add'}
+                        className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-blue-500 text-white hover:bg-blue-600 text-sm font-medium transition-colors disabled:opacity-50"
+                      >
+                        {loadingAction === 'add' ? <Loader size={14} className="animate-spin" /> : <UserPlus size={14} />}
+                        Kết bạn
+                      </button>
+                    )}
+                    {friendStatus === 'PENDING_SENT' && (
+                      <span className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-gray-100 text-gray-500 text-sm font-medium">
+                        <UserCheck size={14} /> Đã gửi lời mời
+                      </span>
+                    )}
+                    {friendStatus === 'PENDING_RECEIVED' && (
+                      <>
+                        <button
+                          onClick={handleAccept}
+                          disabled={loadingAction === 'accept'}
+                          className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-blue-500 text-white hover:bg-blue-600 text-sm font-medium transition-colors disabled:opacity-50"
+                        >
+                          {loadingAction === 'accept' ? <Loader size={14} className="animate-spin" /> : <Check size={14} />}
+                          Chấp nhận
+                        </button>
+                        <button
+                          onClick={handleReject}
+                          disabled={loadingAction === 'reject'}
+                          className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-gray-100 text-gray-600 hover:bg-red-50 hover:text-red-400 text-sm font-medium transition-colors disabled:opacity-50"
+                        >
+                          {loadingAction === 'reject' ? <Loader size={14} className="animate-spin" /> : <X size={14} />}
+                          Từ chối
+                        </button>
+                      </>
+                    )}
+                    {friendStatus === 'ACCEPTED' && (
+                      <button
+                        onClick={handleStartChat}
+                        disabled={loadingAction === 'chat'}
+                        className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-green-500 text-white hover:bg-green-600 text-sm font-medium transition-colors disabled:opacity-50"
+                      >
+                        {loadingAction === 'chat' ? <Loader size={14} className="animate-spin" /> : <MessageCircle size={14} />}
+                        Nhắn tin
+                      </button>
+                    )}
+                  </div>
                 )}
-                {friendStatus === 'PENDING_SENT' && (
-                  <span className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-gray-100 text-gray-500 text-sm font-medium">
-                    <UserCheck size={14} /> Đã gửi lời mời
-                  </span>
+
+                {/* Blocked by them notice */}
+                {blockStatus === 'BLOCKED_BY_THEM' && (
+                  <p className="text-xs text-gray-400 italic">Bạn không thể tương tác với người dùng này</p>
                 )}
-                {friendStatus === 'PENDING_RECEIVED' && (
-                  <>
+
+                {/* Block / Unblock button */}
+                <div className="border-t border-gray-100 pt-2 w-full flex justify-center">
+                  {blockStatus === 'BLOCKED_BY_ME' ? (
                     <button
-                      onClick={handleAccept}
-                      disabled={loadingAction === 'accept'}
-                      className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-blue-500 text-white hover:bg-blue-600 text-sm font-medium transition-colors disabled:opacity-50"
+                      onClick={handleUnblock}
+                      disabled={loadingAction === 'unblock'}
+                      className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-gray-100 text-gray-600 hover:bg-green-50 hover:text-green-600 text-sm font-medium transition-colors disabled:opacity-50"
                     >
-                      {loadingAction === 'accept' ? <Loader size={14} className="animate-spin" /> : <Check size={14} />}
-                      Chấp nhận
+                      {loadingAction === 'unblock' ? <Loader size={14} className="animate-spin" /> : <Shield size={14} />}
+                      Bỏ chặn
                     </button>
+                  ) : (
                     <button
-                      onClick={handleReject}
-                      disabled={loadingAction === 'reject'}
-                      className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-gray-100 text-gray-600 hover:bg-red-50 hover:text-red-400 text-sm font-medium transition-colors disabled:opacity-50"
+                      onClick={handleBlock}
+                      disabled={loadingAction === 'block'}
+                      className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-gray-100 text-gray-600 hover:bg-red-50 hover:text-red-500 text-sm font-medium transition-colors disabled:opacity-50"
                     >
-                      {loadingAction === 'reject' ? <Loader size={14} className="animate-spin" /> : <X size={14} />}
-                      Từ chối
+                      {loadingAction === 'block' ? <Loader size={14} className="animate-spin" /> : <ShieldOff size={14} />}
+                      Chặn
                     </button>
-                  </>
-                )}
-                {friendStatus === 'ACCEPTED' && (
-                  <button
-                    onClick={handleStartChat}
-                    disabled={loadingAction === 'chat'}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-full bg-green-500 text-white hover:bg-green-600 text-sm font-medium transition-colors disabled:opacity-50"
-                  >
-                    {loadingAction === 'chat' ? <Loader size={14} className="animate-spin" /> : <MessageCircle size={14} />}
-                    Nhắn tin
-                  </button>
-                )}
+                  )}
+                </div>
               </div>
             )}
           </div>

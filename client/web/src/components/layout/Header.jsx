@@ -60,7 +60,7 @@ export default function Header() {
                 <Settings size={16} />
                 Cài đặt tài khoản
               </button>
-              {auth?.role === 'ROLE_ADMIN' && (
+              {auth?.role === 'ADMIN' && (
                 <button
                   className="flex items-center gap-3 px-4 py-2.5 w-full hover:bg-gray-50 text-sm text-gray-700 transition-colors"
                   onClick={() => { navigate('/admin'); setShowMenu(false); }}

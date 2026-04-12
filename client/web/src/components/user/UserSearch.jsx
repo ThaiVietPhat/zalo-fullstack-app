@@ -161,12 +161,17 @@ export default function UserSearch() {
                       key={contact.id}
                       className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors"
                     >
-                      <Avatar
-                        src={contact.avatarUrl}
-                        name={`${contact.firstName} ${contact.lastName || ''}`}
-                        size={44}
-                        online={contact.online}
-                      />
+                      <div
+                        onClick={() => setViewingProfileId(contact.id)}
+                        className="cursor-pointer flex-shrink-0"
+                      >
+                        <Avatar
+                          src={contact.avatarUrl}
+                          name={`${contact.firstName} ${contact.lastName || ''}`}
+                          size={44}
+                          online={contact.online}
+                        />
+                      </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-sm text-gray-800 truncate">
                           {contact.firstName} {contact.lastName}
@@ -218,12 +223,17 @@ export default function UserSearch() {
                       key={req.id}
                       className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors"
                     >
-                      <Avatar
-                        src={req.senderAvatarUrl}
-                        name={req.senderName}
-                        size={44}
-                        online={req.senderOnline}
-                      />
+                      <div
+                        onClick={() => setViewingProfileId(req.senderId)}
+                        className="cursor-pointer flex-shrink-0"
+                      >
+                        <Avatar
+                          src={req.senderAvatarUrl}
+                          name={req.senderName}
+                          size={44}
+                          online={req.senderOnline}
+                        />
+                      </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-sm text-gray-800 truncate">{req.senderName}</p>
                         <p className="text-xs text-gray-400 truncate">{req.senderEmail}</p>

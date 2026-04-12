@@ -22,3 +22,12 @@ export const searchUsers = (keyword) =>
 
 export const getUserById = (userId) =>
   api.get(`/api/v1/user/${userId}`);
+
+export const blockUser = (userId) =>
+  api.post(`/api/v1/user/block/${userId}`);
+
+export const unblockUser = (userId) =>
+  api.delete(`/api/v1/user/block/${userId}`);
+
+export const getBlockedUsers = () =>
+  api.get('/api/v1/user/block');

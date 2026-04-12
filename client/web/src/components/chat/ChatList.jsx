@@ -19,7 +19,7 @@ function formatTime(dateStr) {
 }
 
 export default function ChatList() {
-  const { chats, setChats, activeChatId, setActiveChatId, removeChat } = useChatStore();
+  const { chats, setChats, activeChatId, setActiveChatId, removeChat, setViewingProfileId } = useChatStore();
   const { auth } = useAuthStore();
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
@@ -96,12 +96,20 @@ export default function ChatList() {
               onMouseEnter={() => setHoveredId(chat.id)}
               onMouseLeave={() => setHoveredId(null)}
             >
-              <Avatar
-                src={chat.avatarUrl}
-                name={chat.chatName}
-                size={44}
-                online={chat.recipientOnline}
-              />
+              <div
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (chat.recipientId) setViewingProfileId(chat.recipientId);
+                }}
+                className="flex-shrink-0 cursor-pointer"
+              >
+                <Avatar
+                  src={chat.avatarUrl}
+                  name={chat.chatName}
+                  size={44}
+                  online={chat.recipientOnline}
+                />
+              </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between">
                   <span className={`font-medium text-sm truncate ${isActive ? 'text-blue-600' : 'text-gray-800'}`}>

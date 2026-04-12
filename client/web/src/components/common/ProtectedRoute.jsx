@@ -9,7 +9,7 @@ export default function ProtectedRoute({ children, requireAdmin = false }) {
     return <Navigate to="/login" replace />;
   }
 
-  if (requireAdmin && auth.role !== 'ROLE_ADMIN') {
+  if (requireAdmin && auth.role !== 'ADMIN') {
     return <Navigate to="/chat" replace />;
   }
 

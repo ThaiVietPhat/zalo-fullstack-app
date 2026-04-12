@@ -24,7 +24,7 @@ function getColorFromName(name) {
 }
 
 export default function Avatar({ src, name, size = 40, className = '', online = null }) {
-  const baseAvatarUrl = src ? (src.startsWith('http') ? src : `${BASE_URL}${src}`) : null;
+  const baseAvatarUrl = src ? (src.startsWith('http') ? src : `${BASE_URL}/api/v1/message/media/${src}`) : null;
   const [imgError, setImgError] = useState(false);
   const [urlVersion, setUrlVersion] = useState(0);
 

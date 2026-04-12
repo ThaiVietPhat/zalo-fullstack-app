@@ -1,8 +1,10 @@
 import React from 'react';
 import { X, Mail, Clock, User } from 'lucide-react';
 import Avatar from '../common/Avatar';
+import useChatStore from '../../store/chatStore';
 
 export default function ChatInfoPanel({ chatDetail, onClose }) {
+  const { setViewingProfileId } = useChatStore();
   if (!chatDetail) return null;
 
   return (
@@ -20,12 +22,17 @@ export default function ChatInfoPanel({ chatDetail, onClose }) {
 
       {/* Avatar + Name */}
       <div className="flex flex-col items-center py-6 px-4 border-b border-gray-100">
-        <Avatar
-          src={chatDetail.avatarUrl}
-          name={chatDetail.chatName}
-          size={72}
-          online={chatDetail.recipientOnline}
-        />
+        <div
+          onClick={() => chatDetail.recipientId && setViewingProfileId(chatDetail.recipientId)}
+          className="cursor-pointer"
+        >
+          <Avatar
+            src={chatDetail.avatarUrl}
+            name={chatDetail.chatName}
+            size={72}
+            online={chatDetail.recipientOnline}
+          />
+        </div>
         <h4 className="mt-3 font-bold text-gray-800 text-base text-center">
           {chatDetail.chatName || 'Người dùng'}
         </h4>
