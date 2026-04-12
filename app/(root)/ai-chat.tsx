@@ -39,28 +39,34 @@ const AiChatScreen = () => {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-gray-50">
-      {/* Header */}
-      <View className="flex-row items-center justify-between px-4 py-3 bg-white border-b border-gray-100 shadow-sm">
-        <View className="flex-row items-center">
-          <TouchableOpacity onPress={() => router.back()} className="mr-3">
-            <Ionicons name="arrow-back" size={24} color="#1F2937" />
+    <View className="flex-1 bg-gray-50">
+      {/* Blue Header with SafeArea top edge */}
+      <View className="bg-[#0068FF]">
+        <SafeAreaView edges={['top']} />
+        <View className="flex-row items-center justify-between px-4 py-3">
+          <View className="flex-row items-center">
+            <TouchableOpacity onPress={() => router.back()} className="mr-3 p-1">
+              <Ionicons name="arrow-back" size={24} color="white" />
+            </TouchableOpacity>
+            <View className="relative">
+              <Image
+                source={{ uri: "https://api.dicebear.com/9.x/bottts/png?seed=ZaloAI&backgroundColor=b6e3f4" }}
+                className="w-10 h-10 rounded-full bg-blue-50 border-2 border-white/20"
+              />
+              <View className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-[#0068FF]" />
+            </View>
+            <View className="ml-3">
+              <Text className="text-lg font-JakartaBold text-white">Trợ lý Zalo Clone AI</Text>
+              <View className="flex-row items-center">
+                <View className="w-2 h-2 rounded-full bg-green-400 mr-1.5" />
+                <Text className="text-xs text-blue-100 font-JakartaMedium">Đang trực tuyến</Text>
+              </View>
+            </View>
+          </View>
+          <TouchableOpacity onPress={handleClear} className="p-2">
+            <Ionicons name="trash-outline" size={22} color="white" />
           </TouchableOpacity>
-          <View className="relative">
-            <Image
-              source={{ uri: "https://api.dicebear.com/9.x/bottts/png?seed=ZaloAI&backgroundColor=b6e3f4" }}
-              className="w-10 h-10 rounded-full bg-blue-50"
-            />
-            <View className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white" />
-          </View>
-          <View className="ml-3">
-            <Text className="text-lg font-JakartaBold text-gray-800">Trợ lý Zalo Clone AI</Text>
-            <Text className="text-xs text-green-500 font-JakartaMedium">Đang trực tuyến</Text>
-          </View>
         </View>
-        <TouchableOpacity onPress={handleClear}>
-          <Ionicons name="trash-outline" size={22} color="#EF4444" />
-        </TouchableOpacity>
       </View>
 
       {/* Chat Content */}
@@ -110,9 +116,9 @@ const AiChatScreen = () => {
                   {item.content}
                 </Text>
                 <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginTop: 4 }}>
-                   <Text style={{ fontSize: 10, color: item.role === "user" ? "#6B7280" : "#94A3B8" }}>
-                     {formatTimeVN(item.createdDate)}
-                   </Text>
+                  <Text style={{ fontSize: 10, color: item.role === "user" ? "#6B7280" : "#94A3B8" }}>
+                    {formatTimeVN(item.createdDate)}
+                  </Text>
                 </View>
               </View>
             </View>
@@ -155,7 +161,7 @@ const AiChatScreen = () => {
           </View>
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 };
 

@@ -1,7 +1,7 @@
 // app/(root)/group-info.tsx — Màn hình quản lý nhóm đầy đủ
 import React, { useState } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, Image,
+  View, Text, ScrollView, TouchableOpacity, Image, StatusBar,
   TextInput, Alert, ActivityIndicator, StyleSheet, Platform, FlatList, Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -79,8 +79,11 @@ export default function GroupInfoScreen() {
       {
         text: 'Xóa', style: 'destructive',
         onPress: () => removeMember(userId, {
-          onSuccess: () => refetch(),
-          onError: (err) => Alert.alert('Lỗi', err.message || 'Không thể xóa thành viên'),
+          onSuccess: () => {
+            refetch();
+            Alert.alert('Thành công', `Đã xóa ${name}`);
+          },
+          onError: (err: any) => Alert.alert('Lỗi', err.message || 'Không thể xóa thành viên'),
         }),
       },
     ]);
@@ -105,7 +108,9 @@ export default function GroupInfoScreen() {
       {
         text: 'Rời nhóm', style: 'destructive',
         onPress: () => leaveGroup(id, {
-          onSuccess: () => { router.dismissAll(); router.replace('/(root)/tabs/home'); },
+          onSuccess: () => {
+            router.replace('/(root)/tabs/home');
+          },
           onError: () => Alert.alert('Lỗi', 'Không thể rời nhóm'),
         }),
       },
@@ -113,12 +118,14 @@ export default function GroupInfoScreen() {
   };
 
   const handleDissolve = () => {
-    Alert.alert('Giải tán nhóm', 'Hành động này không thể hoàn tác. Toàn bộ tin nhắn sẽ bị xóa!', [
+    Alert.alert('Giải tán nhóm', 'Hành động này không thể hoàn tác!', [
       { text: 'Hủy', style: 'cancel' },
       {
         text: 'Giải tán', style: 'destructive',
         onPress: () => dissolveGroup(id, {
-          onSuccess: () => { router.dismissAll(); router.replace('/(root)/tabs/home'); },
+          onSuccess: () => {
+            router.replace('/(root)/tabs/home');
+          },
           onError: () => Alert.alert('Lỗi', 'Không thể giải tán nhóm'),
         }),
       },
@@ -136,14 +143,15 @@ export default function GroupInfoScreen() {
   if (!group) return null;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#F3F4F6' }}>
-      {/* Header */}
+    <View style={{ flex: 1, backgroundColor: '#F3F4F6' }}>
+      <StatusBar barStyle="light-content" backgroundColor="#0068FF" />
+
+      {/* Header chuẩn Zalo - Tràn viền */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={{ padding: 8 }}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.headerBackBtn}>
           <Ionicons name="chevron-back" size={26} color="white" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Thông tin nhóm</Text>
-        <View style={{ width: 42 }} />
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -205,11 +213,11 @@ export default function GroupInfoScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Thành viên ({group.members.length})</Text>
           {group.members.map((member, index) => {
-            const isMemberAdmin = member.admin;      // BE dùng 'admin'
-            const isMe = member.userId === user?.id; // BE dùng 'userId'
+            const isMemberAdmin = member.admin;
+            const isMe = member.userId === user?.id;
             const displayName = getMemberName(member);
             return (
-              <View key={member.userId ? `member-${member.userId}` : `member-idx-${index}`} style={styles.memberRow}>
+              <View key={member.userId || `member-${index}`} style={styles.memberRow}>
                 <Image
                   source={{ uri: getAvatarUrl(displayName, member.avatarUrl) }}
                   style={styles.memberAvatar}
@@ -221,20 +229,20 @@ export default function GroupInfoScreen() {
                   )}
                 </View>
                 {isAdmin && !isMe && (
-                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <View style={{ flexDirection: 'row', gap: 12 }}>
                     {!isMemberAdmin && (
                       <TouchableOpacity
                         onPress={() => handleSetAdmin(member.userId, displayName)}
                         style={[styles.actionBtn, { backgroundColor: '#FEF3C7' }]}
                       >
-                        <Ionicons name="shield-outline" size={18} color="#F59E0B" />
+                        <Ionicons name="shield-outline" size={20} color="#F59E0B" />
                       </TouchableOpacity>
                     )}
                     <TouchableOpacity
                       onPress={() => handleRemoveMember(member.userId, displayName)}
                       style={[styles.actionBtn, { backgroundColor: '#FEE2E2' }]}
                     >
-                      <Ionicons name="remove-circle-outline" size={18} color="#EF4444" />
+                      <Ionicons name="remove-circle-outline" size={20} color="#EF4444" />
                     </TouchableOpacity>
                   </View>
                 )}
@@ -244,17 +252,28 @@ export default function GroupInfoScreen() {
         </View>
 
         {/* Hành động nguy hiểm */}
-        <View style={[styles.section, { marginTop: 8 }]}>
-          {!isAdmin && (
-            <TouchableOpacity style={styles.dangerBtn} onPress={handleLeave} disabled={leaving}>
-              <Ionicons name="exit-outline" size={20} color="#EF4444" />
-              <Text style={styles.dangerText}>{leaving ? 'Đang rời...' : 'Rời nhóm'}</Text>
-            </TouchableOpacity>
-          )}
+        <View style={[styles.section, { marginTop: 8, paddingBottom: 60 }]}>
+          <TouchableOpacity
+            style={styles.dangerBtn}
+            onPress={handleLeave}
+            disabled={leaving}
+          >
+            <View style={[styles.actionBtn, { backgroundColor: '#FEE2E2', marginRight: 12 }]}>
+              <Ionicons name="exit-outline" size={22} color="#EF4444" />
+            </View>
+            <Text style={styles.dangerText}>{leaving ? 'Đang rời...' : 'Rời nhóm'}</Text>
+          </TouchableOpacity>
+
           {isAdmin && (
-            <TouchableOpacity style={styles.dangerBtn} onPress={handleDissolve} disabled={dissolving}>
-              <Ionicons name="trash-outline" size={20} color="#EF4444" />
-              <Text style={styles.dangerText}>{dissolving ? 'Đang giải tán...' : 'Giải tán nhóm'}</Text>
+            <TouchableOpacity
+              style={[styles.dangerBtn, { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#F3F4F6', marginTop: 12, paddingTop: 12 }]}
+              onPress={handleDissolve}
+              disabled={dissolving}
+            >
+              <View style={[styles.actionBtn, { backgroundColor: '#F3F4F6', marginRight: 12 }]}>
+                <Ionicons name="trash-outline" size={22} color="#4B5563" />
+              </View>
+              <Text style={[styles.dangerText, { color: '#4B5563' }]}>{dissolving ? 'Đang giải tán...' : 'Giải tán nhóm'}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -273,7 +292,7 @@ export default function GroupInfoScreen() {
         }}
         isPending={addingMembers}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -384,8 +403,28 @@ const AddMemberModal = ({
 
 const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#0068FF', paddingHorizontal: 8, paddingVertical: 12 },
-  headerTitle: { color: 'white', fontFamily: 'Jakarta-Bold', fontSize: 18 },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#0068FF',
+    paddingHorizontal: 16,
+    paddingTop: Platform.OS === 'ios' ? 44 : 12,
+    paddingBottom: 16,
+    position: 'relative'
+  },
+  headerBackBtn: {
+    position: 'absolute',
+    left: 8,
+    bottom: 8,
+    padding: 8,
+  },
+  headerTitle: {
+    color: 'white',
+    fontFamily: 'Jakarta-Bold',
+    fontSize: 18,
+    textAlign: 'center'
+  },
   avatarSection: { alignItems: 'center', paddingVertical: 28, backgroundColor: 'white', marginBottom: 8 },
   groupAvatar: { width: 90, height: 90, borderRadius: 45, backgroundColor: '#E5E7EB' },
   cameraIcon: { position: 'absolute', bottom: 0, right: 0, backgroundColor: '#0068FF', borderRadius: 12, width: 26, height: 26, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'white' },

@@ -1,5 +1,4 @@
 // app/(root)/chat/[id].tsx — đồng bộ với MessageDto.java mới
-// Key changes: deleted thay vì recalled, state thay vì seen, receiverId thay vì seen boolean
 import React, { useRef, useEffect } from 'react';
 import {
   View,
@@ -17,20 +16,20 @@ import { useMessages, useMarkSeen } from '@/hooks/useMessages';
 import { useChatById } from '@/hooks/useChat';
 import { useGroupById, useGroupMessages } from '@/hooks/useGroup';
 import { useAuth } from '@/context/AuthContext';
-import { getAvatarUrl } from '@/lib/utils';
+import { getAvatarUrl, getImageUrl } from '@/lib/utils';
+import { useSocket } from '@/context/SocketContext';
+import { useQueryClient } from '@tanstack/react-query';
 
 const ChatScreen = () => {
   const { id, name, isGroup } = useLocalSearchParams<{ id: string; name?: string; isGroup?: string }>();
   const isGroupBool = isGroup === 'true';
   const { user } = useAuth();
   const flatListRef = useRef<FlatList<any>>(null);
+  const { subscribeToChat, setActiveChat } = useSocket(); // SỬA: Đã thêm setActiveChat ở đây
+  const queryClient = useQueryClient();
 
-  // Lấy chi tiết chat để có chatName nếu không có params
-  // Lấy chi tiết chat (1-1 hoặc Nhóm)
   const { data: chat } = useChatById(!isGroupBool ? id : null);
   const { data: group } = useGroupById(isGroupBool ? id : null);
-
-  // Lấy tin nhắn (1-1 hoặc Nhóm) — polling mỗi 3 giây để tự động cập nhật
   const { data: soloMessages, isLoading: loadingSolo } = useMessages(!isGroupBool ? id : null);
   const { data: groupMessages, isLoading: loadingGroup } = useGroupMessages(isGroupBool ? id : null, 0, 50);
 
@@ -40,12 +39,30 @@ const ChatScreen = () => {
   const { mutate: markSeen } = useMarkSeen();
 
   useEffect(() => {
-    // Chỉ markSeen cho chat 1-1 (BE hiện tại chưa có API markSeen cho Group)
-    if (id && !isGroupBool) markSeen(id);
-  }, [id, messages]);
+    if (id) {
+      // 1. Đánh dấu đang xem phòng này
+      setActiveChat(id);
 
-  // chatName: ưu tiên param truyền vào, sau đó dùng chatName từ ChatDto
-  // chatName: ưu tiên param truyền vào, sau đó dùng chatName từ ChatDto hoặc GroupDto
+      // 2. Reset số đỏ ở Home ngay lập tức
+      const listKey = isGroupBool ? ['groups'] : ['chats'];
+      queryClient.setQueryData(listKey, (old: any[] | undefined) => {
+        if (!old) return old;
+        return old.map((item: any) =>
+          item.id === id ? { ...item, unreadCount: 0 } : item
+        );
+      });
+
+      // 3. Thông báo server (1-1)
+      if (!isGroupBool) markSeen(id);
+
+      return () => {
+        setActiveChat(null); // Thoát phòng
+      };
+    }
+  }, [id, isGroupBool]);
+
+  // Cập nhật Cache từ Socket đã được xử lý tập trung bên SocketContext.tsx
+
   const chatName = (name as string) || (isGroupBool ? group?.name : chat?.chatName) || "Chat";
   const avatarUrl = isGroupBool ? group?.avatarUrl : chat?.avatarUrl;
   const isOnline = isGroupBool ? false : chat?.recipientOnline;
@@ -62,29 +79,27 @@ const ChatScreen = () => {
     );
   }
 
-  // Chuyển MessageDto → format mà MessageItem cần
-  const formattedMessages = (messages || []).map((msg) => ({
-    id: msg.id || `${msg.senderId}-${msg.createdAt}`,
-    senderId: msg.senderId || "",
-    chatId: id,
-    // deleted = true → "Tin nhắn đã bị xóa"
-    text: msg.deleted ? "Tin nhắn đã bị xóa" : msg.content,
-    image: (!msg.deleted && msg.mediaUrl) ? msg.mediaUrl : undefined,
-    time: (msg.createdAt || msg.createdDate)
-      ? new Date((msg.createdAt || msg.createdDate)!).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })
-      : "",
-    type: (msg.type === "IMAGE" ? "IMAGE" : "TEXT") as "TEXT" | "IMAGE",
-    state: msg.state,
-    reactions: msg.reactions,
-    avatar: msg.senderId === user?.id
-      ? getAvatarUrl(user?.name || "Me", user?.avatar)
-      : (isGroupBool ? getAvatarUrl(msg.senderName || "User", undefined) : getAvatarUrl(chat?.chatName || "Other", chat?.avatarUrl)),
-    senderName: msg.senderId === user?.id ? user?.name : (isGroupBool ? (msg.senderName || "User") : (chat?.chatName || "Người dùng")),
-  }));
+  const formattedMessages = (messages as any[] || []).map((msg: any, idx: number) => {
+    const sender = isGroupBool ? (group as any)?.members?.find((m: any) => (m.userId || m.id) === msg.senderId) : null;
+    const isMe = msg.senderId === myId;
+    const messageText = msg.text || ((!msg.deleted && !msg.mediaUrl) ? msg.content : (msg.deleted ? (msg.senderId === user?.id ? "Tin nhắn đã được thu hồi" : "Tin nhắn đã bị xóa") : ""));
 
-  // BE không đồng bộ: Private trả về DESC (Newest first), Group trả về ASC (Oldest first)
-  // Để dùng inverted FlatList (Index 0 ở đáy), ta cần mảng luôn là DESC (Newest first)
-  const finalMessages = isGroupBool ? [...formattedMessages].reverse() : formattedMessages;
+    return {
+      id: msg.id || `${idx}`,
+      chatId: id,
+      senderId: msg.senderId || "",
+      text: messageText,
+      image: (!msg.deleted && msg.mediaUrl) ? msg.mediaUrl : undefined,
+      time: (msg.createdDate || msg.createdAt) ? new Date(msg.createdDate || msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "00:00",
+      type: msg.type || msg.messageType || 'TEXT',
+      state: msg.state || (msg.id ? 'DELIVERED' : 'SENT'),
+      avatar: sender?.avatarUrl ? getImageUrl(sender.avatarUrl) : (isGroupBool ? getAvatarUrl(msg.senderName || "User", undefined) : getAvatarUrl(chat?.chatName || "Other", chat?.avatarUrl)),
+      senderName: sender?.fullName || msg.senderName || (msg.senderId === user?.id ? user?.name : (isGroupBool ? "User" : (chat?.chatName || "Người dùng"))),
+      reactions: msg.reactions || []
+    };
+  });
+
+  const finalMessages = formattedMessages;
 
   return (
     <View className="flex-1 bg-[#E2E9F1]">
@@ -110,7 +125,7 @@ const ChatScreen = () => {
           <FlatList
             ref={flatListRef}
             data={finalMessages}
-            inverted // Đảo ngược danh sách: index 0 ở dưới cùng (tin nhắn mới nhất)
+            inverted
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
               <MessageItem
@@ -124,7 +139,6 @@ const ChatScreen = () => {
             contentContainerStyle={{ paddingVertical: 16, paddingHorizontal: 0 }}
           />
         )}
-
         <ChatInput chatId={id} isGroup={isGroupBool} />
       </KeyboardAvoidingView>
     </View>

@@ -1,11 +1,13 @@
+/* eslint-disable */
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { Client } from '@stomp/stompjs';
 import { useAuthStore } from '@/store';
 import { useQueryClient } from '@tanstack/react-query';
-import { router } from 'expo-router';
-import { showLogoutAlert } from '@/lib/logout-guard';
+import { getMyGroups } from '@/api/group';
+import { getAllChats } from '@/api/chat';
+// @ts-ignore
+import SockJS from 'sockjs-client';
 
-// Polyfill TextEncoder/TextDecoder cho STOMP trên React Native
 if (typeof TextEncoder === 'undefined') {
     const { TextEncoder, TextDecoder } = require('text-encoding');
     global.TextEncoder = TextEncoder;
@@ -15,162 +17,197 @@ if (typeof TextEncoder === 'undefined') {
 interface SocketContextType {
     isConnected: boolean;
     publish: (destination: string, body: any) => void;
+    subscribeToChat: (chatId: string, callback: (data: any) => void) => () => void;
+    setActiveChat: (chatId: string | null) => void;
 }
 
 const SocketContext = createContext<SocketContextType | undefined>(undefined);
 
-export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const { token } = useAuthStore();
+export function SocketProvider({ children }: { children: React.ReactNode }) {
+    const token = useAuthStore((state: any) => state.token);
     const [isConnected, setIsConnected] = useState(false);
     const clientRef = useRef<Client | null>(null);
     const queryClient = useQueryClient();
+    const chatListeners = useRef<Record<string, ((data: any) => void)[]>>({});
+    const activeChatIdRef = useRef<string | null>(null);
 
     useEffect(() => {
-        if (clientRef.current) {
-            clientRef.current.deactivate();
-            clientRef.current = null;
-        }
-
         if (!token) return;
 
-        // Chuyển http(s):// -> ws(s):// và thêm /websocket (SockJS raw endpoint)
-        const baseUrl = process.env.EXPO_PUBLIC_SOCKET_URL || process.env.EXPO_PUBLIC_SERVER_URL?.split('/api/v1')[0] + '/ws';
-        const wsUrl = baseUrl!
-            .replace(/^http:\/\//, 'ws://')
-            .replace(/^https:\/\//, 'wss://')
-            .replace(/\/ws$/, '/ws/websocket'); // SockJS raw WebSocket path
-
+        const baseUrl = (process.env.EXPO_PUBLIC_SOCKET_URL || process.env.EXPO_PUBLIC_SERVER_URL?.split('/api/v1')[0] + '/ws') as string;
         const client = new Client({
-            // Dùng native WebSocket của React Native thay vì SockJS
-            webSocketFactory: () => new WebSocket(wsUrl),
-            connectHeaders: {
-                Authorization: `Bearer ${token}`,
-            },
-            debug: (str) => {
-                if (__DEV__) console.log('📡 [STOMP]', str);
-            },
+            webSocketFactory: () => new SockJS(baseUrl),
+            connectHeaders: { Authorization: `Bearer ${token}` },
+            debug: (str) => console.log('[Socket-Debug]', str),
             reconnectDelay: 5000,
-            heartbeatIncoming: 4000,
-            heartbeatOutgoing: 4000,
+            heartbeatIncoming: 0,
+            heartbeatOutgoing: 0,
         });
 
-        client.onConnect = (frame) => {
-            setIsConnected(true);
-            console.log('✅ [Socket] Connected:', frame.headers['user-name']);
+        const updateCache = (chatId: string, messageId: string, content: string, createdAt: any, senderName: string, type: string, isGroup: boolean, senderId: string, mediaUrl: string | null = null, deleted: boolean = false) => {
+            if (!content && !mediaUrl && !deleted) return;
 
-            // ─── Instant Update cho danh sách chat (Home Screen) ───────────────────
-            const updateChatListCache = (chatId: string, content: string, createdAt: string, isGroup = false) => {
-                const queryKey = isGroup ? ['groups'] : ['chats'];
-                queryClient.setQueryData(queryKey, (oldList: any[]) => {
-                    if (!oldList) return oldList;
-                    
-                    const newList = [...oldList];
-                    const index = newList.findIndex(item => item.id === chatId);
-                    
-                    if (index !== -1) {
-                        const updatedItem = { 
-                            ...newList[index], 
-                            lastMessage: content,
-                            lastMessageTime: createdAt,
-                            unreadCount: (newList[index].unreadCount || 0) + 1
-                        };
-                        // Đẩy lên đầu danh sách
-                        newList.splice(index, 1);
-                        newList.unshift(updatedItem);
-                    }
+            const listKey = isGroup ? ['groups'] : ['chats'];
+            const detailKey = isGroup ? ['group-messages', chatId, 0] : ['messages', chatId, 0];
+
+            let time = createdAt;
+            if (Array.isArray(createdAt)) {
+                time = new Date(createdAt[0], createdAt[1] - 1, createdAt[2], createdAt[3], createdAt[4], createdAt[5]).toISOString();
+            } else if (!createdAt) {
+                time = new Date().toISOString();
+            }
+
+            // 1. Cập nhật HOME LIST
+            queryClient.setQueryData(listKey, (oldList: any[] | undefined) => {
+                if (!oldList) return oldList;
+                const newList = [...oldList];
+                const index = newList.findIndex((item: any) => item.id === chatId);
+                if (index !== -1) {
+                    const currentUser = useAuthStore.getState().user;
+                    const isMe = senderId && currentUser && senderId === (currentUser as any).id;
+                    const isNotMe = !isMe;
+                    const shouldIncrement = isNotMe && (activeChatIdRef.current !== chatId);
+
+                    const updated = {
+                        ...newList[index],
+                        lastMessage: deleted ? "Tin nhắn đã bị thu hồi" : (content || "[Hình ảnh/Video]"),
+                        lastMessageType: type || 'TEXT',
+                        lastMessageTime: time,
+                        lastMessageSenderName: isMe ? "Bạn" : (senderName || ""),
+                        unreadCount: (newList[index].unreadCount || 0) + (shouldIncrement ? 1 : 0)
+                    };
+                    newList.splice(index, 1);
+                    newList.unshift(updated);
                     return newList;
-                });
-                // Force invalidation để đồng bộ chuẩn xác với DB
-                queryClient.invalidateQueries({ queryKey });
-            };
-
-            // Subscribe tin nhắn cá nhân
-            client.subscribe('/user/queue/messages', (message) => {
-                const msgData = JSON.parse(message.body);
-                console.log('📧 New message received:', msgData);
-                updateChatListCache(msgData.chatId, msgData.content, msgData.createdAt, false);
-                if (msgData.chatId) {
-                    queryClient.invalidateQueries({ queryKey: ['messages', msgData.chatId] });
                 }
+                return oldList;
             });
 
-            // Subscribe tin nhắn nhóm (Phải subscribe vào từng topic của nhóm)
-            import('@/api/group').then(({ getMyGroups }) => {
-                getMyGroups().then(groups => {
-                    if (!groups) return;
-                    groups.forEach(group => {
-                        client.subscribe(`/topic/group/${group.id}`, (message) => {
-                            const msgData = JSON.parse(message.body);
-                            console.log('👥 Group message received:', msgData);
-                            updateChatListCache(group.id, msgData.content, msgData.createdAt || msgData.createdDate, true);
-                            queryClient.invalidateQueries({ queryKey: ['group-messages', group.id] });
+            // 2. Cập nhật CHI TIẾT
+            queryClient.setQueryData(detailKey, (oldMessages: any[] | undefined) => {
+                if (!oldMessages) return oldMessages;
+
+                // Nếu là tin nhắn thu hồi/xóa
+                if (deleted) {
+                    const recallText = senderName ? `Tin nhắn đã được ${senderName} thu hồi` : "Tin nhắn đã được thu hồi";
+                    return oldMessages.map((m: any) =>
+                        (m.id === messageId || m.content === content || m.id === content)
+                            ? { ...m, deleted: true, content: recallText, text: recallText }
+                            : m
+                    );
+                }
+
+                // Kiểm tra trùng lặp bằng ID chính xác từ server (Tránh trùng lặp do nhận Socket và REST cùng lúc)
+                const isDup = oldMessages.some((m: any) => m.id === messageId);
+                if (isDup) {
+                    // Nếu đã có (từ REST onMutate onSuccess), cập nhật lại với data chuẩn từ Socket
+                    return oldMessages.map(m => m.id === messageId ? { ...m, mediaUrl } : m);
+                }
+
+                const newMessage = {
+                    id: messageId,
+                    chatId: chatId,
+                    content: content,
+                    text: content,
+                    type: type || 'TEXT',
+                    createdAt: time,
+                    createdDate: time,
+                    senderId: senderId,
+                    senderName: senderName,
+                    state: 'SENT',
+                    deleted: deleted,
+                    mediaUrl: mediaUrl,
+                    reactions: []
+                };
+                return [newMessage, ...oldMessages];
+            });
+
+            if (chatListeners.current[chatId]) {
+                chatListeners.current[chatId].forEach(cb => cb({ chatId, messageId, content, createdAt: time, senderId, senderName, type, mediaUrl, deleted }));
+            }
+        };
+
+        client.onConnect = () => {
+            setIsConnected(true);
+            setTimeout(async () => {
+                try {
+                    const [chats, groups] = await Promise.all([getAllChats(), getMyGroups()]);
+                    chats?.forEach(chat => {
+                        client.subscribe(`/topic/chat/${chat.id}`, (msg) => {
+                            const data = JSON.parse(msg.body);
+                            if (data.id) {
+                                updateCache(chat.id, data.id, data.content, data.createdAt, data.senderName, data.type, false, data.senderId, data.mediaUrl, data.deleted);
+                            }
                         });
                     });
-                });
-            });
+                    groups?.forEach(group => {
+                        client.subscribe(`/topic/group/${group.id}`, (msg) => {
+                            const data = JSON.parse(msg.body);
+                            if (data.id) {
+                                updateCache(group.id, data.id, data.content, data.createdDate, data.senderName, data.type, true, data.senderId, data.mediaUrl, data.deleted);
+                            }
+                        });
+                    });
 
-            client.subscribe('/user/queue/notifications', (notif) => {
-                console.log('🔔 Notification:', JSON.parse(notif.body));
-                queryClient.invalidateQueries({ queryKey: ['chats'] });
-                queryClient.invalidateQueries({ queryKey: ['groups'] });
-            });
-
-            client.subscribe('/user/queue/force-logout', (message) => {
-                console.warn('🚨 Force logout triggered from another device');
-                showLogoutAlert(
-                  'Đăng xuất',
-                  'Tài khoản của bạn đã được đăng nhập ở một thiết bị khác.',
-                  () => {
-                    useAuthStore.getState().logout();
-                    client.deactivate();
-                    router.replace('/(auth)/sign-in');
-                  }
-                );
-            });
+                    // Lắng nghe thu hồi tin nhắn chat đơn từ người kia
+                    client.subscribe('/user/queue/message-recalled', (msg) => {
+                        const data = JSON.parse(msg.body);
+                        if (data.messageId && data.chatId) {
+                            const recallText = data.senderName ? `Tin nhắn đã được ${data.senderName} thu hồi` : "Tin nhắn đã được thu hồi";
+                            queryClient.setQueryData(['messages', data.chatId, 0], (old: any[] | undefined) => {
+                                if (!old) return old;
+                                return old.map((m: any) => m.id === data.messageId
+                                    ? { ...m, deleted: true, content: recallText, text: recallText }
+                                    : m
+                                );
+                            });
+                        }
+                    });
+                } catch (e) { }
+            }, 500);
         };
 
-        client.onStompError = (frame) => {
-            console.warn('⚠️ [Socket] STOMP Error:', frame.headers['message']);
-        };
-
-        client.onWebSocketError = (event) => {
-            console.warn('⚠️ [Socket] WebSocket Error:', event);
-        };
-
-        client.onDisconnect = () => {
-            setIsConnected(false);
-            console.log('📴 [Socket] Disconnected');
-        };
-
+        client.onDisconnect = () => setIsConnected(false);
         client.activate();
         clientRef.current = client;
 
         return () => {
-            client.deactivate();
-            clientRef.current = null;
+            if (clientRef.current) {
+                clientRef.current.deactivate();
+                clientRef.current = null;
+            }
         };
     }, [token, queryClient]);
 
+    const setActiveChat = (chatId: string | null) => {
+        activeChatIdRef.current = chatId;
+    };
+
+    const subscribeToChat = (chatId: string, callback: (data: any) => void) => {
+        if (!chatListeners.current[chatId]) chatListeners.current[chatId] = [];
+        chatListeners.current[chatId].push(callback);
+        return () => {
+            if (chatListeners.current[chatId]) {
+                chatListeners.current[chatId] = chatListeners.current[chatId].filter(cb => cb !== callback);
+            }
+        };
+    };
+
     const publish = (destination: string, body: any) => {
         if (clientRef.current?.connected) {
-            clientRef.current.publish({
-                destination,
-                body: JSON.stringify(body),
-            });
-        } else {
-            console.warn('⚠️ [Socket] Cannot publish: not connected');
+            clientRef.current.publish({ destination, body: JSON.stringify(body) });
         }
     };
 
     return (
-        <SocketContext.Provider value={{ isConnected, publish }}>
+        <SocketContext.Provider value={{ isConnected, publish, subscribeToChat, setActiveChat }}>
             {children}
         </SocketContext.Provider>
     );
-};
+}
 
-export const useSocket = () => {
+export function useSocket() {
     const context = useContext(SocketContext);
     if (!context) throw new Error('useSocket must be used within a SocketProvider');
     return context;
-};
+}

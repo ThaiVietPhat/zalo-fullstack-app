@@ -72,8 +72,8 @@ const S3_BASE_URL = "https://zaloclone-storage.s3.ap-southeast-1.amazonaws.com";
 export function getImageUrl(path?: string): string | undefined {
   if (!path) return undefined;
 
-  // 1. Nếu đã là URL hoàn chỉnh (bao gồm Presigned URL từ Backend hoặc DB) thì lấy nguyên bản
-  if (path.startsWith('http')) return path;
+  // 1. Nếu đã là URL hoàn chỉnh (Bao gồm Presigned S3, HTTP, hoặc Local Device File URI) thì lấy nguyên bản
+  if (path.startsWith('http') || path.startsWith('file://')) return path;
 
   // 2. Nếu là raw S3 Key (không có dấu /), chúng ta trỏ thẳng về bucket S3 của bạn
   if (!path.includes('/')) {

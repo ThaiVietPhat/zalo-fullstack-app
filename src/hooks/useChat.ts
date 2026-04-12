@@ -10,7 +10,7 @@ export const useChats = () => {
   return useQuery<ChatDto[]>({
     queryKey: ["chats"],
     queryFn: getAllChats,
-    staleTime: 30_000,
+    staleTime: 60_000, // Để 1 phút vì đã có Socket cập nhật ngầm cực chuẩn
   });
 };
 

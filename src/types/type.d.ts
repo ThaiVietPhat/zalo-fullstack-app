@@ -44,23 +44,24 @@ export interface AuthStore {
   logout: () => void;
 }
 
-// ─── Re-export API types for convenience ─────────────────────────────────────
-// Dùng trực tiếp từ api/*.ts để luôn đồng bộ với BE DTO
+// ─── Message Types ───────────────────────────────────────────────────────────
 
-// MessageState từ MessageDto.java
-export type MessageState = "SENT" | "DELIVERED" | "SEEN";
-
-// MessageType từ MessageDto.java + GroupMessageDto.java
+export type MessageState = "SENDING" | "SENT" | "DELIVERED" | "SEEN";
 export type MessageType = "TEXT" | "IMAGE" | "VIDEO" | "FILE" | "AUDIO" | "VOICE";
 
-// ChatMessage — format dùng cho UI MessageItem (đã map từ MessageDto)
 export interface ChatMessage {
   id: string;
+  chatId?: string;
   senderId: string;
-  text: string;
+  senderName?: string;
+  avatar?: string;
+  content?: string;
+  text?: string;
   image?: string;
+  mediaUrl?: string;
   time: string;
-  type: "TEXT" | "IMAGE";
+  type: MessageType;
   state?: MessageState;
-  reactions?: Array<{ emoji: string; userId: string }>;
+  reactions?: Array<{ emoji: string; userId: string; userFullName?: string }>;
+  deleted?: boolean;
 }

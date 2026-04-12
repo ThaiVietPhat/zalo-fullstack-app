@@ -23,6 +23,30 @@ const ConversationList = () => {
   const isLoading = loadingChats || loadingGroups;
   const isRefetching = refetchingChats || refetchingGroups;
 
+  // Merging and Sorting
+  const allConversations = React.useMemo(() => {
+    console.log(`🖼️ [UI] Re-rendering list. Chats: ${chats?.length || 0}, Groups: ${groups?.length || 0}`);
+    if (chats && chats.length > 0) {
+      console.log(`📝 [UI] Top chat preview: ${chats[0].lastMessage}`);
+    }
+
+    const list = [
+      ...(chats || []),
+      ...(groups || []).map(g => ({
+        ...g,
+        isGroup: true,
+        chatName: g.name,
+        lastMessageTime: g.lastMessageTime,
+      }))
+    ];
+
+    return [...list].sort((a, b) => { // Dùng [...list] để đảm bảo mảng mới hoàn toàn
+      const timeA = new Date((a as any).lastMessageTime || 0).getTime();
+      const timeB = new Date((b as any).lastMessageTime || 0).getTime();
+      return timeB - timeA;
+    });
+  }, [chats, groups]);
+
   const handleRefresh = () => {
     refetchChats();
     refetchGroups();
@@ -64,21 +88,6 @@ const ConversationList = () => {
       </View>
     );
   }
-
-  // Merging and Sorting
-  const allConversations = [
-    ...(chats || []),
-    ...(groups || []).map(g => ({
-      ...g,
-      isGroup: true,
-      chatName: g.name,
-      lastMessageTime: g.lastMessageTime,
-    }))
-  ].sort((a, b) => {
-    const timeA = new Date((a as any).lastMessageTime || 0).getTime();
-    const timeB = new Date((b as any).lastMessageTime || 0).getTime();
-    return timeB - timeA;
-  });
 
   return (
     <FlatList
@@ -124,9 +133,8 @@ const ConversationList = () => {
         const unreadCount = (item as any).unreadCount || 0;
         const hasUnread = unreadCount > 0;
 
-        // Giả lập "Bạn: " cho chat 1-1 nếu unreadCount = 0 (khả năng cao là mình gửi hoặc đã đọc)
-        // Đây là fallback vì ko muốn sửa BE
-        const showBanPrefix = !isGroup && !hasUnread && item.lastMessage && item.lastMessage !== "Bắt đầu trò chuyện";
+        const senderLabel = (item as any).lastMessageSenderName || "";
+        const showSenderPrefix = !!senderLabel && item.lastMessage && item.lastMessage !== "Bắt đầu trò chuyện";
 
         return (
           <TouchableOpacity
@@ -148,13 +156,13 @@ const ConversationList = () => {
               <Image source={{ uri: avatarUrl }} style={styles.avatar} />
               {!isGroup && (item as any).recipientOnline && <View style={styles.onlineDot} />}
             </View>
- 
+
             {/* Content */}
             <View style={styles.content}>
               <View style={styles.topRow}>
-                <Text 
-                   style={[styles.name, hasUnread ? styles.nameBold : styles.nameMedium]} 
-                   numberOfLines={1}
+                <Text
+                  style={[styles.name, hasUnread ? styles.nameBold : styles.nameMedium]}
+                  numberOfLines={1}
                 >
                   {isGroup ? `👥 ${name}` : name}
                 </Text>
@@ -162,9 +170,7 @@ const ConversationList = () => {
               </View>
               <View style={styles.bottomRow}>
                 <Text style={[styles.preview, hasUnread && styles.previewUnread]} numberOfLines={1}>
-                  {isGroup && (item as any).lastMessageSenderName 
-                    ? `${(item as any).lastMessageSenderName}: ${preview}` 
-                    : (showBanPrefix ? `Bạn: ${preview}` : preview)}
+                  {showSenderPrefix ? `${senderLabel}: ${preview}` : preview}
                 </Text>
                 {hasUnread && (
                   <View style={styles.badge}>
