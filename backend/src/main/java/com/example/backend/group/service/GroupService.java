@@ -2,6 +2,7 @@ package com.example.backend.group.service;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -14,16 +15,21 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.example.backend.file.service.FileStorageService;
 import com.example.backend.group.dto.GroupDto;
+import com.example.backend.group.dto.GroupEventDto;
 import com.example.backend.group.dto.GroupMemberDto;
 import com.example.backend.group.dto.GroupMessageDto;
 import com.example.backend.group.dto.GroupRequest;
 import com.example.backend.group.entity.Group;
 import com.example.backend.group.entity.GroupMember;
 import com.example.backend.group.entity.GroupMessage;
+import com.example.backend.group.entity.GroupMessageHidden;
+import com.example.backend.group.entity.PinnedGroupMessage;
 import com.example.backend.group.repository.GroupMemberRepository;
+import com.example.backend.group.repository.GroupMessageHiddenRepository;
 import com.example.backend.group.repository.GroupMessageReactionRepository;
 import com.example.backend.group.repository.GroupMessageRepository;
 import com.example.backend.group.repository.GroupRepository;
+import com.example.backend.group.repository.PinnedGroupMessageRepository;
 import com.example.backend.messaging.enums.MessageType;
 import com.example.backend.reaction.dto.ReactionDto;
 import com.example.backend.shared.exception.ResourceNotFoundException;
@@ -43,6 +49,8 @@ public class GroupService {
     private final GroupMemberRepository groupMemberRepository;
     private final GroupMessageRepository groupMessageRepository;
     private final GroupMessageReactionRepository groupMessageReactionRepository;
+    private final PinnedGroupMessageRepository pinnedGroupMessageRepository;
+    private final GroupMessageHiddenRepository groupMessageHiddenRepository;
     private final UserRepository userRepository;
     private final SimpMessagingTemplate messagingTemplate;
     private final FileStorageService fileStorageService;
@@ -60,12 +68,10 @@ public class GroupService {
 
         Group saved = groupRepository.save(group);
 
-        // Thêm người tạo là admin
         saved.getMembers().add(GroupMember.of(saved, creator, true));
 
-        // Thêm các thành viên được mời
         for (UUID memberId : request.getMemberIds()) {
-            if (memberId.equals(creator.getId())) continue; // bỏ qua nếu trùng creator
+            if (memberId.equals(creator.getId())) continue;
             User member = userRepository.findById(memberId)
                     .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + memberId));
             saved.getMembers().add(GroupMember.of(saved, member, false));
@@ -73,7 +79,7 @@ public class GroupService {
 
         groupRepository.save(saved);
         log.info("Group '{}' created by {}", saved.getName(), creator.getEmail());
-        return toGroupDto(saved, creator.getId());
+        return toGroupDto(saved, creator.getId(), false);
     }
 
     // ─── Lấy danh sách nhóm của user ─────────────────────────────────────────
@@ -83,7 +89,7 @@ public class GroupService {
         User user = getUser(currentUser);
         return groupRepository.findAllGroupsByUserId(user.getId())
                 .stream()
-                .map(g -> toGroupDto(g, user.getId()))
+                .map(g -> toGroupDto(g, user.getId(), false))
                 .collect(Collectors.toList());
     }
 
@@ -93,7 +99,7 @@ public class GroupService {
     public GroupDto getGroupById(UUID groupId, Authentication currentUser) {
         User user = getUser(currentUser);
         Group group = getGroupAndCheckMember(groupId, user.getId());
-        return toGroupDto(group, user.getId());
+        return toGroupDto(group, user.getId(), true);
     }
 
     // ─── Cập nhật thông tin nhóm (chỉ admin) ─────────────────────────────────
@@ -109,7 +115,11 @@ public class GroupService {
 
         groupRepository.save(group);
         log.info("Group '{}' updated by {}", group.getName(), user.getEmail());
-        return toGroupDto(group, user.getId());
+
+        GroupDto dto = toGroupDto(group, user.getId(), false);
+        broadcastGroupEvent(groupId, new GroupEventDto(
+                GroupEventDto.GROUP_UPDATED, groupId, null, user.getId(), dto, null));
+        return dto;
     }
 
     // ─── Upload avatar nhóm (chỉ admin) ──────────────────────────────────────
@@ -132,7 +142,11 @@ public class GroupService {
 
         groupRepository.save(group);
         log.info("Group '{}' avatar updated by {}", group.getName(), user.getEmail());
-        return toGroupDto(group, user.getId());
+
+        GroupDto dto = toGroupDto(group, user.getId(), false);
+        broadcastGroupEvent(groupId, new GroupEventDto(
+                GroupEventDto.GROUP_UPDATED, groupId, null, user.getId(), dto, null));
+        return dto;
     }
 
     // ─── Thêm thành viên (chỉ admin) ─────────────────────────────────────────
@@ -151,7 +165,11 @@ public class GroupService {
 
         groupRepository.save(group);
         log.info("{} members added to group '{}'", request.getUserIds().size(), group.getName());
-        return toGroupDto(group, user.getId());
+
+        GroupDto dto = toGroupDto(group, user.getId(), false);
+        broadcastGroupEvent(groupId, new GroupEventDto(
+                GroupEventDto.MEMBER_ADDED, groupId, null, user.getId(), dto, null));
+        return dto;
     }
 
     // ─── Xóa thành viên (chỉ admin, không thể xóa chính mình) ───────────────
@@ -159,47 +177,75 @@ public class GroupService {
     @Transactional
     public void removeMember(UUID groupId, UUID targetUserId, Authentication currentUser) {
         User user = getUser(currentUser);
-        getGroupAndCheckAdmin(groupId, user.getId());
+        Group group = getGroupAndCheckAdmin(groupId, user.getId());
 
         if (user.getId().equals(targetUserId)) {
             throw new IllegalArgumentException("Admin không thể tự xóa mình, hãy dùng rời nhóm");
         }
 
-        GroupMember member = groupMemberRepository
-                .findByGroupIdAndUserId(groupId, targetUserId)
+        // Phải remove khỏi collection thay vì gọi repo.delete() trực tiếp.
+        // Group.members có orphanRemoval=true: nếu delete() trực tiếp mà entity vẫn còn
+        // trong collection thì Hibernate conflict → re-insert hoặc không delete được.
+        GroupMember member = group.getMembers().stream()
+                .filter(m -> m.getUser().getId().equals(targetUserId))
+                .findFirst()
                 .orElseThrow(() -> new ResourceNotFoundException("Thành viên không tồn tại trong nhóm"));
 
-        groupMemberRepository.delete(member);
+        String kickedEmail = member.getUser().getEmail();
+        group.getMembers().remove(member);
+        groupRepository.save(group);
         log.info("User {} removed from group {}", targetUserId, groupId);
+
+        // Broadcast đến tất cả thành viên đang xem nhóm
+        GroupEventDto event = new GroupEventDto(
+                GroupEventDto.MEMBER_REMOVED, groupId, targetUserId, user.getId(), null, null);
+        broadcastGroupEvent(groupId, event);
+
+        // Gửi personal event cho người bị kick (để remove group khỏi list)
+        messagingTemplate.convertAndSendToUser(kickedEmail, "/queue/group-events", event);
     }
 
     // ─── Rời nhóm ────────────────────────────────────────────────────────────
 
     @Transactional
-    public void leaveGroup(UUID groupId, Authentication currentUser) {
+    public void leaveGroup(UUID groupId, UUID newAdminId, Authentication currentUser) {
         User user = getUser(currentUser);
         Group group = getGroupAndCheckMember(groupId, user.getId());
 
-        // Nếu admin rời nhóm và còn thành viên khác → chuyển quyền admin cho người vào sớm nhất
-        if (group.isAdmin(user.getId()) && group.getMembers().size() > 1) {
-            group.getMembers().stream()
-                    .filter(m -> !m.getUser().getId().equals(user.getId()))
-                    .findFirst()
-                    .ifPresent(m -> m.setAdmin(true));
+        boolean isAdmin = group.isAdmin(user.getId());
+        long adminCount = group.getMembers().stream().filter(GroupMember::isAdmin).count();
+        long memberCount = group.getMembers().size();
+
+        // Admin cuối cùng rời nhóm khi còn thành viên khác → phải chỉ định admin mới
+        if (isAdmin && adminCount == 1 && memberCount > 1) {
+            if (newAdminId == null) {
+                throw new IllegalArgumentException("Bạn là admin cuối cùng, hãy chỉ định admin mới trước khi rời nhóm");
+            }
+            GroupMember newAdmin = groupMemberRepository
+                    .findByGroupIdAndUserId(groupId, newAdminId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Thành viên không tồn tại trong nhóm"));
+            if (newAdmin.getUser().getId().equals(user.getId())) {
+                throw new IllegalArgumentException("Không thể chọn chính mình làm admin mới");
+            }
+            newAdmin.setAdmin(true);
+            groupMemberRepository.save(newAdmin);
         }
 
-        GroupMember member = groupMemberRepository
-                .findByGroupIdAndUserId(groupId, user.getId())
+        GroupMember member = group.getMembers().stream()
+                .filter(m -> m.getUser().getId().equals(user.getId()))
+                .findFirst()
                 .orElseThrow(() -> new ResourceNotFoundException("Bạn không phải thành viên nhóm này"));
 
-        groupMemberRepository.delete(member);
+        group.getMembers().remove(member);
+        groupRepository.save(group);
 
-        // Xóa nhóm nếu không còn ai
         if (groupMemberRepository.countByGroupId(groupId) == 0) {
             groupRepository.delete(group);
             log.info("Group {} deleted — no members left", groupId);
         } else {
             log.info("User {} left group {}", user.getEmail(), groupId);
+            broadcastGroupEvent(groupId, new GroupEventDto(
+                    GroupEventDto.MEMBER_LEFT, groupId, user.getId(), user.getId(), null, null));
         }
     }
 
@@ -222,11 +268,28 @@ public class GroupService {
             throw new IllegalArgumentException("Thành viên này đã là admin");
         }
 
+        long memberCount = groupMemberRepository.countByGroupId(groupId);
+        long adminCount = group.getMembers().stream().filter(GroupMember::isAdmin).count();
+        boolean isTransfer = memberCount <= 4 || adminCount >= 2;
+
+        if (isTransfer) {
+            // Nhường admin: người gọi mất quyền admin
+            GroupMember callerMember = groupMemberRepository
+                    .findByGroupIdAndUserId(groupId, user.getId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thành viên"));
+            callerMember.setAdmin(false);
+            groupMemberRepository.save(callerMember);
+        }
+
         member.setAdmin(true);
         groupMemberRepository.save(member);
-        log.info("User {} promoted to admin in group {}", targetUserId, groupId);
+        log.info("User {} {} admin in group {} by {}", targetUserId,
+                isTransfer ? "transferred" : "promoted to", groupId, user.getEmail());
 
-        return toGroupDto(group, user.getId());
+        GroupDto dto = toGroupDto(group, user.getId(), false);
+        broadcastGroupEvent(groupId, new GroupEventDto(
+                GroupEventDto.ADMIN_CHANGED, groupId, targetUserId, user.getId(), dto, null));
+        return dto;
     }
 
     // ─── Giải tán nhóm (chỉ admin) ────────────────────────────────────────────
@@ -236,12 +299,84 @@ public class GroupService {
         User user = getUser(currentUser);
         Group group = getGroupAndCheckAdmin(groupId, user.getId());
 
-        // Xóa tất cả thành viên
-        groupMemberRepository.deleteByGroupId(groupId);
+        // Collect member emails BEFORE deleting so we can send personal notifications
+        List<String> memberEmails = group.getMembers().stream()
+                .map(m -> m.getUser().getEmail())
+                .filter(email -> !email.equals(user.getEmail()))
+                .toList();
 
-        // Xóa nhóm
+        GroupEventDto event = new GroupEventDto(
+                GroupEventDto.GROUP_DISSOLVED, groupId, null, user.getId(), null, null);
+
+        // Broadcast to group topic (for active GroupWindow viewers)
+        broadcastGroupEvent(groupId, event);
+
+        // Send personal event to each member for sidebar removal
+        memberEmails.forEach(email ->
+                messagingTemplate.convertAndSendToUser(email, "/queue/group-events", event));
+
+        groupMemberRepository.deleteByGroupId(groupId);
         groupRepository.delete(group);
         log.info("Group {} dissolved by admin {}", groupId, user.getEmail());
+    }
+
+    // ─── Ghim tin nhắn (chỉ admin) ────────────────────────────────────────────
+
+    @Transactional
+    public List<GroupMessageDto> pinMessage(UUID groupId, UUID messageId, Authentication currentUser) {
+        User user = getUser(currentUser);
+        getGroupAndCheckAdmin(groupId, user.getId());
+
+        GroupMessage msg = groupMessageRepository.findById(messageId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tin nhắn không tồn tại"));
+
+        if (!msg.getGroup().getId().equals(groupId)) {
+            throw new IllegalArgumentException("Tin nhắn không thuộc nhóm này");
+        }
+
+        if (pinnedGroupMessageRepository.findByGroupIdAndMessageId(groupId, messageId).isPresent()) {
+            throw new IllegalArgumentException("Tin nhắn đã được ghim");
+        }
+
+        long count = pinnedGroupMessageRepository.countByGroupId(groupId);
+        if (count >= 3) {
+            throw new IllegalArgumentException("Nhóm chỉ được ghim tối đa 3 tin nhắn");
+        }
+
+        PinnedGroupMessage pinned = new PinnedGroupMessage();
+        pinned.setGroup(msg.getGroup());
+        pinned.setMessage(msg);
+        pinned.setPinnedBy(user);
+        pinnedGroupMessageRepository.save(pinned);
+
+        List<GroupMessageDto> pinnedDtos = getPinnedMessageDtos(groupId, user.getId());
+        broadcastGroupEvent(groupId, new GroupEventDto(
+                GroupEventDto.MESSAGE_PINNED, groupId, null, user.getId(), null, pinnedDtos));
+        return pinnedDtos;
+    }
+
+    // ─── Bỏ ghim tin nhắn (chỉ admin) ────────────────────────────────────────
+
+    @Transactional
+    public List<GroupMessageDto> unpinMessage(UUID groupId, UUID messageId, Authentication currentUser) {
+        User user = getUser(currentUser);
+        getGroupAndCheckAdmin(groupId, user.getId());
+
+        pinnedGroupMessageRepository.deleteByGroupIdAndMessageId(groupId, messageId);
+
+        List<GroupMessageDto> pinnedDtos = getPinnedMessageDtos(groupId, user.getId());
+        broadcastGroupEvent(groupId, new GroupEventDto(
+                GroupEventDto.MESSAGE_UNPINNED, groupId, null, user.getId(), null, pinnedDtos));
+        return pinnedDtos;
+    }
+
+    // ─── Lấy danh sách tin nhắn đã ghim ─────────────────────────────────────
+
+    @Transactional(readOnly = true)
+    public List<GroupMessageDto> getPinnedMessages(UUID groupId, Authentication currentUser) {
+        User user = getUser(currentUser);
+        getGroupAndCheckMember(groupId, user.getId());
+        return getPinnedMessageDtos(groupId, user.getId());
     }
 
     // ─── Gửi tin nhắn nhóm ───────────────────────────────────────────────────
@@ -258,9 +393,8 @@ public class GroupService {
         msg.setType(request.getType() != null ? request.getType() : MessageType.TEXT);
 
         GroupMessage saved = groupMessageRepository.save(msg);
-        GroupMessageDto dto = toMessageDto(saved, user.getId());
+        GroupMessageDto dto = toMessageDto(saved, user.getId(), Set.of());
 
-        // Broadcast qua WebSocket đến tất cả thành viên nhóm
         messagingTemplate.convertAndSend("/topic/group/" + groupId, dto);
         log.debug("Message sent to group {} by {}", groupId, user.getEmail());
 
@@ -296,7 +430,7 @@ public class GroupService {
         msg.setFileName(file.getOriginalFilename());
 
         GroupMessage saved = groupMessageRepository.save(msg);
-        GroupMessageDto dto = toMessageDto(saved, user.getId());
+        GroupMessageDto dto = toMessageDto(saved, user.getId(), Set.of());
 
         messagingTemplate.convertAndSend("/topic/group/" + groupId, dto);
         log.info("Media message sent to group {} by {}", groupId, user.getEmail());
@@ -326,9 +460,29 @@ public class GroupService {
         msg.setDeleted(true);
         groupMessageRepository.save(msg);
 
-        GroupMessageDto dto = toMessageDto(msg, user.getId());
+        GroupMessageDto dto = toMessageDto(msg, user.getId(), Set.of());
         messagingTemplate.convertAndSend("/topic/group/" + msg.getGroup().getId(), dto);
         log.info("Group message {} recalled by {}", messageId, user.getEmail());
+    }
+
+    // ─── Xóa tin nhắn phía mình ──────────────────────────────────────────────
+
+    @Transactional
+    public void deleteGroupMessageForMe(UUID messageId, Authentication currentUser) {
+        User user = getUser(currentUser);
+
+        GroupMessage msg = groupMessageRepository.findById(messageId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tin nhắn không tồn tại: " + messageId));
+
+        getGroupAndCheckMember(msg.getGroup().getId(), user.getId());
+
+        if (groupMessageHiddenRepository.existsByMessageIdAndUserId(messageId, user.getId())) {
+            return; // Already hidden, idempotent
+        }
+
+        GroupMessageHidden hidden = new GroupMessageHidden(msg, user);
+        groupMessageHiddenRepository.save(hidden);
+        log.info("Group message {} hidden for user {}", messageId, user.getEmail());
     }
 
     // ─── Lấy tin nhắn nhóm (phân trang) ─────────────────────────────────────
@@ -342,15 +496,26 @@ public class GroupService {
                 .findByGroupIdAndDeletedFalseOrderByCreatedDateAsc(groupId, PageRequest.of(page, size))
                 .getContent();
 
+        List<UUID> msgIds = messages.stream().map(GroupMessage::getId).collect(Collectors.toList());
+
+        // Lấy pinned IDs
+        Set<UUID> pinnedIds = pinnedGroupMessageRepository.findByGroupIdOrderByCreatedDateDesc(groupId)
+                .stream().map(p -> p.getMessage().getId()).collect(Collectors.toSet());
+
+        // Lấy hidden IDs cho user hiện tại
+        Set<UUID> hiddenIds = msgIds.isEmpty() ? Set.of()
+                : groupMessageHiddenRepository.findHiddenMessageIds(msgIds, user.getId());
+
         List<GroupMessageDto> dtos = messages.stream()
-                .map(m -> toMessageDto(m, user.getId()))
+                .filter(m -> !hiddenIds.contains(m.getId()))
+                .map(m -> toMessageDto(m, user.getId(), pinnedIds))
                 .collect(Collectors.toList());
 
-        // Gắn reactions vào từng tin nhắn (batch query tránh N+1)
-        List<UUID> msgIds = messages.stream().map(GroupMessage::getId).collect(Collectors.toList());
-        if (!msgIds.isEmpty()) {
+        // Gắn reactions (batch query)
+        List<UUID> visibleMsgIds = dtos.stream().map(GroupMessageDto::getId).collect(Collectors.toList());
+        if (!visibleMsgIds.isEmpty()) {
             Map<UUID, List<ReactionDto>> reactionsByMsgId = groupMessageReactionRepository
-                    .findByGroupMessageIdIn(msgIds)
+                    .findByGroupMessageIdIn(visibleMsgIds)
                     .stream()
                     .collect(Collectors.groupingBy(
                             r -> r.getGroupMessage().getId(),
@@ -394,7 +559,18 @@ public class GroupService {
         return group;
     }
 
-    private GroupDto toGroupDto(Group group, UUID currentUserId) {
+    private void broadcastGroupEvent(UUID groupId, GroupEventDto event) {
+        messagingTemplate.convertAndSend("/topic/group/" + groupId + "/events", event);
+    }
+
+    private List<GroupMessageDto> getPinnedMessageDtos(UUID groupId, UUID currentUserId) {
+        return pinnedGroupMessageRepository.findByGroupIdOrderByCreatedDateDesc(groupId)
+                .stream()
+                .map(p -> toMessageDto(p.getMessage(), currentUserId, Set.of(p.getMessage().getId())))
+                .collect(Collectors.toList());
+    }
+
+    private GroupDto toGroupDto(Group group, UUID currentUserId, boolean includePinned) {
         List<GroupMemberDto> memberDtos = group.getMembers().stream()
                 .map(m -> GroupMemberDto.builder()
                         .userId(m.getUser().getId())
@@ -419,7 +595,7 @@ public class GroupService {
                 .isAdmin(group.isAdmin(currentUserId))
                 .build();
 
-        // Gắn preview tin nhắn cuối
+        // Preview tin nhắn cuối
         groupMessageRepository.findTop1ByGroupIdOrderByCreatedDateDesc(group.getId())
                 .ifPresent(last -> {
                     dto.setLastMessage(last.getContent());
@@ -430,11 +606,15 @@ public class GroupService {
                     );
                 });
 
+        if (includePinned) {
+            dto.setPinnedMessages(getPinnedMessageDtos(group.getId(), currentUserId));
+        }
+
         return dto;
     }
 
-    private GroupMessageDto toMessageDto(GroupMessage msg, UUID currentUserId) {
-        boolean isMedia = msg.getType() != null && msg.getType() != com.example.backend.messaging.enums.MessageType.TEXT;
+    private GroupMessageDto toMessageDto(GroupMessage msg, UUID currentUserId, Set<UUID> pinnedIds) {
+        boolean isMedia = msg.getType() != null && msg.getType() != MessageType.TEXT;
         String rawContent = msg.getContent();
         String mediaUrl = (!msg.isDeleted() && isMedia && rawContent != null)
                 ? fileStorageService.generatePresignedUrl(rawContent)
@@ -453,6 +633,7 @@ public class GroupService {
                 .createdDate(msg.getCreatedDate())
                 .deleted(msg.isDeleted())
                 .fileName(msg.getFileName())
+                .pinned(pinnedIds != null && pinnedIds.contains(msg.getId()))
                 .build();
     }
 }

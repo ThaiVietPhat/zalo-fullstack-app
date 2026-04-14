@@ -23,5 +23,7 @@ public class GroupMessageDto {
     private boolean isMine;
     private LocalDateTime createdDate;
     private boolean deleted;
+    private boolean pinned;
+    private boolean hiddenForMe;
     private List<ReactionDto> reactions;
 }

@@ -7,16 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.example.backend.group.dto.GroupDto;
@@ -34,10 +25,7 @@ public class GroupController {
 
     private final GroupService groupService;
 
-    /**
-     * Tạo nhóm mới
-     * POST /api/v1/group
-     */
+    /** POST /api/v1/group */
     @PostMapping
     public ResponseEntity<GroupDto> createGroup(
             @Valid @RequestBody GroupRequest.Create request,
@@ -46,19 +34,13 @@ public class GroupController {
                 .body(groupService.createGroup(request, currentUser));
     }
 
-    /**
-     * Lấy danh sách nhóm của tôi
-     * GET /api/v1/group
-     */
+    /** GET /api/v1/group */
     @GetMapping
     public ResponseEntity<List<GroupDto>> getMyGroups(Authentication currentUser) {
         return ResponseEntity.ok(groupService.getMyGroups(currentUser));
     }
 
-    /**
-     * Lấy chi tiết nhóm
-     * GET /api/v1/group/{groupId}
-     */
+    /** GET /api/v1/group/{groupId} */
     @GetMapping("/{groupId}")
     public ResponseEntity<GroupDto> getGroup(
             @PathVariable UUID groupId,
@@ -66,10 +48,7 @@ public class GroupController {
         return ResponseEntity.ok(groupService.getGroupById(groupId, currentUser));
     }
 
-    /**
-     * Cập nhật thông tin nhóm (chỉ admin)
-     * PUT /api/v1/group/{groupId}
-     */
+    /** PUT /api/v1/group/{groupId} */
     @PutMapping("/{groupId}")
     public ResponseEntity<GroupDto> updateGroup(
             @PathVariable UUID groupId,
@@ -78,10 +57,7 @@ public class GroupController {
         return ResponseEntity.ok(groupService.updateGroup(groupId, request, currentUser));
     }
 
-    /**
-     * Upload avatar nhóm (chỉ admin)
-     * POST /api/v1/group/{groupId}/avatar
-     */
+    /** POST /api/v1/group/{groupId}/avatar */
     @PostMapping(value = "/{groupId}/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<GroupDto> uploadGroupAvatar(
             @PathVariable UUID groupId,
@@ -90,10 +66,7 @@ public class GroupController {
         return ResponseEntity.ok(groupService.uploadGroupAvatar(groupId, file, currentUser));
     }
 
-    /**
-     * Thêm thành viên vào nhóm (chỉ admin)
-     * POST /api/v1/group/{groupId}/members
-     */
+    /** POST /api/v1/group/{groupId}/members */
     @PostMapping("/{groupId}/members")
     public ResponseEntity<GroupDto> addMembers(
             @PathVariable UUID groupId,
@@ -102,10 +75,7 @@ public class GroupController {
         return ResponseEntity.ok(groupService.addMembers(groupId, request, currentUser));
     }
 
-    /**
-     * Xóa thành viên khỏi nhóm (chỉ admin)
-     * DELETE /api/v1/group/{groupId}/members/{userId}
-     */
+    /** DELETE /api/v1/group/{groupId}/members/{userId} */
     @DeleteMapping("/{groupId}/members/{userId}")
     public ResponseEntity<Void> removeMember(
             @PathVariable UUID groupId,
@@ -115,22 +85,17 @@ public class GroupController {
         return ResponseEntity.ok().build();
     }
 
-    /**
-     * Rời nhóm
-     * DELETE /api/v1/group/{groupId}/leave
-     */
+    /** DELETE /api/v1/group/{groupId}/leave?newAdminId={uuid} */
     @DeleteMapping("/{groupId}/leave")
     public ResponseEntity<Void> leaveGroup(
             @PathVariable UUID groupId,
+            @RequestParam(required = false) UUID newAdminId,
             Authentication currentUser) {
-        groupService.leaveGroup(groupId, currentUser);
+        groupService.leaveGroup(groupId, newAdminId, currentUser);
         return ResponseEntity.ok().build();
     }
 
-    /**
-     * Gán quyền admin cho thành viên (chỉ admin)
-     * PATCH /api/v1/group/{groupId}/members/{userId}/set-admin
-     */
+    /** PATCH /api/v1/group/{groupId}/members/{userId}/set-admin */
     @PatchMapping("/{groupId}/members/{userId}/set-admin")
     public ResponseEntity<GroupDto> setMemberAsAdmin(
             @PathVariable UUID groupId,
@@ -139,10 +104,7 @@ public class GroupController {
         return ResponseEntity.ok(groupService.setMemberAsAdmin(groupId, userId, currentUser));
     }
 
-    /**
-     * Giải tán nhóm (chỉ admin)
-     * DELETE /api/v1/group/{groupId}/dissolve
-     */
+    /** DELETE /api/v1/group/{groupId}/dissolve */
     @DeleteMapping("/{groupId}/dissolve")
     public ResponseEntity<Void> dissolveGroup(
             @PathVariable UUID groupId,
@@ -151,10 +113,33 @@ public class GroupController {
         return ResponseEntity.ok().build();
     }
 
-    /**
-     * Gửi tin nhắn vào nhóm
-     * POST /api/v1/group/{groupId}/messages
-     */
+    /** POST /api/v1/group/{groupId}/messages/{messageId}/pin */
+    @PostMapping("/{groupId}/messages/{messageId}/pin")
+    public ResponseEntity<List<GroupMessageDto>> pinMessage(
+            @PathVariable UUID groupId,
+            @PathVariable UUID messageId,
+            Authentication currentUser) {
+        return ResponseEntity.ok(groupService.pinMessage(groupId, messageId, currentUser));
+    }
+
+    /** DELETE /api/v1/group/{groupId}/messages/{messageId}/pin */
+    @DeleteMapping("/{groupId}/messages/{messageId}/pin")
+    public ResponseEntity<List<GroupMessageDto>> unpinMessage(
+            @PathVariable UUID groupId,
+            @PathVariable UUID messageId,
+            Authentication currentUser) {
+        return ResponseEntity.ok(groupService.unpinMessage(groupId, messageId, currentUser));
+    }
+
+    /** GET /api/v1/group/{groupId}/pinned-messages */
+    @GetMapping("/{groupId}/pinned-messages")
+    public ResponseEntity<List<GroupMessageDto>> getPinnedMessages(
+            @PathVariable UUID groupId,
+            Authentication currentUser) {
+        return ResponseEntity.ok(groupService.getPinnedMessages(groupId, currentUser));
+    }
+
+    /** POST /api/v1/group/{groupId}/messages */
     @PostMapping("/{groupId}/messages")
     public ResponseEntity<GroupMessageDto> sendMessage(
             @PathVariable UUID groupId,
@@ -164,10 +149,7 @@ public class GroupController {
                 .body(groupService.sendMessage(groupId, request, currentUser));
     }
 
-    /**
-     * Upload media vào nhóm
-     * POST /api/v1/group/{groupId}/upload-media
-     */
+    /** POST /api/v1/group/{groupId}/upload-media */
     @PostMapping(value = "/{groupId}/upload-media", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<GroupMessageDto> uploadGroupMedia(
             @PathVariable UUID groupId,
@@ -177,10 +159,7 @@ public class GroupController {
                 .body(groupService.uploadGroupMediaMessage(groupId, file, currentUser));
     }
 
-    /**
-     * Thu hồi tin nhắn nhóm
-     * DELETE /api/v1/group/{groupId}/messages/{messageId}/recall
-     */
+    /** DELETE /api/v1/group/{groupId}/messages/{messageId}/recall */
     @DeleteMapping("/{groupId}/messages/{messageId}/recall")
     public ResponseEntity<Void> recallGroupMessage(
             @PathVariable UUID groupId,
@@ -190,10 +169,17 @@ public class GroupController {
         return ResponseEntity.ok().build();
     }
 
-    /**
-     * Lấy tin nhắn nhóm (phân trang)
-     * GET /api/v1/group/{groupId}/messages?page=0&size=30
-     */
+    /** DELETE /api/v1/group/{groupId}/messages/{messageId} */
+    @DeleteMapping("/{groupId}/messages/{messageId}")
+    public ResponseEntity<Void> deleteGroupMessageForMe(
+            @PathVariable UUID groupId,
+            @PathVariable UUID messageId,
+            Authentication currentUser) {
+        groupService.deleteGroupMessageForMe(messageId, currentUser);
+        return ResponseEntity.ok().build();
+    }
+
+    /** GET /api/v1/group/{groupId}/messages?page=0&size=30 */
     @GetMapping("/{groupId}/messages")
     public ResponseEntity<List<GroupMessageDto>> getMessages(
             @PathVariable UUID groupId,

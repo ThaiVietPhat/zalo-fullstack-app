@@ -27,4 +27,6 @@ public class GroupDto {
     // Quyền của user hiện tại trong nhóm
     @JsonProperty("isAdmin")
     private boolean isAdmin;
+
+    private List<GroupMessageDto> pinnedMessages;
 }

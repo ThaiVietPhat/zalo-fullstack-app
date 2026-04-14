@@ -26,8 +26,8 @@ export const addGroupMembers = (groupId, userIds) =>
 export const removeGroupMember = (groupId, userId) =>
   api.delete(`/api/v1/group/${groupId}/members/${userId}`);
 
-export const leaveGroup = (groupId) =>
-  api.delete(`/api/v1/group/${groupId}/leave`);
+export const leaveGroup = (groupId, newAdminId = null) =>
+  api.delete(`/api/v1/group/${groupId}/leave`, { params: newAdminId ? { newAdminId } : {} });
 
 export const setMemberAsAdmin = (groupId, userId) =>
   api.patch(`/api/v1/group/${groupId}/members/${userId}/set-admin`);
@@ -51,6 +51,18 @@ export const getGroupMessages = (groupId, page = 0, size = 30) =>
 
 export const recallGroupMessage = (groupId, messageId) =>
   api.delete(`/api/v1/group/${groupId}/messages/${messageId}/recall`);
+
+export const deleteGroupMessageForMe = (groupId, messageId) =>
+  api.delete(`/api/v1/group/${groupId}/messages/${messageId}`);
+
+export const pinGroupMessage = (groupId, messageId) =>
+  api.post(`/api/v1/group/${groupId}/messages/${messageId}/pin`);
+
+export const unpinGroupMessage = (groupId, messageId) =>
+  api.delete(`/api/v1/group/${groupId}/messages/${messageId}/pin`);
+
+export const getPinnedGroupMessages = (groupId) =>
+  api.get(`/api/v1/group/${groupId}/pinned-messages`);
 
 export const toggleGroupReaction = (messageId, emoji) =>
   api.post(`/api/v1/group-message/${messageId}/reactions`, null, { params: { emoji } });

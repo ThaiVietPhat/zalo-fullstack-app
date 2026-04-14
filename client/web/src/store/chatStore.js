@@ -12,6 +12,7 @@ const useChatStore = create((set) => ({
   viewingProfileId: null,
   messages: {}, // { chatId: [MessageDto] }
   groupMessages: {}, // { groupId: [GroupMessageDto] }
+  pinnedMessages: {}, // { groupId: [GroupMessageDto] }
   typingUsers: {}, // { 'chat_chatId': Set<userId>, 'group_groupId': Set<userId> }
   onlineUsers: {}, // { userId: boolean }
 
@@ -62,7 +63,8 @@ const useChatStore = create((set) => ({
     set((state) => ({
       chats: state.chats.map((c) => (c.id === chatId ? { ...c, ...updates } : c)),
     })),
-  setGroups: (groups) => set({ groups }),
+  setGroups: (groups) =>
+    set((state) => ({ groups: typeof groups === 'function' ? groups(state.groups) : groups })),
   setActiveTab: (tab) => set({ activeTab: tab }),
 
   setViewingProfileId: (id) => set({ viewingProfileId: id }),
@@ -160,6 +162,11 @@ const useChatStore = create((set) => ({
           m.id === messageId ? { ...m, ...updates } : m
         ),
       },
+    })),
+
+  setPinnedMessages: (groupId, messages) =>
+    set((state) => ({
+      pinnedMessages: { ...state.pinnedMessages, [groupId]: messages },
     })),
 
   updateGroupMessageReactions: (groupId, messageId, reactions) =>

@@ -25,9 +25,10 @@ export function useWebSocket() {
     activeGroupId,
     activeTab,
     clearUnread,
-    groups,
     chats,
     setChats,
+    setGroups,
+    setActiveGroupId,
     addPendingRequest,
     addContact,
     updateSentRequest,
@@ -146,6 +147,23 @@ export function useWebSocket() {
           setBannedInfo({ reason: data.banReason || '', banUntil: data.banUntil || null });
         } else {
           setSessionReplaced();
+        }
+      });
+
+      // Subscribe to group management events (kicked from group, dissolved, etc.)
+      wsService.subscribe('/user/queue/group-events', (data) => {
+        if (data.type === 'MEMBER_REMOVED' && data.targetUserId === authUserIdRef.current) {
+          setGroups((prev) => prev.filter((g) => g.id !== data.groupId));
+          if (activeGroupIdRef.current === data.groupId) {
+            setActiveGroupId(null);
+          }
+          toast('Bạn đã bị xóa khỏi nhóm');
+        } else if (data.type === 'GROUP_DISSOLVED') {
+          setGroups((prev) => prev.filter((g) => g.id !== data.groupId));
+          if (activeGroupIdRef.current === data.groupId) {
+            setActiveGroupId(null);
+          }
+          toast('Nhóm đã bị giải tán');
         }
       });
 

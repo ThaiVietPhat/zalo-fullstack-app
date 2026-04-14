@@ -59,6 +59,7 @@ com.example.backend/
 - `/topic/chat/{id}/typing` — broadcast typing indicator
 - `/topic/group/{id}` — broadcast tin nhắn nhóm (và reaction group)
 - `/topic/group/{id}/typing` — broadcast typing nhóm
+- `/topic/group/{id}/events` — broadcast group management events (MEMBER_REMOVED/LEFT/ADDED, ADMIN_CHANGED, GROUP_UPDATED, MESSAGE_PINNED/UNPINNED) via `GroupEventDto`
 - `/topic/user/{id}/status` — online/offline status
 - `/user/queue/messages` — personal: tin nhắn mới cho receiver
 - `/user/queue/seen` — personal: mark seen notification
@@ -67,6 +68,7 @@ com.example.backend/
 - `/user/queue/friend-request` — personal: lời mời kết bạn đến
 - `/user/queue/friend-request-accepted` — personal: chấp nhận kết bạn
 - `/user/queue/force-logout` — personal: kick session cũ
+- `/user/queue/group-events` — personal: bị kick khỏi nhóm (`GroupEventDto` type=MEMBER_REMOVED)
 
 ### Notification pattern
 1-1 message: backend gửi **cả hai**: `sendChatBroadcast()` → `/topic/chat/{id}` VÀ `sendMessageNotification()` → `/user/{email}/queue/messages`. Frontend xử lý cả hai nhưng chỉ `/topic` mới đáng tin cho UI update.
