@@ -86,6 +86,14 @@ public class NotificationService {
         );
     }
 
+    public void sendGroupReactionNotification(String recipientEmail, UUID groupId, String reactorName, String emoji) {
+        messagingTemplate.convertAndSendToUser(
+                recipientEmail,
+                "/queue/group-reactions",
+                new GroupReactionPayload(groupId, reactorName, emoji)
+        );
+    }
+
     public void sendFriendRequestNotification(String receiverEmail, FriendRequestDto dto) {
         log.info("Sending friend request notification to user: {}", receiverEmail);
         messagingTemplate.convertAndSendToUser(
@@ -132,6 +140,7 @@ public class NotificationService {
                 new MessageStateChangePayload(chatId, newState, messageSenderId));
     }
 
+    public record GroupReactionPayload(UUID groupId, String reactorName, String emoji) {}
     public record ForceLogoutPayload(String reason) {}
     public record MessageDeliveredPayload(UUID chatId) {}
     public record MessageSeenPayload(UUID chatId) {}

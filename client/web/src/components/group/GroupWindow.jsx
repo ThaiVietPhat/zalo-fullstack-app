@@ -7,6 +7,7 @@ import {
   toggleGroupReaction, deleteGroupReaction,
   pinGroupMessage, unpinGroupMessage,
   deleteGroupMessageForMe, sendGroupMessage as sendMsg,
+  createGroupJoinRequest, getGroupJoinRequests, approveGroupJoinRequest, rejectGroupJoinRequest,
 } from '../../api/group';
 import { sendMessage } from '../../api/message';
 import { getContacts } from '../../api/friendRequest';
@@ -35,6 +36,16 @@ function GroupMessageBubble({ message, groupId, isAdmin }) {
 
   const isMine = message.senderId === auth?.userId;
   const BASE_URL = 'http://localhost:8080';
+
+  if (message.type === 'SYSTEM') {
+    return (
+      <div className="flex justify-center my-1 px-4">
+        <span className="text-xs text-gray-400 bg-gray-100/80 rounded-full px-3 py-1 select-none">
+          {message.content}
+        </span>
+      </div>
+    );
+  }
 
   if (message.hiddenForMe) return null;
 
@@ -188,6 +199,7 @@ function GroupMessageBubble({ message, groupId, isAdmin }) {
   return (
     <>
       <div
+        id={`msg-${message.id}`}
         className={`flex items-end gap-2 px-4 py-0.5 ${isMine ? 'flex-row-reverse' : 'flex-row'}`}
         onMouseEnter={() => setShowActions(true)}
         onMouseLeave={() => { if (!showEmoji && !showMenu) setShowActions(false); }}
@@ -254,13 +266,13 @@ function GroupMessageBubble({ message, groupId, isAdmin }) {
                     className="flex items-center gap-2 px-3 py-2 w-full text-sm text-gray-700 hover:bg-gray-50">
                     <Share2 size={14} /> Chuyển tiếp
                   </button>
-                  {isAdmin && !message.pinned && (
+                  {!message.pinned && (
                     <button onClick={handlePin}
                       className="flex items-center gap-2 px-3 py-2 w-full text-sm text-gray-700 hover:bg-gray-50">
                       <Pin size={14} /> Ghim tin nhắn
                     </button>
                   )}
-                  {isAdmin && message.pinned && (
+                  {message.pinned && (
                     <button onClick={handleUnpin}
                       className="flex items-center gap-2 px-3 py-2 w-full text-sm text-gray-700 hover:bg-gray-50">
                       <Pin size={14} /> Bỏ ghim
@@ -372,6 +384,8 @@ export default function GroupWindow() {
     groups, setGroups, addGroupMessage, updateGroupMessage, updateGroupLastMessage,
     updateGroupMessageReactions, setTyping,
     pinnedMessages, setPinnedMessages,
+    groupJoinRequests, setGroupJoinRequests, removeGroupJoinRequest,
+    clearGroupUnread,
   } = useChatStore();
   const { auth } = useAuthStore();
 
@@ -390,21 +404,21 @@ export default function GroupWindow() {
   const [editName, setEditName] = useState('');
   const [editDesc, setEditDesc] = useState('');
   const [showPinned, setShowPinned] = useState(false);
+  const [highlightedMessageId, setHighlightedMessageId] = useState(null);
   const messagesEndRef = useRef(null);
   const scrollContainerRef = useRef(null);
   const prevScrollHeightRef = useRef(0);
 
   const msgs = groupMessages[activeGroupId] || [];
   const pinned = pinnedMessages[activeGroupId] || [];
+  const pendingRequests = groupJoinRequests[activeGroupId] || [];
   const typingKey = `group_${activeGroupId}`;
   const typingSet = typingUsers[typingKey] || new Set();
   const isTyping = typingSet.size > 0;
 
-  const isAdmin = groupDetail?.isAdmin || groupDetail?.createdById === auth?.userId;
-  const adminCount = (groupDetail?.members || []).filter((m) => m.admin).length;
+  const isAdmin = groupDetail?.isAdmin ?? false;
   const memberCount = groupDetail?.memberCount || 0;
-  const isTransfer = memberCount <= 4 || adminCount >= 2;
-  const isLastAdmin = isAdmin && adminCount === 1 && memberCount > 1;
+  const isLastAdmin = isAdmin && memberCount > 1;
 
   const subscribeToGroup = (groupId) => {
     wsService.subscribe(`/topic/group/${groupId}`, (data) => {
@@ -473,11 +487,24 @@ export default function GroupWindow() {
         }
         break;
       case 'MESSAGE_PINNED':
-      case 'MESSAGE_UNPINNED':
+      case 'MESSAGE_UNPINNED': {
         if (data.pinnedMessages) {
           setPinnedMessages(groupId, data.pinnedMessages);
         }
+        const isPinned = data.type === 'MESSAGE_PINNED';
+        const actorName = data.actorName || 'Thành viên';
+        const notifText = isPinned
+          ? `${actorName} đã ghim một tin nhắn`
+          : `${actorName} đã bỏ ghim một tin nhắn`;
+        toast(notifText, { icon: '📌' });
+        updateGroupLastMessage(groupId, {
+          content: notifText,
+          type: 'TEXT',
+          createdDate: new Date().toISOString(),
+          senderName: '',
+        });
         break;
+      }
       case 'GROUP_DISSOLVED':
         setGroups((prev) => prev.filter((g) => g.id !== groupId));
         setActiveGroupId(null);
@@ -494,6 +521,7 @@ export default function GroupWindow() {
 
   useEffect(() => {
     if (!activeGroupId) return;
+    clearGroupUnread(activeGroupId);
     setPage(0);
     setHasMore(true);
     setLoading(true);
@@ -506,6 +534,11 @@ export default function GroupWindow() {
         setEditDesc(res.data.description || '');
         if (res.data.pinnedMessages) {
           setPinnedMessages(activeGroupId, res.data.pinnedMessages);
+        }
+        if (res.data.isAdmin) {
+          getGroupJoinRequests(activeGroupId)
+            .then((r) => setGroupJoinRequests(activeGroupId, r.data))
+            .catch(() => {});
         }
       })
       .catch(() => {});
@@ -558,6 +591,32 @@ export default function GroupWindow() {
     const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 200;
     if (isNearBottom) messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [msgs.length]);
+
+  const scrollToMessage = useCallback((messageId) => {
+    const doScroll = () => {
+      const el = document.getElementById(`msg-${messageId}`);
+      if (!el) {
+        toast.error('Không tìm thấy tin nhắn (có thể đã bị xóa hoặc chưa tải)');
+        return;
+      }
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.classList.add('message-highlight');
+      setTimeout(() => el.classList.remove('message-highlight'), 2000);
+    };
+
+    const currentMsgs = useChatStore.getState().groupMessages[activeGroupId] || [];
+    const isLoaded = currentMsgs.some((m) => m.id === messageId);
+    if (isLoaded) {
+      doScroll();
+    } else {
+      getGroupMessages(activeGroupId, 0, 100).then((res) => {
+        const data = res.data;
+        const msgList = Array.isArray(data) ? data : (data.content || []);
+        setGroupMessages(activeGroupId, msgList.slice().reverse());
+        setTimeout(doScroll, 150);
+      }).catch(() => toast.error('Không thể tải tin nhắn'));
+    }
+  }, [activeGroupId]);
 
   const handleScroll = useCallback(async () => {
     const container = scrollContainerRef.current;
@@ -639,18 +698,14 @@ export default function GroupWindow() {
   };
 
   const handleSetMemberAsAdmin = async (userId) => {
-    const label = isTransfer ? 'Nhường admin' : 'Thêm admin';
-    const confirmMsg = isTransfer
-      ? 'Bạn sẽ mất quyền admin sau khi nhường. Tiếp tục?'
-      : 'Gán quyền admin cho thành viên này?';
-    if (!window.confirm(confirmMsg)) return;
+    if (!window.confirm('Bạn sẽ mất quyền admin sau khi nhường. Tiếp tục?')) return;
     try {
       await setMemberAsAdmin(activeGroupId, userId);
       const res = await getGroupDetail(activeGroupId);
       setGroupDetail(res.data);
-      toast.success(`Đã ${label.toLowerCase()} thành công`);
+      toast.success('Đã nhường quyền admin thành công');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Không thể gán quyền admin');
+      toast.error(err.response?.data?.message || 'Không thể nhường quyền admin');
     }
   };
 
@@ -677,13 +732,36 @@ export default function GroupWindow() {
   const handleAddMembers = async () => {
     if (selectedToAdd.length === 0) return;
     try {
-      await addGroupMembers(activeGroupId, selectedToAdd.map((u) => u.id));
-      const res = await getGroupDetail(activeGroupId);
-      setGroupDetail(res.data);
+      if (isAdmin) {
+        await addGroupMembers(activeGroupId, selectedToAdd.map((u) => u.id));
+        const res = await getGroupDetail(activeGroupId);
+        setGroupDetail(res.data);
+        toast.success('Đã thêm thành viên');
+      } else {
+        await createGroupJoinRequest(activeGroupId, selectedToAdd.map((u) => u.id));
+        toast.success('Đã gửi yêu cầu cho admin duyệt');
+      }
       setShowAddMember(false);
       setSelectedToAdd([]);
-      toast.success('Đã thêm thành viên');
-    } catch { toast.error('Không thể thêm thành viên'); }
+    } catch { toast.error('Không thể thực hiện'); }
+  };
+
+  const handleApproveRequest = async (requestId) => {
+    try {
+      await approveGroupJoinRequest(activeGroupId, requestId);
+      removeGroupJoinRequest(activeGroupId, requestId);
+      const res = await getGroupDetail(activeGroupId);
+      setGroupDetail(res.data);
+      toast.success('Đã đồng ý thêm thành viên');
+    } catch { toast.error('Không thể duyệt yêu cầu'); }
+  };
+
+  const handleRejectRequest = async (requestId) => {
+    try {
+      await rejectGroupJoinRequest(activeGroupId, requestId);
+      removeGroupJoinRequest(activeGroupId, requestId);
+      toast('Đã từ chối yêu cầu');
+    } catch { toast.error('Không thể từ chối yêu cầu'); }
   };
 
   const handleRemoveMember = async (userId) => {
@@ -748,8 +826,13 @@ export default function GroupWindow() {
               </button>
             )}
             <button onClick={() => { getContacts().then((r) => setAllUsers(r.data || [])); setShowInfo(true); }}
-              className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
+              className="relative w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
               <Info size={18} className="text-gray-600" />
+              {isAdmin && pendingRequests.length > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 rounded-full text-white text-[9px] flex items-center justify-center font-bold">
+                  {pendingRequests.length}
+                </span>
+              )}
             </button>
           </div>
         </div>
@@ -762,18 +845,23 @@ export default function GroupWindow() {
               <button onClick={() => setShowPinned(false)} className="text-yellow-600 text-xs hover:underline">Đóng</button>
             </div>
             {pinned.map((msg) => (
-              <div key={msg.id} className="text-xs text-gray-700 truncate bg-white rounded-lg px-3 py-1.5 border border-yellow-100">
-                <span className="font-medium text-blue-600 mr-1">{msg.senderName}:</span>
-                {msg.deleted ? <span className="italic text-gray-400">Tin nhắn đã thu hồi</span>
-                  : msg.content || `[${msg.type}]`}
-                {isAdmin && (
-                  <button onClick={async () => {
-                    try {
-                      const res = await unpinGroupMessage(activeGroupId, msg.id);
-                      setPinnedMessages(activeGroupId, res.data);
-                    } catch { toast.error('Không thể bỏ ghim'); }
-                  }} className="ml-2 text-red-400 hover:text-red-600">✕</button>
-                )}
+              <div key={msg.id} className="flex items-center gap-1 text-xs text-gray-700 bg-white rounded-lg px-3 py-1.5 border border-yellow-100">
+                <button
+                  onClick={() => { setShowPinned(false); scrollToMessage(msg.id); }}
+                  className="flex-1 text-left truncate hover:underline cursor-pointer"
+                  title="Nhảy đến tin nhắn"
+                >
+                  <span className="font-medium text-blue-600 mr-1">{msg.senderName}:</span>
+                  {msg.deleted
+                    ? <span className="italic text-gray-400">Tin nhắn đã thu hồi</span>
+                    : msg.content || `[${msg.type}]`}
+                </button>
+                <button onClick={async () => {
+                  try {
+                    const res = await unpinGroupMessage(activeGroupId, msg.id);
+                    setPinnedMessages(activeGroupId, res.data);
+                  } catch { toast.error('Không thể bỏ ghim'); }
+                }} className="flex-shrink-0 text-red-400 hover:text-red-600 ml-1">✕</button>
               </div>
             ))}
           </div>
@@ -857,12 +945,10 @@ export default function GroupWindow() {
           <div>
             <div className="flex items-center justify-between mb-3">
               <h4 className="font-semibold text-gray-700 text-sm">Thành viên ({groupDetail?.members?.length || 0})</h4>
-              {isAdmin && (
-                <button onClick={() => { getContacts().then((r) => setAllUsers(r.data || [])); setShowAddMember(true); }}
-                  className="flex items-center gap-1 text-xs text-blue-500 hover:underline">
-                  <UserPlus size={14} /> Thêm
-                </button>
-              )}
+              <button onClick={() => { getContacts().then((r) => setAllUsers(r.data || [])); setShowAddMember(true); }}
+                className="flex items-center gap-1 text-xs text-blue-500 hover:underline">
+                <UserPlus size={14} /> Thêm
+              </button>
             </div>
             <div className="space-y-2 max-h-48 overflow-y-auto">
               {(groupDetail?.members || []).map((member) => (
@@ -880,7 +966,7 @@ export default function GroupWindow() {
                       {!member.admin && (
                         <button onClick={() => handleSetMemberAsAdmin(member.userId)}
                           className="text-xs text-blue-400 hover:text-blue-600 transition-colors px-2 py-1 rounded hover:bg-blue-50">
-                          {isTransfer ? 'Nhường admin' : 'Thêm admin'}
+                          Nhường admin
                         </button>
                       )}
                       {!member.admin && (
@@ -895,6 +981,35 @@ export default function GroupWindow() {
               ))}
             </div>
           </div>
+
+          {/* Join requests — chỉ admin */}
+          {isAdmin && pendingRequests.length > 0 && (
+            <div className="mb-2">
+              <h4 className="font-semibold text-gray-700 text-sm mb-2">
+                Yêu cầu tham gia ({pendingRequests.length})
+              </h4>
+              <div className="space-y-2">
+                {pendingRequests.map((req) => (
+                  <div key={req.id} className="flex items-center gap-2 bg-blue-50 rounded-xl px-3 py-2">
+                    <Avatar src={req.requestedByAvatarUrl} name={req.requestedByName} size={28} />
+                    <div className="flex-1 min-w-0 text-xs">
+                      <span className="font-medium text-gray-800">{req.requestedByName}</span>
+                      <span className="text-gray-400"> muốn thêm </span>
+                      <span className="font-medium text-gray-800">{req.targetUserName}</span>
+                    </div>
+                    <button onClick={() => handleApproveRequest(req.id)}
+                      className="text-xs text-white bg-blue-500 hover:bg-blue-600 px-2 py-1 rounded-lg flex-shrink-0">
+                      Đồng ý
+                    </button>
+                    <button onClick={() => handleRejectRequest(req.id)}
+                      className="text-xs text-gray-500 hover:text-red-500 px-1 py-1 flex-shrink-0">
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Leave group */}
           <button onClick={handleLeave}

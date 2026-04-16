@@ -20,18 +20,22 @@ export function useWebSocket() {
     setUserOnline,
     updateChatLastMessage,
     updateGroupLastMessage,
+    incrementGroupUnread,
+    clearGroupUnread,
     incrementUnread,
     activeChatId,
     activeGroupId,
     activeTab,
     clearUnread,
     chats,
+    groups,
     setChats,
     setGroups,
     setActiveGroupId,
     addPendingRequest,
     addContact,
     updateSentRequest,
+    addGroupJoinRequest,
   } = useChatStore();
 
   const chatsRef = useRef(chats);
@@ -58,6 +62,19 @@ export function useWebSocket() {
   useEffect(() => {
     authUserIdRef.current = auth?.userId;
   }, [auth?.userId]);
+
+  // Subscribe to all inactive group topics so the sidebar group list updates in real-time
+  useEffect(() => {
+    groups.forEach((group) => {
+      if (group.id === activeGroupId) return; // GroupWindow manages the active group's subscription
+      wsService.subscribe(`/topic/group/${group.id}`, (data) => {
+        // Ignore reaction events
+        if (data.messageId !== undefined && data.reactions !== undefined && !data.id) return;
+        updateGroupLastMessage(group.id, data);
+        incrementGroupUnread(group.id);
+      });
+    });
+  }, [groups.length, activeGroupId]);
 
   // Subscribe to all inactive chat topics so the sidebar list updates in real-time
   // (the reliable path — personal queue can have STOMP routing issues)
@@ -150,6 +167,12 @@ export function useWebSocket() {
         }
       });
 
+      // Subscribe to group reaction notifications (someone reacted to your message)
+      wsService.subscribe('/user/queue/group-reactions', (data) => {
+        toast(`${data.reactorName} đã thả ${data.emoji} vào tin nhắn của bạn`,
+          { icon: data.emoji, duration: 3000 });
+      });
+
       // Subscribe to group management events (kicked from group, dissolved, etc.)
       wsService.subscribe('/user/queue/group-events', (data) => {
         if (data.type === 'MEMBER_REMOVED' && data.targetUserId === authUserIdRef.current) {
@@ -164,6 +187,11 @@ export function useWebSocket() {
             setActiveGroupId(null);
           }
           toast('Nhóm đã bị giải tán');
+        } else if (data.type === 'JOIN_REQUEST' && data.joinRequest) {
+          addGroupJoinRequest(data.groupId, data.joinRequest);
+          const name = data.joinRequest.requestedByName || 'Thành viên';
+          const target = data.joinRequest.targetUserName || 'người dùng';
+          toast(`${name} muốn thêm ${target} vào nhóm`, { icon: '👥' });
         }
       });
 

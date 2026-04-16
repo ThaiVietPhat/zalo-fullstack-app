@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.example.backend.group.dto.GroupDto;
+import com.example.backend.group.dto.GroupJoinRequestDto;
 import com.example.backend.group.dto.GroupMessageDto;
 import com.example.backend.group.dto.GroupRequest;
 import com.example.backend.group.service.GroupService;
@@ -110,6 +111,42 @@ public class GroupController {
             @PathVariable UUID groupId,
             Authentication currentUser) {
         groupService.dissolveGroup(groupId, currentUser);
+        return ResponseEntity.ok().build();
+    }
+
+    /** POST /api/v1/group/{groupId}/join-requests */
+    @PostMapping("/{groupId}/join-requests")
+    public ResponseEntity<List<GroupJoinRequestDto>> createJoinRequests(
+            @PathVariable UUID groupId,
+            @Valid @RequestBody GroupRequest.AddMember request,
+            Authentication currentUser) {
+        return ResponseEntity.ok(groupService.createJoinRequests(groupId, request.getUserIds(), currentUser));
+    }
+
+    /** GET /api/v1/group/{groupId}/join-requests */
+    @GetMapping("/{groupId}/join-requests")
+    public ResponseEntity<List<GroupJoinRequestDto>> getJoinRequests(
+            @PathVariable UUID groupId,
+            Authentication currentUser) {
+        return ResponseEntity.ok(groupService.getJoinRequests(groupId, currentUser));
+    }
+
+    /** PUT /api/v1/group/{groupId}/join-requests/{requestId}/approve */
+    @PutMapping("/{groupId}/join-requests/{requestId}/approve")
+    public ResponseEntity<GroupDto> approveJoinRequest(
+            @PathVariable UUID groupId,
+            @PathVariable UUID requestId,
+            Authentication currentUser) {
+        return ResponseEntity.ok(groupService.approveJoinRequest(groupId, requestId, currentUser));
+    }
+
+    /** PUT /api/v1/group/{groupId}/join-requests/{requestId}/reject */
+    @PutMapping("/{groupId}/join-requests/{requestId}/reject")
+    public ResponseEntity<Void> rejectJoinRequest(
+            @PathVariable UUID groupId,
+            @PathVariable UUID requestId,
+            Authentication currentUser) {
+        groupService.rejectJoinRequest(groupId, requestId, currentUser);
         return ResponseEntity.ok().build();
     }
 

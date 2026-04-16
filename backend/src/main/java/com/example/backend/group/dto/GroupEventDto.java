@@ -8,15 +8,18 @@ public record GroupEventDto(
         UUID groupId,
         UUID targetUserId,
         UUID actorUserId,
+        String actorName,
         GroupDto groupSnapshot,
-        List<GroupMessageDto> pinnedMessages
+        List<GroupMessageDto> pinnedMessages,
+        GroupJoinRequestDto joinRequest
 ) {
-    public static final String MEMBER_REMOVED  = "MEMBER_REMOVED";
-    public static final String MEMBER_LEFT     = "MEMBER_LEFT";
-    public static final String MEMBER_ADDED    = "MEMBER_ADDED";
-    public static final String ADMIN_CHANGED   = "ADMIN_CHANGED";
-    public static final String GROUP_UPDATED   = "GROUP_UPDATED";
-    public static final String MESSAGE_PINNED  = "MESSAGE_PINNED";
+    public static final String MEMBER_REMOVED   = "MEMBER_REMOVED";
+    public static final String MEMBER_LEFT      = "MEMBER_LEFT";
+    public static final String MEMBER_ADDED     = "MEMBER_ADDED";
+    public static final String ADMIN_CHANGED    = "ADMIN_CHANGED";
+    public static final String GROUP_UPDATED    = "GROUP_UPDATED";
+    public static final String MESSAGE_PINNED   = "MESSAGE_PINNED";
     public static final String MESSAGE_UNPINNED = "MESSAGE_UNPINNED";
     public static final String GROUP_DISSOLVED  = "GROUP_DISSOLVED";
+    public static final String JOIN_REQUEST     = "JOIN_REQUEST";
 }

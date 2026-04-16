@@ -66,3 +66,14 @@ body {
   0%, 60%, 100% { transform: translateY(0); }
   30% { transform: translateY(-6px); }
 }
+
+@keyframes messageHighlight {
+  0%   { background-color: rgba(253, 224, 71, 0.55); }
+  70%  { background-color: rgba(253, 224, 71, 0.55); }
+  100% { background-color: transparent; }
+}
+
+.message-highlight {
+  animation: messageHighlight 2s ease-out forwards;
+  border-radius: 12px;
+}

@@ -13,6 +13,7 @@ const useChatStore = create((set) => ({
   messages: {}, // { chatId: [MessageDto] }
   groupMessages: {}, // { groupId: [GroupMessageDto] }
   pinnedMessages: {}, // { groupId: [GroupMessageDto] }
+  groupJoinRequests: {}, // { groupId: [GroupJoinRequestDto] }
   typingUsers: {}, // { 'chat_chatId': Set<userId>, 'group_groupId': Set<userId> }
   onlineUsers: {}, // { userId: boolean }
 
@@ -169,6 +170,24 @@ const useChatStore = create((set) => ({
       pinnedMessages: { ...state.pinnedMessages, [groupId]: messages },
     })),
 
+  setGroupJoinRequests: (groupId, requests) =>
+    set((state) => ({
+      groupJoinRequests: { ...state.groupJoinRequests, [groupId]: requests },
+    })),
+  addGroupJoinRequest: (groupId, req) =>
+    set((state) => {
+      const existing = state.groupJoinRequests[groupId] || [];
+      if (existing.find((r) => r.id === req.id)) return state;
+      return { groupJoinRequests: { ...state.groupJoinRequests, [groupId]: [req, ...existing] } };
+    }),
+  removeGroupJoinRequest: (groupId, requestId) =>
+    set((state) => ({
+      groupJoinRequests: {
+        ...state.groupJoinRequests,
+        [groupId]: (state.groupJoinRequests[groupId] || []).filter((r) => r.id !== requestId),
+      },
+    })),
+
   updateGroupMessageReactions: (groupId, messageId, reactions) =>
     set((state) => ({
       groupMessages: {
@@ -233,6 +252,20 @@ const useChatStore = create((set) => ({
     set((state) => ({
       chats: state.chats.map((c) =>
         c.id === chatId ? { ...c, unreadCount: 0 } : c
+      ),
+    })),
+
+  incrementGroupUnread: (groupId) =>
+    set((state) => ({
+      groups: state.groups.map((g) =>
+        g.id === groupId ? { ...g, unreadCount: (g.unreadCount || 0) + 1 } : g
+      ),
+    })),
+
+  clearGroupUnread: (groupId) =>
+    set((state) => ({
+      groups: state.groups.map((g) =>
+        g.id === groupId ? { ...g, unreadCount: 0 } : g
       ),
     })),
 }));

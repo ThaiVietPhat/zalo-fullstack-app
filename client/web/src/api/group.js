@@ -64,6 +64,18 @@ export const unpinGroupMessage = (groupId, messageId) =>
 export const getPinnedGroupMessages = (groupId) =>
   api.get(`/api/v1/group/${groupId}/pinned-messages`);
 
+export const createGroupJoinRequest = (groupId, userIds) =>
+  api.post(`/api/v1/group/${groupId}/join-requests`, { userIds });
+
+export const getGroupJoinRequests = (groupId) =>
+  api.get(`/api/v1/group/${groupId}/join-requests`);
+
+export const approveGroupJoinRequest = (groupId, requestId) =>
+  api.put(`/api/v1/group/${groupId}/join-requests/${requestId}/approve`);
+
+export const rejectGroupJoinRequest = (groupId, requestId) =>
+  api.put(`/api/v1/group/${groupId}/join-requests/${requestId}/reject`);
+
 export const toggleGroupReaction = (messageId, emoji) =>
   api.post(`/api/v1/group-message/${messageId}/reactions`, null, { params: { emoji } });
 

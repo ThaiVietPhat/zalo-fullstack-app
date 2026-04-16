@@ -98,20 +98,29 @@ export default function GroupList() {
                     <span className={`font-medium text-sm truncate ${isActive ? 'text-blue-600' : 'text-gray-800'}`}>
                       {group.name}
                     </span>
-                    <span className="text-xs text-gray-400 ml-1 flex-shrink-0">
-                      {formatTime(group.lastMessageTime)}
-                    </span>
+                    <div className="flex items-center gap-1 ml-1 flex-shrink-0">
+                      <span className="text-xs text-gray-400">
+                        {formatTime(group.lastMessageTime)}
+                      </span>
+                      {!isActive && group.unreadCount > 0 && (
+                        <span className="min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+                          {group.unreadCount > 99 ? '99+' : group.unreadCount}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div className="mt-0.5">
-                    <span className="text-xs text-gray-500 truncate block max-w-[200px]">
+                    <span className={`text-xs truncate block max-w-[200px] ${!isActive && group.unreadCount > 0 ? 'text-gray-800 font-medium' : 'text-gray-500'}`}>
                       {group.lastMessage
-                        ? `${group.lastMessageSenderName || ''}: ${
-                            group.lastMessageType === 'IMAGE'
-                              ? '📷 Hình ảnh'
-                              : group.lastMessageType === 'VIDEO'
-                              ? '🎥 Video'
-                              : group.lastMessage
-                          }`
+                        ? group.lastMessageType === 'SYSTEM'
+                          ? group.lastMessage
+                          : `${group.lastMessageSenderName ? group.lastMessageSenderName + ': ' : ''}${
+                              group.lastMessageType === 'IMAGE'
+                                ? '📷 Hình ảnh'
+                                : group.lastMessageType === 'VIDEO'
+                                ? '🎥 Video'
+                                : group.lastMessage
+                            }`
                         : `${group.memberCount} thành viên`}
                     </span>
                   </div>

@@ -131,6 +131,18 @@ public class ReactionService {
         List<ReactionDto> reactions = getGroupMessageReactions(groupMessageId);
         messagingTemplate.convertAndSend("/topic/group/" + message.getGroup().getId(),
                 new ReactionGroupEvent(groupMessageId, reactions));
+
+        // Notify message owner (nếu không phải người react)
+        User msgSender = message.getSender();
+        if (!msgSender.getId().equals(user.getId())) {
+            notificationService.sendGroupReactionNotification(
+                    msgSender.getEmail(),
+                    message.getGroup().getId(),
+                    user.getFirstName() + " " + user.getLastName(),
+                    emoji
+            );
+        }
+
         return reactions;
     }
 
