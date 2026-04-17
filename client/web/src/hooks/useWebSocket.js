@@ -71,7 +71,7 @@ export function useWebSocket() {
         // Ignore reaction events
         if (data.messageId !== undefined && data.reactions !== undefined && !data.id) return;
         updateGroupLastMessage(group.id, data);
-        incrementGroupUnread(group.id);
+        if (data.type !== 'SYSTEM') incrementGroupUnread(group.id);
       });
     });
   }, [groups.length, activeGroupId]);

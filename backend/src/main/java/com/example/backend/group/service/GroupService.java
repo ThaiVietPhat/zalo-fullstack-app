@@ -382,6 +382,7 @@ public class GroupService {
         String actorName = user.getFirstName() + " " + user.getLastName();
         broadcastGroupEvent(groupId, new GroupEventDto(
                 GroupEventDto.MESSAGE_PINNED, groupId, null, user.getId(), actorName, null, pinnedDtos, null));
+        sendSystemMessage(groupId, msg.getGroup(), user, actorName + " đã ghim một tin nhắn");
         return pinnedDtos;
     }
 
@@ -398,6 +399,9 @@ public class GroupService {
         String actorName = user.getFirstName() + " " + user.getLastName();
         broadcastGroupEvent(groupId, new GroupEventDto(
                 GroupEventDto.MESSAGE_UNPINNED, groupId, null, user.getId(), actorName, null, pinnedDtos, null));
+        Group group = groupRepository.findById(groupId)
+                .orElseThrow(() -> new ResourceNotFoundException("Nhóm không tồn tại"));
+        sendSystemMessage(groupId, group, user, actorName + " đã bỏ ghim một tin nhắn");
         return pinnedDtos;
     }
 

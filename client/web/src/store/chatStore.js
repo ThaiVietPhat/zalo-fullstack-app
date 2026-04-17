@@ -146,7 +146,7 @@ const useChatStore = create((set) => ({
   addGroupMessage: (groupId, message) =>
     set((state) => {
       const existing = state.groupMessages[groupId] || [];
-      if (existing.find((m) => m.id === message.id)) return state;
+      if (message.id != null && existing.find((m) => m.id === message.id)) return state;
       return {
         groupMessages: {
           ...state.groupMessages,

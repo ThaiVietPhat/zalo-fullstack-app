@@ -82,9 +82,7 @@ function GroupMessageBubble({ message, groupId, isAdmin }) {
     try {
       await recallGroupMessage(groupId, message.id);
       updateGroupMessage(groupId, message.id, { deleted: true, content: '' });
-      toast.success('Đã thu hồi tin nhắn');
     } catch {
-      toast.error('Không thể thu hồi tin nhắn');
     }
   };
 
@@ -93,16 +91,13 @@ function GroupMessageBubble({ message, groupId, isAdmin }) {
     try {
       await deleteGroupMessageForMe(groupId, message.id);
       updateGroupMessage(groupId, message.id, { hiddenForMe: true });
-      toast.success('Đã xóa tin nhắn');
     } catch {
-      toast.error('Không thể xóa tin nhắn');
     }
   };
 
   const handleCopy = () => {
     if (message.content) {
       navigator.clipboard.writeText(message.content);
-      toast.success('Đã sao chép');
     }
     setShowMenu(false);
   };
@@ -112,7 +107,6 @@ function GroupMessageBubble({ message, groupId, isAdmin }) {
     try {
       const res = await pinGroupMessage(groupId, message.id);
       setPinnedMessages(groupId, res.data);
-      toast.success('Đã ghim tin nhắn');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Không thể ghim tin nhắn');
     }
@@ -123,9 +117,8 @@ function GroupMessageBubble({ message, groupId, isAdmin }) {
     try {
       const res = await unpinGroupMessage(groupId, message.id);
       setPinnedMessages(groupId, res.data);
-      toast.success('Đã bỏ ghim tin nhắn');
-    } catch {
-      toast.error('Không thể bỏ ghim tin nhắn');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Không thể bỏ ghim tin nhắn');
     }
   };
 
@@ -213,9 +206,6 @@ function GroupMessageBubble({ message, groupId, isAdmin }) {
               : isMine ? 'bg-[#0068ff] text-white rounded-br-sm'
               : 'bg-white text-gray-800 rounded-bl-sm border border-gray-100'
           }`}>
-            {message.pinned && !message.deleted && (
-              <span className="absolute -top-2 -right-1 text-yellow-500 text-xs" title="Đã ghim">📌</span>
-            )}
             {renderContent()}
             <div className={`text-[10px] mt-1 ${isMine ? 'text-blue-100 text-right' : 'text-gray-400 text-right'}`}>
               {message.createdDate ? format(new Date(message.createdDate), 'HH:mm', { locale: vi }) : ''}
@@ -318,7 +308,7 @@ function ForwardGroupModal({ message, onClose, currentGroupId }) {
   const [loading, setLoading] = useState(false);
 
   const handleForward = async () => {
-    if (!selected) { toast.error('Vui lòng chọn nơi chuyển tiếp'); return; }
+    if (!selected) {; return; }
     setLoading(true);
     try {
       if (selected.type === 'chat') {
@@ -326,10 +316,8 @@ function ForwardGroupModal({ message, onClose, currentGroupId }) {
       } else {
         await sendMsg(selected.id, { content: message.content || '', type: message.type || 'TEXT' });
       }
-      toast.success('Đã chuyển tiếp tin nhắn');
       onClose();
     } catch {
-      toast.error('Không thể chuyển tiếp tin nhắn');
     } finally {
       setLoading(false);
     }
@@ -426,6 +414,10 @@ export default function GroupWindow() {
         updateGroupMessageReactions(groupId, data.messageId, data.reactions);
       } else if (data.id && data.deleted) {
         updateGroupMessage(groupId, data.id, { deleted: true, content: null, mediaUrl: null });
+      } else if (data.type === 'SYSTEM') {
+        // SYSTEM message đã được add vào chat window bởi /events handler (MESSAGE_PINNED/UNPINNED)
+        // Chỉ cần update group list với thông tin từ DB (có id thật)
+        updateGroupLastMessage(groupId, data);
       } else {
         addGroupMessage(groupId, data);
         updateGroupLastMessage(groupId, data);
@@ -488,27 +480,27 @@ export default function GroupWindow() {
         break;
       case 'MESSAGE_PINNED':
       case 'MESSAGE_UNPINNED': {
-        if (data.pinnedMessages) {
-          setPinnedMessages(groupId, data.pinnedMessages);
-        }
+        if (data.pinnedMessages) setPinnedMessages(groupId, data.pinnedMessages);
         const isPinned = data.type === 'MESSAGE_PINNED';
         const actorName = data.actorName || 'Thành viên';
         const notifText = isPinned
           ? `${actorName} đã ghim một tin nhắn`
           : `${actorName} đã bỏ ghim một tin nhắn`;
-        toast(notifText, { icon: '📌' });
-        updateGroupLastMessage(groupId, {
+        const syntheticMsg = {
+          id: `pin-event-${groupId}-${Date.now()}`,
+          type: 'SYSTEM',
           content: notifText,
-          type: 'TEXT',
           createdDate: new Date().toISOString(),
-          senderName: '',
-        });
+          senderName: actorName,
+          deleted: false,
+        };
+        addGroupMessage(groupId, syntheticMsg);
+        updateGroupLastMessage(groupId, syntheticMsg);
         break;
       }
       case 'GROUP_DISSOLVED':
         setGroups((prev) => prev.filter((g) => g.id !== groupId));
         setActiveGroupId(null);
-        toast('Nhóm đã bị giải tán');
         break;
       default:
         break;
@@ -596,7 +588,6 @@ export default function GroupWindow() {
     const doScroll = () => {
       const el = document.getElementById(`msg-${messageId}`);
       if (!el) {
-        toast.error('Không tìm thấy tin nhắn (có thể đã bị xóa hoặc chưa tải)');
         return;
       }
       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -614,7 +605,7 @@ export default function GroupWindow() {
         const msgList = Array.isArray(data) ? data : (data.content || []);
         setGroupMessages(activeGroupId, msgList.slice().reverse());
         setTimeout(doScroll, 150);
-      }).catch(() => toast.error('Không thể tải tin nhắn'));
+      }).catch(() => {});
     }
   }, [activeGroupId]);
 
@@ -646,7 +637,7 @@ export default function GroupWindow() {
 
   const handleSendText = async (content) => {
     try { await sendGroupMessage(activeGroupId, { content }); }
-    catch { toast.error('Không thể gửi tin nhắn'); }
+    catch {}
   };
 
   const handleSendMedia = async (files) => {
@@ -655,7 +646,6 @@ export default function GroupWindow() {
       try {
         await uploadGroupMedia(activeGroupId, file);
       } catch {
-        toast.error('Không thể gửi tệp');
         break;
       }
     }
@@ -674,26 +664,22 @@ export default function GroupWindow() {
       await leaveGroup(activeGroupId);
       setGroups(groups.filter((g) => g.id !== activeGroupId));
       setActiveGroupId(null);
-      toast.success('Đã rời nhóm');
     } catch (err) {
       const msg = err.response?.data?.message || '';
       if (msg.includes('admin cuối cùng')) {
         setShowSelectAdmin(true);
       } else {
-        toast.error(msg || 'Không thể rời nhóm');
       }
     }
   };
 
   const handleLeaveWithNewAdmin = async () => {
-    if (!selectedNewAdmin) { toast.error('Vui lòng chọn admin mới'); return; }
+    if (!selectedNewAdmin) {; return; }
     try {
       await leaveGroup(activeGroupId, selectedNewAdmin);
       setGroups(groups.filter((g) => g.id !== activeGroupId));
       setActiveGroupId(null);
-      toast.success('Đã rời nhóm');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Không thể rời nhóm');
     }
   };
 
@@ -703,9 +689,7 @@ export default function GroupWindow() {
       await setMemberAsAdmin(activeGroupId, userId);
       const res = await getGroupDetail(activeGroupId);
       setGroupDetail(res.data);
-      toast.success('Đã nhường quyền admin thành công');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Không thể nhường quyền admin');
     }
   };
 
@@ -715,8 +699,7 @@ export default function GroupWindow() {
       await dissolveGroup(activeGroupId);
       setGroups(groups.filter((g) => g.id !== activeGroupId));
       setActiveGroupId(null);
-      toast.success('Đã giải tán nhóm');
-    } catch { toast.error('Không thể giải tán nhóm'); }
+    } catch {}
   };
 
   const handleSaveEdit = async () => {
@@ -725,8 +708,7 @@ export default function GroupWindow() {
       setGroupDetail((prev) => ({ ...prev, name: editName, description: editDesc }));
       setGroups(groups.map((g) => g.id === activeGroupId ? { ...g, name: editName, description: editDesc } : g));
       setEditMode(false);
-      toast.success('Đã cập nhật nhóm');
-    } catch { toast.error('Không thể cập nhật nhóm'); }
+    } catch {}
   };
 
   const handleAddMembers = async () => {
@@ -736,14 +718,12 @@ export default function GroupWindow() {
         await addGroupMembers(activeGroupId, selectedToAdd.map((u) => u.id));
         const res = await getGroupDetail(activeGroupId);
         setGroupDetail(res.data);
-        toast.success('Đã thêm thành viên');
       } else {
         await createGroupJoinRequest(activeGroupId, selectedToAdd.map((u) => u.id));
-        toast.success('Đã gửi yêu cầu cho admin duyệt');
       }
       setShowAddMember(false);
       setSelectedToAdd([]);
-    } catch { toast.error('Không thể thực hiện'); }
+    } catch {}
   };
 
   const handleApproveRequest = async (requestId) => {
@@ -752,16 +732,14 @@ export default function GroupWindow() {
       removeGroupJoinRequest(activeGroupId, requestId);
       const res = await getGroupDetail(activeGroupId);
       setGroupDetail(res.data);
-      toast.success('Đã đồng ý thêm thành viên');
-    } catch { toast.error('Không thể duyệt yêu cầu'); }
+    } catch {}
   };
 
   const handleRejectRequest = async (requestId) => {
     try {
       await rejectGroupJoinRequest(activeGroupId, requestId);
       removeGroupJoinRequest(activeGroupId, requestId);
-      toast('Đã từ chối yêu cầu');
-    } catch { toast.error('Không thể từ chối yêu cầu'); }
+    } catch {}
   };
 
   const handleRemoveMember = async (userId) => {
@@ -773,9 +751,7 @@ export default function GroupWindow() {
         members: prev.members.filter((m) => m.userId !== userId),
         memberCount: Math.max(0, prev.memberCount - 1),
       }));
-      toast.success('Đã xóa thành viên');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Không thể xóa thành viên');
     }
   };
 
@@ -786,8 +762,7 @@ export default function GroupWindow() {
       await uploadGroupAvatar(activeGroupId, file);
       const res = await getGroupDetail(activeGroupId);
       setGroupDetail(res.data);
-      toast.success('Đã cập nhật ảnh nhóm');
-    } catch { toast.error('Không thể cập nhật ảnh nhóm'); }
+    } catch {}
   };
 
   if (!activeGroupId) {
@@ -860,7 +835,7 @@ export default function GroupWindow() {
                   try {
                     const res = await unpinGroupMessage(activeGroupId, msg.id);
                     setPinnedMessages(activeGroupId, res.data);
-                  } catch { toast.error('Không thể bỏ ghim'); }
+                  } catch {}
                 }} className="flex-shrink-0 text-red-400 hover:text-red-600 ml-1">✕</button>
               </div>
             ))}
