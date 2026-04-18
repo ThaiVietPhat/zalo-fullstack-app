@@ -1,39 +1,49 @@
 package com.example.backend.ai.service;
 
 import com.example.backend.ai.entity.AiMessage;
-import com.example.backend.user.entity.User;
-import com.example.backend.shared.exception.ResourceNotFoundException;
 import com.example.backend.ai.dto.AiChatRequest;
 import com.example.backend.ai.dto.AiMessageDto;
 import com.example.backend.ai.repository.AiMessageRepository;
+import com.example.backend.shared.exception.ResourceNotFoundException;
+import com.example.backend.user.entity.User;
 import com.example.backend.user.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.reactive.function.client.WebClient;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class AiChatService {
 
+    private static final String SYSTEM_PROMPT = """
+            Bạn là trợ lý AI thông minh tích hợp trong ứng dụng chat Zalo Clone.
+            Hãy trả lời bằng tiếng Việt khi người dùng viết tiếng Việt,
+            và bằng tiếng Anh khi họ viết tiếng Anh.
+            Câu trả lời nên ngắn gọn, rõ ràng và hữu ích.
+            """;
+
+    private final ChatClient chatClient;
     private final AiMessageRepository aiMessageRepository;
     private final UserRepository userRepository;
-    private final WebClient aiWebClient;
 
-    @Value("${app.groq.model:llama-3.3-70b-versatile}")
-    private String model;
-
-    @Value("${app.groq.max-tokens:1024}")
-    private int maxTokens;
+    public AiChatService(ChatClient.Builder chatClientBuilder,
+                         AiMessageRepository aiMessageRepository,
+                         UserRepository userRepository) {
+        this.chatClient = chatClientBuilder.defaultSystem(SYSTEM_PROMPT).build();
+        this.aiMessageRepository = aiMessageRepository;
+        this.userRepository = userRepository;
+    }
 
     // ─── Gửi tin nhắn tới AI ─────────────────────────────────────────────────
 
@@ -48,13 +58,13 @@ public class AiChatService {
         userMsg.setContent(request.getMessage());
         aiMessageRepository.save(userMsg);
 
-        // Lấy lịch sử hội thoại (newest-first → reverse để oldest-first cho API)
+        // Lấy lịch sử hội thoại (newest-first → reverse thành oldest-first)
         List<AiMessage> history = aiMessageRepository
                 .findTop20ByUserIdOrderByCreatedDateDesc(user.getId());
         Collections.reverse(history);
 
-        // Gọi Groq API
-        String assistantReply = callGroqApi(history);
+        // Gọi AI
+        String assistantReply = callAi(history);
 
         // Lưu phản hồi của AI
         AiMessage assistantMsg = new AiMessage();
@@ -85,55 +95,32 @@ public class AiChatService {
         log.info("AI chat history cleared for user {}", user.getId());
     }
 
-    // ─── Gọi Groq API (OpenAI-compatible) ───────────────────────────────────
+    // ─── Gọi AI qua Spring AI ChatClient ─────────────────────────────────────
 
-    @SuppressWarnings("unchecked")
-    private String callGroqApi(List<AiMessage> history) {
-        // Groq dùng OpenAI format: role "user" / "assistant"
-        List<Map<String, String>> messages = history.stream()
-                .map(m -> Map.of("role", m.getRole(), "content", m.getContent()))
+    private String callAi(List<AiMessage> history) {
+        List<Message> messages = history.stream()
+                .map(m -> "user".equals(m.getRole())
+                        ? (Message) new UserMessage(m.getContent())
+                        : (Message) new AssistantMessage(m.getContent()))
                 .collect(Collectors.toList());
 
-        Map<String, Object> requestBody = new HashMap<>();
-        requestBody.put("model", model);
-        requestBody.put("messages", messages);
-        requestBody.put("max_tokens", maxTokens);
-
         try {
-            Map<String, Object> response = aiWebClient.post()
-                    .uri("/openai/v1/chat/completions")
-                    .bodyValue(requestBody)
-                    .retrieve()
-                    .bodyToMono(Map.class)
-                    .block();
-
-            if (response == null) {
-                return "Xin lỗi, tôi không thể xử lý yêu cầu của bạn lúc này.";
-            }
-
-            List<Map<String, Object>> choices = (List<Map<String, Object>>) response.get("choices");
-            if (choices != null && !choices.isEmpty()) {
-                Map<String, Object> message = (Map<String, Object>) choices.get(0).get("message");
-                if (message != null) {
-                    return (String) message.get("content");
-                }
-            }
-
-            log.warn("Groq API returned unexpected response: {}", response);
-            return "Xin lỗi, tôi không thể xử lý yêu cầu của bạn lúc này.";
-
-        } catch (org.springframework.web.reactive.function.client.WebClientResponseException e) {
-            if (e.getStatusCode().value() == 429) {
-                log.warn("Groq API rate limit: {}", e.getResponseBodyAsString());
+            return chatClient.prompt()
+                    .messages(messages)
+                    .call()
+                    .content();
+        } catch (Exception e) {
+            String msg = e.getMessage() != null ? e.getMessage() : "";
+            if (msg.contains("429") || msg.toLowerCase().contains("rate limit")) {
+                log.warn("AI rate limit hit: {}", msg);
                 return "Trợ lý AI đang bận, vui lòng thử lại sau vài giây.";
             }
-            log.error("Groq API HTTP {}: {}", e.getStatusCode().value(), e.getResponseBodyAsString());
-            return "Xin lỗi, đã xảy ra lỗi khi kết nối với AI. Vui lòng thử lại sau.";
-        } catch (Exception e) {
-            log.error("Groq API exception: {} — {}", e.getClass().getSimpleName(), e.getMessage());
+            log.error("AI call failed: {} — {}", e.getClass().getSimpleName(), msg);
             return "Xin lỗi, đã xảy ra lỗi khi kết nối với AI. Vui lòng thử lại sau.";
         }
     }
+
+    // ─── Helpers ─────────────────────────────────────────────────────────────
 
     private User getUser(Authentication auth) {
         return userRepository.findByEmail(auth.getName())

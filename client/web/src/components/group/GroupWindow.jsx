@@ -18,10 +18,15 @@ import Avatar from '../common/Avatar';
 import MessageInput from '../chat/MessageInput';
 import TypingIndicator from '../chat/TypingIndicator';
 import Modal from '../common/Modal';
+import SummaryBanner from './SummaryBanner';
+import SmartReplySuggestions from './SmartReplySuggestions';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import EmojiPicker from 'emoji-picker-react';
+
+// ID cố định của AI Bot user (phải khớp với GroupAiService.AI_BOT_USER_ID và V21 migration)
+const AI_BOT_USER_ID = '00000000-0000-0000-0000-000000000001';
 
 // ─── GroupMessageBubble ───────────────────────────────────────────────────────
 
@@ -35,6 +40,7 @@ function GroupMessageBubble({ message, groupId, isAdmin }) {
   const [imagePreview, setImagePreview] = useState(null);
 
   const isMine = message.senderId === auth?.userId;
+  const isBot = message.senderId === AI_BOT_USER_ID;
   const BASE_URL = 'http://localhost:8080';
 
   if (message.type === 'SYSTEM') {
@@ -43,6 +49,26 @@ function GroupMessageBubble({ message, groupId, isAdmin }) {
         <span className="text-xs text-gray-400 bg-gray-100/80 rounded-full px-3 py-1 select-none">
           {message.content}
         </span>
+      </div>
+    );
+  }
+
+  // ─── AI Bot bubble ──────────────────────────────────────────────────────────
+  if (isBot) {
+    return (
+      <div className="flex items-start gap-2 px-4 py-1">
+        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white text-sm flex-shrink-0 shadow-sm">
+          🤖
+        </div>
+        <div className="max-w-[65%]">
+          <span className="text-xs font-semibold text-violet-600 mb-1 block">Trợ lý AI</span>
+          <div className="bg-gradient-to-br from-violet-50 to-purple-50 border border-violet-200 rounded-2xl rounded-tl-sm px-4 py-2.5 shadow-sm">
+            <span className="text-sm whitespace-pre-wrap break-words text-gray-800">{message.content}</span>
+            <div className="text-[10px] text-violet-400 text-right mt-1">
+              {message.createdDate ? format(new Date(message.createdDate), 'HH:mm', { locale: vi }) : ''}
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -393,6 +419,12 @@ export default function GroupWindow() {
   const [editDesc, setEditDesc] = useState('');
   const [showPinned, setShowPinned] = useState(false);
   const [highlightedMessageId, setHighlightedMessageId] = useState(null);
+  // ─── AI features state ───────────────────────────────────────────────────────
+  const [latestIncomingMsg, setLatestIncomingMsg] = useState(null);
+  const [summaryDismissed, setSummaryDismissed] = useState(false);
+  const [unreadOnOpen, setUnreadOnOpen] = useState(0);
+  const [lastVisitAt, setLastVisitAt] = useState(null);
+  // ────────────────────────────────────────────────────────────────────────────
   const messagesEndRef = useRef(null);
   const scrollContainerRef = useRef(null);
   const prevScrollHeightRef = useRef(0);
@@ -414,13 +446,18 @@ export default function GroupWindow() {
         updateGroupMessageReactions(groupId, data.messageId, data.reactions);
       } else if (data.id && data.deleted) {
         updateGroupMessage(groupId, data.id, { deleted: true, content: null, mediaUrl: null });
-      } else if (data.type === 'SYSTEM') {
-        // SYSTEM message đã được add vào chat window bởi /events handler (MESSAGE_PINNED/UNPINNED)
-        // Chỉ cần update group list với thông tin từ DB (có id thật)
-        updateGroupLastMessage(groupId, data);
       } else {
         addGroupMessage(groupId, data);
         updateGroupLastMessage(groupId, data);
+        // Smart Reply: track tin nhắn TEXT đến từ người khác (không phải bot)
+        if (
+          data.type === 'TEXT' &&
+          data.senderId !== auth?.userId &&
+          data.senderId !== AI_BOT_USER_ID &&
+          data.content
+        ) {
+          setLatestIncomingMsg(data);
+        }
       }
     });
     wsService.subscribe(`/topic/group/${groupId}/typing`, (data) => {
@@ -481,21 +518,7 @@ export default function GroupWindow() {
       case 'MESSAGE_PINNED':
       case 'MESSAGE_UNPINNED': {
         if (data.pinnedMessages) setPinnedMessages(groupId, data.pinnedMessages);
-        const isPinned = data.type === 'MESSAGE_PINNED';
-        const actorName = data.actorName || 'Thành viên';
-        const notifText = isPinned
-          ? `${actorName} đã ghim một tin nhắn`
-          : `${actorName} đã bỏ ghim một tin nhắn`;
-        const syntheticMsg = {
-          id: `pin-event-${groupId}-${Date.now()}`,
-          type: 'SYSTEM',
-          content: notifText,
-          createdDate: new Date().toISOString(),
-          senderName: actorName,
-          deleted: false,
-        };
-        addGroupMessage(groupId, syntheticMsg);
-        updateGroupLastMessage(groupId, syntheticMsg);
+        // SYSTEM message thật sẽ đến qua main topic WebSocket và tự được add vào chat + group list
         break;
       }
       case 'GROUP_DISSOLVED':
@@ -513,6 +536,16 @@ export default function GroupWindow() {
 
   useEffect(() => {
     if (!activeGroupId) return;
+
+    // ─── AI: đọc lastVisitAt & capture unreadCount trước khi clear ───────────
+    const storedVisit = localStorage.getItem(`groupLastVisit_${activeGroupId}`);
+    setLastVisitAt(storedVisit || null);
+    const currentGroup = useChatStore.getState().groups.find((g) => g.id === activeGroupId);
+    setUnreadOnOpen(currentGroup?.unreadCount || 0);
+    setSummaryDismissed(false);
+    setLatestIncomingMsg(null);
+    // ─────────────────────────────────────────────────────────────────────────
+
     clearGroupUnread(activeGroupId);
     setPage(0);
     setHasMore(true);
@@ -554,7 +587,11 @@ export default function GroupWindow() {
       .finally(() => setLoading(false));
 
     subscribeToGroup(activeGroupId);
-    return () => { unsubscribeFromGroup(activeGroupId); };
+    return () => {
+      unsubscribeFromGroup(activeGroupId);
+      // Lưu thời điểm rời nhóm để summary biết "từ lúc nào"
+      localStorage.setItem(`groupLastVisit_${activeGroupId}`, new Date().toISOString());
+    };
   }, [activeGroupId]);
 
   useEffect(() => {
@@ -842,6 +879,16 @@ export default function GroupWindow() {
           </div>
         )}
 
+        {/* AI Summary Banner */}
+        {!summaryDismissed && (
+          <SummaryBanner
+            groupId={activeGroupId}
+            unreadCount={unreadOnOpen}
+            since={lastVisitAt}
+            onDismiss={() => setSummaryDismissed(true)}
+          />
+        )}
+
         {/* Messages */}
         <div ref={scrollContainerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto py-4">
           {loadingMore && (
@@ -862,12 +909,20 @@ export default function GroupWindow() {
           <div ref={messagesEndRef} />
         </div>
 
+        {/* Smart Reply suggestions */}
+        <SmartReplySuggestions
+          groupId={activeGroupId}
+          latestMessage={latestIncomingMsg}
+          onSelect={(text) => handleSendText(text)}
+          inputValue=""
+        />
+
         {/* Input */}
         <MessageInput
           onSendText={handleSendText}
           onSendMedia={handleSendMedia}
           onTyping={handleTyping}
-          placeholder="Nhập tin nhắn nhóm..."
+          placeholder="Nhập tin nhắn... (@AI để hỏi trợ lý)"
         />
       </div>
 

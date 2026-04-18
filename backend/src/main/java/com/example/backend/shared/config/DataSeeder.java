@@ -39,6 +39,8 @@ public class DataSeeder implements ApplicationRunner {
     public void run(ApplicationArguments args) throws Exception {
         // Luôn upsert admin account mỗi lần start (đảm bảo admin luôn tồn tại và login được)
         seedDefaultAdmin();
+        // Luôn upsert AI Bot user mỗi lần start
+        seedAiBot();
 
         if (userRepository.count() > 1) {
             log.info("Data đã tồn tại — bỏ qua CSV seeding");
@@ -76,6 +78,22 @@ public class DataSeeder implements ApplicationRunner {
         log.info("  Users:  {}", userRepository.count());
         log.info("  Chats:  {}", chatRepository.count());
         log.info("  Groups: {}", groupRepository.count());
+    }
+
+    private void seedAiBot() {
+        String botId = "00000000-0000-0000-0000-000000000001";
+        boolean exists = userRepository.findById(java.util.UUID.fromString(botId)).isPresent();
+        if (!exists) {
+            jdbc.update(
+                "INSERT INTO `user` " +
+                "(id, first_name, last_name, email, password, is_online, role, banned, email_verified, token_version, created_date, last_modified_date) " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())",
+                botId, "Trợ lý", "AI", "ai-bot@system.local", "", 0, "USER", 0, 1, 1
+            );
+            log.info("  ✓ AI Bot user đã được tạo: {}", botId);
+        } else {
+            log.info("  ✓ AI Bot user đã tồn tại: {}", botId);
+        }
     }
 
     private void seedDefaultAdmin() {

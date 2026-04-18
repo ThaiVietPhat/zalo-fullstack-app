@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.example.backend.ai.service.GroupAiService;
 import com.example.backend.file.service.FileStorageService;
 import com.example.backend.group.dto.GroupDto;
 import com.example.backend.group.dto.GroupEventDto;
@@ -59,6 +60,7 @@ public class GroupService {
     private final UserRepository userRepository;
     private final SimpMessagingTemplate messagingTemplate;
     private final FileStorageService fileStorageService;
+    private final GroupAiService groupAiService;
 
     // ─── Tạo nhóm ────────────────────────────────────────────────────────────
 
@@ -537,6 +539,13 @@ public class GroupService {
         messagingTemplate.convertAndSend("/topic/group/" + groupId, dto);
         log.debug("Message sent to group {} by {}", groupId, user.getEmail());
 
+        // @AI Bot: nếu tin nhắn mention @AI thì trigger bot reply async
+        String content = request.getContent();
+        if (content != null && content.toLowerCase().contains("@ai")) {
+            String senderName = user.getFirstName() + " " + user.getLastName();
+            groupAiService.handleBotMentionAsync(groupId, content, senderName);
+        }
+
         return dto;
     }
 
@@ -632,7 +641,7 @@ public class GroupService {
         getGroupAndCheckMember(groupId, user.getId());
 
         List<GroupMessage> messages = groupMessageRepository
-                .findByGroupIdAndDeletedFalseOrderByCreatedDateAsc(groupId, PageRequest.of(page, size))
+                .findByGroupIdAndDeletedFalseOrderByCreatedDateDesc(groupId, PageRequest.of(page, size))
                 .getContent();
 
         List<UUID> msgIds = messages.stream().map(GroupMessage::getId).collect(Collectors.toList());
@@ -745,8 +754,8 @@ public class GroupService {
                 .isAdmin(group.isAdmin(currentUserId))
                 .build();
 
-        // Preview tin nhắn cuối
-        groupMessageRepository.findTop1ByGroupIdOrderByCreatedDateDesc(group.getId())
+        // Preview tin nhắn cuối (bỏ qua tin đã xóa để tránh hiện content null)
+        groupMessageRepository.findTop1ByGroupIdAndDeletedFalseOrderByCreatedDateDesc(group.getId())
                 .ifPresent(last -> {
                     dto.setLastMessage(last.getContent());
                     dto.setLastMessageType(last.getType());
