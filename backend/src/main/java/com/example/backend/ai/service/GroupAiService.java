@@ -34,7 +34,7 @@ public class GroupAiService {
     public static final String AI_BOT_NAME = "Trợ lý AI";
 
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm dd/MM");
-    private static final int CONTEXT_MSG_LIMIT = 15;
+    private static final int CONTEXT_MSG_LIMIT = 30;
     private static final int SUMMARIZE_MAX_MSGS = 100;
 
     private final ChatClient chatClient;
