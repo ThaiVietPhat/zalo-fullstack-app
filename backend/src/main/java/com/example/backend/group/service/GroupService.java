@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.example.backend.ai.service.GroupAiService;
+import com.example.backend.group.dto.GroupMediaDto;
 import com.example.backend.file.service.FileStorageService;
 import com.example.backend.group.dto.GroupDto;
 import com.example.backend.group.dto.GroupEventDto;
@@ -770,6 +771,74 @@ public class GroupService {
         }
 
         return dto;
+    }
+
+    // ─── Lấy toàn bộ media / file / link của nhóm ────────────────────────────
+
+    @Transactional(readOnly = true)
+    public GroupMediaDto getGroupMedia(UUID groupId) {
+        java.util.regex.Pattern urlPattern = java.util.regex.Pattern.compile(
+                "https?://[\\w\\-._~:/?#\\[\\]@!$&'()*+,;=%]+");
+
+        List<GroupMediaDto.MediaItem> images = groupMessageRepository
+                .findByGroupIdAndType(groupId, MessageType.IMAGE)
+                .stream()
+                .map(m -> GroupMediaDto.MediaItem.builder()
+                        .id(m.getId())
+                        .url(fileStorageService.generatePresignedUrl(m.getContent()))
+                        .fileName(m.getFileName())
+                        .senderName(m.getSender().getFirstName() + " " + m.getSender().getLastName())
+                        .createdDate(m.getCreatedDate())
+                        .build())
+                .collect(Collectors.toList());
+
+        List<GroupMediaDto.MediaItem> videos = groupMessageRepository
+                .findByGroupIdAndType(groupId, MessageType.VIDEO)
+                .stream()
+                .map(m -> GroupMediaDto.MediaItem.builder()
+                        .id(m.getId())
+                        .url(fileStorageService.generatePresignedUrl(m.getContent()))
+                        .fileName(m.getFileName())
+                        .senderName(m.getSender().getFirstName() + " " + m.getSender().getLastName())
+                        .createdDate(m.getCreatedDate())
+                        .build())
+                .collect(Collectors.toList());
+
+        List<GroupMediaDto.MediaItem> files = groupMessageRepository
+                .findByGroupIdAndTypeIn(groupId, List.of(MessageType.FILE, MessageType.AUDIO))
+                .stream()
+                .map(m -> GroupMediaDto.MediaItem.builder()
+                        .id(m.getId())
+                        .url(fileStorageService.generatePresignedUrl(m.getContent()))
+                        .fileName(m.getFileName() != null ? m.getFileName() : "file")
+                        .senderName(m.getSender().getFirstName() + " " + m.getSender().getLastName())
+                        .createdDate(m.getCreatedDate())
+                        .build())
+                .collect(Collectors.toList());
+
+        List<GroupMediaDto.LinkItem> links = groupMessageRepository
+                .findTextMessagesWithLinks(groupId)
+                .stream()
+                .flatMap(m -> {
+                    java.util.regex.Matcher matcher = urlPattern.matcher(m.getContent());
+                    List<GroupMediaDto.LinkItem> found = new java.util.ArrayList<>();
+                    while (matcher.find()) {
+                        found.add(GroupMediaDto.LinkItem.builder()
+                                .url(matcher.group())
+                                .senderName(m.getSender().getFirstName() + " " + m.getSender().getLastName())
+                                .createdDate(m.getCreatedDate())
+                                .build());
+                    }
+                    return found.stream();
+                })
+                .collect(Collectors.toList());
+
+        return GroupMediaDto.builder()
+                .images(images)
+                .videos(videos)
+                .files(files)
+                .links(links)
+                .build();
     }
 
     private GroupMessageDto toMessageDto(GroupMessage msg, UUID currentUserId, Set<UUID> pinnedIds) {

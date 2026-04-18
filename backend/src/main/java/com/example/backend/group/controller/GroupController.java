@@ -12,6 +12,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.example.backend.group.dto.GroupDto;
 import com.example.backend.group.dto.GroupJoinRequestDto;
+import com.example.backend.group.dto.GroupMediaDto;
 import com.example.backend.group.dto.GroupMessageDto;
 import com.example.backend.group.dto.GroupRequest;
 import com.example.backend.group.service.GroupService;
@@ -224,5 +225,13 @@ public class GroupController {
             @RequestParam(defaultValue = "30") int size,
             Authentication currentUser) {
         return ResponseEntity.ok(groupService.getMessages(groupId, page, size, currentUser));
+    }
+
+    /** GET /api/v1/group/{groupId}/media — Ảnh, video, file, link đã gửi trong nhóm */
+    @GetMapping("/{groupId}/media")
+    public ResponseEntity<GroupMediaDto> getGroupMedia(
+            @PathVariable UUID groupId,
+            Authentication currentUser) {
+        return ResponseEntity.ok(groupService.getGroupMedia(groupId));
     }
 }

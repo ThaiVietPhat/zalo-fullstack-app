@@ -84,3 +84,6 @@ export const deleteGroupReaction = (messageId) =>
 
 export const getGroupReactions = (messageId) =>
   api.get(`/api/v1/group-message/${messageId}/reactions`);
+
+export const getGroupMedia = (groupId) =>
+  api.get(`/api/v1/group/${groupId}/media`);

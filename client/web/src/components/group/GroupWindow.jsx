@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Info, LogOut, ChevronLeft, UserPlus, Pencil, Camera, Pin, MoreHorizontal, Smile, Copy, RotateCcw, Trash2, Share2 } from 'lucide-react';
+import { Info, LogOut, ChevronLeft, UserPlus, Pencil, Camera, Pin, MoreHorizontal, Smile, Copy, RotateCcw, Trash2, Share2, FolderOpen } from 'lucide-react';
 import {
   getGroupDetail, getGroupMessages, sendGroupMessage, uploadGroupMedia,
   leaveGroup, addGroupMembers, removeGroupMember, updateGroup, uploadGroupAvatar,
@@ -20,6 +20,7 @@ import TypingIndicator from '../chat/TypingIndicator';
 import Modal from '../common/Modal';
 import SummaryBanner from './SummaryBanner';
 import SmartReplySuggestions from './SmartReplySuggestions';
+import GroupMediaPanel from './GroupMediaPanel';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
@@ -418,6 +419,7 @@ export default function GroupWindow() {
   const [editName, setEditName] = useState('');
   const [editDesc, setEditDesc] = useState('');
   const [showPinned, setShowPinned] = useState(false);
+  const [showMediaPanel, setShowMediaPanel] = useState(false);
   const [highlightedMessageId, setHighlightedMessageId] = useState(null);
   // ─── AI features state ───────────────────────────────────────────────────────
   const [latestIncomingMsg, setLatestIncomingMsg] = useState(null);
@@ -819,7 +821,8 @@ export default function GroupWindow() {
 
   return (
     <>
-      <div className="flex-1 flex flex-col h-full bg-gray-50">
+      <div className="flex-1 flex h-full overflow-hidden">
+      <div className="flex-1 flex flex-col h-full bg-gray-50 min-w-0">
         {/* Header */}
         <div className="flex items-center gap-3 px-4 py-3 bg-white border-b border-gray-100 shadow-sm">
           <button className="md:hidden p-1 hover:bg-gray-100 rounded-full" onClick={() => setActiveGroupId(null)}>
@@ -837,6 +840,12 @@ export default function GroupWindow() {
                 <Pin size={16} className={showPinned ? 'text-blue-500' : 'text-gray-600'} />
               </button>
             )}
+            <button
+              onClick={() => setShowMediaPanel((v) => !v)}
+              title="Kho lưu trữ"
+              className={`w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors ${showMediaPanel ? 'bg-blue-50' : ''}`}>
+              <FolderOpen size={18} className={showMediaPanel ? 'text-blue-500' : 'text-gray-600'} />
+            </button>
             <button onClick={() => { getContacts().then((r) => setAllUsers(r.data || [])); setShowInfo(true); }}
               className="relative w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
               <Info size={18} className="text-gray-600" />
@@ -1113,6 +1122,15 @@ export default function GroupWindow() {
           </button>
         </div>
       </Modal>
+
+      {/* Media Panel */}
+      {showMediaPanel && (
+        <GroupMediaPanel
+          groupId={activeGroupId}
+          onClose={() => setShowMediaPanel(false)}
+        />
+      )}
+      </div>
     </>
   );
 }

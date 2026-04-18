@@ -34,6 +34,30 @@ public interface GroupMessageRepository extends JpaRepository<GroupMessage, UUID
             "GROUP BY m.sender.id ORDER BY COUNT(m) DESC")
     List<Object[]> findTopGroupSenderIds(Pageable pageable);
 
+    // ─── Query cho Media Panel ────────────────────────────────────────────────
+
+    @Query("SELECT m FROM GroupMessage m " +
+            "WHERE m.group.id = :groupId AND m.deleted = false AND m.type = :type " +
+            "ORDER BY m.createdDate DESC")
+    List<GroupMessage> findByGroupIdAndType(
+            @Param("groupId") UUID groupId,
+            @Param("type") com.example.backend.messaging.enums.MessageType type);
+
+    @Query("SELECT m FROM GroupMessage m " +
+            "WHERE m.group.id = :groupId AND m.deleted = false " +
+            "AND m.type IN :types " +
+            "ORDER BY m.createdDate DESC")
+    List<GroupMessage> findByGroupIdAndTypeIn(
+            @Param("groupId") UUID groupId,
+            @Param("types") java.util.List<com.example.backend.messaging.enums.MessageType> types);
+
+    @Query("SELECT m FROM GroupMessage m " +
+            "WHERE m.group.id = :groupId AND m.deleted = false " +
+            "AND m.type = com.example.backend.messaging.enums.MessageType.TEXT " +
+            "AND m.content LIKE '%http%' " +
+            "ORDER BY m.createdDate DESC")
+    List<GroupMessage> findTextMessagesWithLinks(@Param("groupId") UUID groupId);
+
     // ─── Query cho AI đọc context nhóm ──────────────────────────────────────
 
     /**
