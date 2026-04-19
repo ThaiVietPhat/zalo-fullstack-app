@@ -1,6 +1,6 @@
 # ── Dependencies ─────────────────────────────────────
 node_modules/
-
+CLAUDE.md
 *.claude.md
 # ── Build output ─────────────────────────────────────
 dist/

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import useChatStore from './chatStore';
 
 const getInitialAuth = () => {
   try {
@@ -30,6 +31,8 @@ const useAuthStore = create((set) => ({
   logout: () => {
     localStorage.removeItem('auth');
     set({ auth: null, sessionReplaced: false, bannedInfo: null });
+    // Reset chatStore để user mới không thừa hưởng state của user cũ
+    useChatStore.getState().reset();
   },
 
   setSessionReplaced: () => set({ sessionReplaced: true }),

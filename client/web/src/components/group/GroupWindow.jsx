@@ -426,6 +426,8 @@ export default function GroupWindow() {
   const [summaryDismissed, setSummaryDismissed] = useState(false);
   const [unreadOnOpen, setUnreadOnOpen] = useState(0);
   const [lastVisitAt, setLastVisitAt] = useState(null);
+  // Ref để tránh StrictMode double-invoke ghi đè localStorage sai thời điểm
+  const prevGroupIdRef = useRef(null);
   // ────────────────────────────────────────────────────────────────────────────
   const messagesEndRef = useRef(null);
   const scrollContainerRef = useRef(null);
@@ -539,11 +541,18 @@ export default function GroupWindow() {
   useEffect(() => {
     if (!activeGroupId) return;
 
-    // ─── AI: đọc lastVisitAt & capture unreadCount trước khi clear ───────────
+    // ─── AI: lưu visit time của group TRƯỚC khi mở group mới ────────────────
+    // (không lưu trong cleanup để tránh StrictMode double-invoke ghi "now" sai)
+    if (prevGroupIdRef.current && prevGroupIdRef.current !== activeGroupId) {
+      localStorage.setItem(`groupLastVisit_${prevGroupIdRef.current}`, new Date().toISOString());
+    }
+    prevGroupIdRef.current = activeGroupId;
+
+    // Đọc lastVisitAt của group vừa mở, fallback 7 ngày trước nếu lần đầu vào
     const storedVisit = localStorage.getItem(`groupLastVisit_${activeGroupId}`);
-    setLastVisitAt(storedVisit || null);
-    const currentGroup = useChatStore.getState().groups.find((g) => g.id === activeGroupId);
-    setUnreadOnOpen(currentGroup?.unreadCount || 0);
+    const visitAt = storedVisit || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    setLastVisitAt(visitAt);
+    setUnreadOnOpen(0); // sẽ được tính lại sau khi load messages
     setSummaryDismissed(false);
     setLatestIncomingMsg(null);
     // ─────────────────────────────────────────────────────────────────────────
@@ -584,6 +593,17 @@ export default function GroupWindow() {
         setGroupMessages(activeGroupId, [...sorted, ...wsOnlyMsgs]);
         setHasMore(fetchedMsgs.length === 30);
         setTimeout(() => messagesEndRef.current?.scrollIntoView(), 100);
+
+        // ─── AI: tính unreadOnOpen từ messages thực tế ───────────────────
+        // Dùng field isMine (backend đã set) thay vì so sánh senderId
+        // để tránh phụ thuộc vào auth store
+        const visitTimestamp = new Date(visitAt).getTime();
+        const allLoaded = [...sorted, ...wsOnlyMsgs];
+        const unreadMsgCount = allLoaded.filter(
+          (m) => new Date(m.createdDate).getTime() > visitTimestamp && !m.isMine && m.type !== 'SYSTEM'
+        ).length;
+        setUnreadOnOpen(unreadMsgCount);
+        // ─────────────────────────────────────────────────────────────────
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -591,10 +611,22 @@ export default function GroupWindow() {
     subscribeToGroup(activeGroupId);
     return () => {
       unsubscribeFromGroup(activeGroupId);
-      // Lưu thời điểm rời nhóm để summary biết "từ lúc nào"
-      localStorage.setItem(`groupLastVisit_${activeGroupId}`, new Date().toISOString());
+      // KHÔNG lưu lastVisit ở đây — React StrictMode chạy cleanup rồi re-mount ngay,
+      // khiến localStorage bị ghi "now" trước khi đọc → unreadCount = 0 → banner tắt.
+      // Thay vào đó lưu khi SWITCH sang group khác (đầu useEffect) và khi đóng tab (beforeunload).
     };
   }, [activeGroupId]);
+
+  // Lưu lastVisit khi đóng tab/trình duyệt
+  useEffect(() => {
+    const handleUnload = () => {
+      if (prevGroupIdRef.current) {
+        localStorage.setItem(`groupLastVisit_${prevGroupIdRef.current}`, new Date().toISOString());
+      }
+    };
+    window.addEventListener('beforeunload', handleUnload);
+    return () => window.removeEventListener('beforeunload', handleUnload);
+  }, []);
 
   useEffect(() => {
     if (!activeGroupId) return;

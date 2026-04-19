@@ -268,6 +268,25 @@ const useChatStore = create((set) => ({
         g.id === groupId ? { ...g, unreadCount: 0 } : g
       ),
     })),
+
+  // Reset toàn bộ state về initial — gọi khi logout để tránh user mới thừa hưởng state cũ
+  reset: () => set({
+    chats: [],
+    groups: [],
+    contacts: [],
+    pendingRequests: [],
+    sentRequests: [],
+    activeChatId: null,
+    activeGroupId: null,
+    activeTab: 'chats',
+    viewingProfileId: null,
+    messages: {},
+    groupMessages: {},
+    pinnedMessages: {},
+    groupJoinRequests: {},
+    typingUsers: {},
+    onlineUsers: {},
+  }),
 }));
 
 export default useChatStore;

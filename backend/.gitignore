@@ -30,7 +30,7 @@ build/
 
 # ── Claude Code CLI ──────────────────────────────────
 .claude/
-
+CLAUDE.md
 # ── Runtime / uploads ────────────────────────────────
 uploads/
 

@@ -8,6 +8,7 @@
 # ── Claude Code CLI ──────────────────────────────────
 .claude/
 *.claude.md
+CLAUDE.md
 # ── Java / JVM ───────────────────────────────────────
 *.class
 *.jar
