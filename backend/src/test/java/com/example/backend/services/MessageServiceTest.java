@@ -1,19 +1,22 @@
 package com.example.backend.services;
 
 import com.example.backend.chat.entity.Chat;
+import com.example.backend.chat.repository.ChatRepository;
+import com.example.backend.file.service.FileStorageService;
+import com.example.backend.messaging.dto.MessageDto;
 import com.example.backend.messaging.entity.Message;
-import com.example.backend.user.entity.User;
 import com.example.backend.messaging.enums.MessageState;
 import com.example.backend.messaging.enums.MessageType;
 import com.example.backend.messaging.mapper.MessageMapper;
-import com.example.backend.messaging.dto.MessageDto;
-import com.example.backend.chat.repository.ChatRepository;
 import com.example.backend.messaging.repository.MessageReactionRepository;
 import com.example.backend.messaging.repository.MessageRepository;
 import com.example.backend.messaging.service.MessageServiceImpl;
 import com.example.backend.messaging.service.NotificationService;
-import com.example.backend.file.service.FileStorageService;
+import com.example.backend.shared.exception.ResourceNotFoundException;
+import com.example.backend.shared.exception.UnauthorizedException;
+import com.example.backend.user.entity.User;
 import com.example.backend.user.repository.UserRepository;
+import com.example.backend.user.service.BlockService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -46,6 +49,7 @@ class MessageServiceTest {
     @Mock UserRepository userRepository;
     @Mock NotificationService notificationService;
     @Mock MessageReactionRepository messageReactionRepository;
+    @Mock BlockService blockService;
     @Mock Authentication authentication;
 
     @InjectMocks MessageServiceImpl messageService;
@@ -54,22 +58,27 @@ class MessageServiceTest {
     private User receiver;
     private Chat chat;
     private UUID chatId;
+    private UUID messageId;
 
     @BeforeEach
     void setUp() {
         chatId = UUID.randomUUID();
+        messageId = UUID.randomUUID();
 
         sender = new User();
         sender.setId(UUID.randomUUID());
         sender.setEmail("sender@gmail.com");
         sender.setFirstName("Sender");
+        sender.setLastName("User");
 
         receiver = new User();
         receiver.setId(UUID.randomUUID());
         receiver.setEmail("receiver@gmail.com");
         receiver.setFirstName("Receiver");
+        receiver.setLastName("User");
 
         chat = new Chat();
+        chat.setId(chatId);
         chat.setUser1(sender);
         chat.setUser2(receiver);
 
@@ -79,8 +88,8 @@ class MessageServiceTest {
     // ─── sendMessage ──────────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("Gửi tin nhắn TEXT thành công")
-    void sendMessage_success() {
+    @DisplayName("sendMessage() - TEXT thành công")
+    void sendMessage_text_success() {
         MessageDto dto = new MessageDto();
         dto.setChatId(chatId);
         dto.setContent("Xin chào!");
@@ -96,17 +105,38 @@ class MessageServiceTest {
 
         when(userRepository.findByEmail("sender@gmail.com")).thenReturn(Optional.of(sender));
         when(chatRepository.findById(chatId)).thenReturn(Optional.of(chat));
+        when(blockService.isBlocked(sender.getId(), receiver.getId())).thenReturn(false);
         when(messageRepository.save(any())).thenReturn(savedMsg);
-        when(messageMapper.toDto(any())).thenReturn(dto);
+        when(messageMapper.toDto(savedMsg)).thenReturn(dto);
 
-        assertThatNoException().isThrownBy(() -> messageService.sendMessage(dto, authentication));
+        MessageDto result = messageService.sendMessage(dto, authentication);
+
+        assertThat(result).isNotNull();
         verify(messageRepository).save(any(Message.class));
         verify(notificationService).sendMessageNotification(eq(receiver.getEmail()), any());
+        verify(notificationService).sendChatBroadcast(eq(chatId), any());
     }
 
     @Test
-    @DisplayName("Gửi tin nhắn thất bại - chat không tồn tại")
-    void sendMessage_chatNotFound() {
+    @DisplayName("sendMessage() - nội dung rỗng → throw")
+    void sendMessage_emptyContent_throws() {
+        MessageDto dto = new MessageDto();
+        dto.setChatId(chatId);
+        dto.setContent("   ");
+        dto.setType(MessageType.TEXT);
+
+        when(userRepository.findByEmail("sender@gmail.com")).thenReturn(Optional.of(sender));
+        when(chatRepository.findById(chatId)).thenReturn(Optional.of(chat));
+        when(blockService.isBlocked(sender.getId(), receiver.getId())).thenReturn(false);
+
+        assertThatThrownBy(() -> messageService.sendMessage(dto, authentication))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("cannot be empty");
+    }
+
+    @Test
+    @DisplayName("sendMessage() - chat không tồn tại → ResourceNotFoundException")
+    void sendMessage_chatNotFound_throws() {
         MessageDto dto = new MessageDto();
         dto.setChatId(chatId);
         dto.setContent("Hello");
@@ -116,13 +146,13 @@ class MessageServiceTest {
         when(chatRepository.findById(chatId)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> messageService.sendMessage(dto, authentication))
-                .isInstanceOf(com.example.backend.shared.exception.ResourceNotFoundException.class)
+                .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("Chat not found");
     }
 
     @Test
-    @DisplayName("Gửi tin nhắn thất bại - không phải thành viên chat")
-    void sendMessage_accessDenied() {
+    @DisplayName("sendMessage() - không phải thành viên → UnauthorizedException")
+    void sendMessage_notMember_throws() {
         User stranger = new User();
         stranger.setId(UUID.randomUUID());
         stranger.setEmail("stranger@gmail.com");
@@ -137,33 +167,35 @@ class MessageServiceTest {
         dto.setType(MessageType.TEXT);
 
         assertThatThrownBy(() -> messageService.sendMessage(dto, authentication))
-                .isInstanceOf(com.example.backend.shared.exception.UnauthorizedException.class)
+                .isInstanceOf(UnauthorizedException.class)
                 .hasMessageContaining("Access denied");
     }
 
     @Test
-    @DisplayName("Gửi tin nhắn thất bại - content rỗng")
-    void sendMessage_emptyContent() {
+    @DisplayName("sendMessage() - bị block → UnauthorizedException")
+    void sendMessage_blocked_throws() {
         MessageDto dto = new MessageDto();
         dto.setChatId(chatId);
-        dto.setContent("   ");
+        dto.setContent("Hello");
         dto.setType(MessageType.TEXT);
 
         when(userRepository.findByEmail("sender@gmail.com")).thenReturn(Optional.of(sender));
         when(chatRepository.findById(chatId)).thenReturn(Optional.of(chat));
+        when(blockService.isBlocked(sender.getId(), receiver.getId())).thenReturn(true);
 
         assertThatThrownBy(() -> messageService.sendMessage(dto, authentication))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("cannot be empty");
+                .isInstanceOf(UnauthorizedException.class)
+                .hasMessageContaining("bị chặn");
     }
 
     // ─── uploadMediaMessage ───────────────────────────────────────────────────
 
     @Test
-    @DisplayName("Upload ảnh thành công")
+    @DisplayName("uploadMediaMessage() - ảnh → type IMAGE")
     void uploadMedia_image_success() {
         MultipartFile file = mock(MultipartFile.class);
         when(file.getContentType()).thenReturn("image/jpeg");
+        when(file.getOriginalFilename()).thenReturn("photo.jpg");
 
         Message savedMsg = new Message();
         savedMsg.setId(UUID.randomUUID());
@@ -173,21 +205,23 @@ class MessageServiceTest {
 
         when(userRepository.findByEmail("sender@gmail.com")).thenReturn(Optional.of(sender));
         when(chatRepository.findById(chatId)).thenReturn(Optional.of(chat));
-        when(fileStorageService.saveFile(file)).thenReturn("uploads/image.jpg");
+        when(blockService.isBlocked(sender.getId(), receiver.getId())).thenReturn(false);
+        when(fileStorageService.saveFile(file)).thenReturn("uploads/photo.jpg");
         when(messageRepository.save(any())).thenReturn(savedMsg);
-        when(messageMapper.toDto(any())).thenReturn(new MessageDto());
+        when(messageMapper.toDto(savedMsg)).thenReturn(new MessageDto());
 
         assertThatNoException().isThrownBy(
                 () -> messageService.uploadMediaMessage(chatId.toString(), file, authentication));
+
         verify(fileStorageService).saveFile(file);
-        verify(notificationService).sendMessageNotification(eq(receiver.getEmail()), any());
     }
 
     @Test
-    @DisplayName("Upload video thành công")
+    @DisplayName("uploadMediaMessage() - video → type VIDEO")
     void uploadMedia_video_success() {
         MultipartFile file = mock(MultipartFile.class);
         when(file.getContentType()).thenReturn("video/mp4");
+        when(file.getOriginalFilename()).thenReturn("video.mp4");
 
         Message savedMsg = new Message();
         savedMsg.setId(UUID.randomUUID());
@@ -197,9 +231,34 @@ class MessageServiceTest {
 
         when(userRepository.findByEmail("sender@gmail.com")).thenReturn(Optional.of(sender));
         when(chatRepository.findById(chatId)).thenReturn(Optional.of(chat));
+        when(blockService.isBlocked(sender.getId(), receiver.getId())).thenReturn(false);
         when(fileStorageService.saveFile(file)).thenReturn("uploads/video.mp4");
         when(messageRepository.save(any())).thenReturn(savedMsg);
-        when(messageMapper.toDto(any())).thenReturn(new MessageDto());
+        when(messageMapper.toDto(savedMsg)).thenReturn(new MessageDto());
+
+        assertThatNoException().isThrownBy(
+                () -> messageService.uploadMediaMessage(chatId.toString(), file, authentication));
+    }
+
+    @Test
+    @DisplayName("uploadMediaMessage() - audio → type AUDIO")
+    void uploadMedia_audio_success() {
+        MultipartFile file = mock(MultipartFile.class);
+        when(file.getContentType()).thenReturn("audio/mpeg");
+        when(file.getOriginalFilename()).thenReturn("audio.mp3");
+
+        Message savedMsg = new Message();
+        savedMsg.setId(UUID.randomUUID());
+        savedMsg.setType(MessageType.AUDIO);
+        savedMsg.setChat(chat);
+        savedMsg.setSender(sender);
+
+        when(userRepository.findByEmail("sender@gmail.com")).thenReturn(Optional.of(sender));
+        when(chatRepository.findById(chatId)).thenReturn(Optional.of(chat));
+        when(blockService.isBlocked(sender.getId(), receiver.getId())).thenReturn(false);
+        when(fileStorageService.saveFile(file)).thenReturn("uploads/audio.mp3");
+        when(messageRepository.save(any())).thenReturn(savedMsg);
+        when(messageMapper.toDto(savedMsg)).thenReturn(new MessageDto());
 
         assertThatNoException().isThrownBy(
                 () -> messageService.uploadMediaMessage(chatId.toString(), file, authentication));
@@ -208,7 +267,7 @@ class MessageServiceTest {
     // ─── getMessagesByChatId ──────────────────────────────────────────────────
 
     @Test
-    @DisplayName("Lấy tin nhắn theo chatId thành công")
+    @DisplayName("getMessagesByChatId() - trả về list tin nhắn")
     void getMessagesByChatId_success() {
         Message msg = new Message();
         msg.setId(UUID.randomUUID());
@@ -216,23 +275,133 @@ class MessageServiceTest {
 
         Page<Message> page = new PageImpl<>(List.of(msg));
         MessageDto msgDto = new MessageDto();
+        msgDto.setId(msg.getId());
 
         when(userRepository.findByEmail("sender@gmail.com")).thenReturn(Optional.of(sender));
         when(chatRepository.findById(chatId)).thenReturn(Optional.of(chat));
-        when(messageRepository.findByChatIdAndDeletedFalse(eq(chatId), any(Pageable.class))).thenReturn(page);
+        when(messageRepository.findByChatIdForUser(eq(chatId), eq(sender.getId()), any(), any(Pageable.class)))
+                .thenReturn(page);
         when(messageMapper.toDto(msg)).thenReturn(msgDto);
         when(messageReactionRepository.findByMessageIdIn(any())).thenReturn(List.of());
 
-        List<MessageDto> result = messageService.getMessagesByChatId(
-                chatId.toString(), 0, 30, authentication);
+        List<MessageDto> result = messageService.getMessagesByChatId(chatId.toString(), 0, 30, authentication);
 
         assertThat(result).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("getMessagesByChatId() - không phải thành viên → throw")
+    void getMessagesByChatId_notMember_throws() {
+        User stranger = new User();
+        stranger.setId(UUID.randomUUID());
+        stranger.setEmail("stranger@gmail.com");
+
+        when(authentication.getName()).thenReturn("stranger@gmail.com");
+        when(userRepository.findByEmail("stranger@gmail.com")).thenReturn(Optional.of(stranger));
+        when(chatRepository.findById(chatId)).thenReturn(Optional.of(chat));
+
+        assertThatThrownBy(() -> messageService.getMessagesByChatId(chatId.toString(), 0, 30, authentication))
+                .isInstanceOf(UnauthorizedException.class);
+    }
+
+    // ─── recallMessage ────────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("recallMessage() - thu hồi thành công")
+    void recallMessage_success() {
+        Message msg = new Message();
+        msg.setId(messageId);
+        msg.setSender(sender);
+        msg.setChat(chat);
+        msg.setDeleted(false);
+
+        when(userRepository.findByEmail("sender@gmail.com")).thenReturn(Optional.of(sender));
+        when(messageRepository.findById(messageId)).thenReturn(Optional.of(msg));
+        when(messageRepository.save(any())).thenReturn(msg);
+
+        assertThatNoException().isThrownBy(() -> messageService.recallMessage(messageId, authentication));
+
+        assertThat(msg.isDeleted()).isTrue();
+        verify(notificationService).sendMessageRecalledNotification(eq(receiver.getEmail()), eq(messageId), any());
+    }
+
+    @Test
+    @DisplayName("recallMessage() - không phải tin nhắn của mình → throw")
+    void recallMessage_notOwner_throws() {
+        Message msg = new Message();
+        msg.setId(messageId);
+        msg.setSender(receiver); // sender là receiver
+        msg.setChat(chat);
+        msg.setDeleted(false);
+
+        when(userRepository.findByEmail("sender@gmail.com")).thenReturn(Optional.of(sender));
+        when(messageRepository.findById(messageId)).thenReturn(Optional.of(msg));
+
+        assertThatThrownBy(() -> messageService.recallMessage(messageId, authentication))
+                .isInstanceOf(UnauthorizedException.class)
+                .hasMessageContaining("của mình");
+    }
+
+    @Test
+    @DisplayName("recallMessage() - đã thu hồi rồi → throw")
+    void recallMessage_alreadyDeleted_throws() {
+        Message msg = new Message();
+        msg.setId(messageId);
+        msg.setSender(sender);
+        msg.setChat(chat);
+        msg.setDeleted(true);
+
+        when(userRepository.findByEmail("sender@gmail.com")).thenReturn(Optional.of(sender));
+        when(messageRepository.findById(messageId)).thenReturn(Optional.of(msg));
+
+        assertThatThrownBy(() -> messageService.recallMessage(messageId, authentication))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("thu hồi");
+    }
+
+    // ─── deleteMessageForMe ───────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("deleteMessageForMe() - người gửi xóa → deletedBySender = true")
+    void deleteMessageForMe_bySender() {
+        Message msg = new Message();
+        msg.setId(messageId);
+        msg.setSender(sender);
+        msg.setChat(chat);
+
+        when(userRepository.findByEmail("sender@gmail.com")).thenReturn(Optional.of(sender));
+        when(messageRepository.findById(messageId)).thenReturn(Optional.of(msg));
+        when(messageRepository.save(any())).thenReturn(msg);
+
+        assertThatNoException().isThrownBy(() -> messageService.deleteMessageForMe(messageId, authentication));
+
+        assertThat(msg.isDeletedBySender()).isTrue();
+        assertThat(msg.isDeletedByReceiver()).isFalse();
+    }
+
+    @Test
+    @DisplayName("deleteMessageForMe() - người nhận xóa → deletedByReceiver = true")
+    void deleteMessageForMe_byReceiver() {
+        Message msg = new Message();
+        msg.setId(messageId);
+        msg.setSender(sender);
+        msg.setChat(chat);
+
+        when(authentication.getName()).thenReturn("receiver@gmail.com");
+        when(userRepository.findByEmail("receiver@gmail.com")).thenReturn(Optional.of(receiver));
+        when(messageRepository.findById(messageId)).thenReturn(Optional.of(msg));
+        when(messageRepository.save(any())).thenReturn(msg);
+
+        assertThatNoException().isThrownBy(() -> messageService.deleteMessageForMe(messageId, authentication));
+
+        assertThat(msg.isDeletedByReceiver()).isTrue();
+        assertThat(msg.isDeletedBySender()).isFalse();
     }
 
     // ─── setMessagesToSeen ────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("Đánh dấu đã xem thành công")
+    @DisplayName("setMessagesToSeen() - đánh dấu đã xem thành công")
     void setMessagesToSeen_success() {
         when(userRepository.findByEmail("sender@gmail.com")).thenReturn(Optional.of(sender));
         when(chatRepository.findById(chatId)).thenReturn(Optional.of(chat));
@@ -242,5 +411,20 @@ class MessageServiceTest {
 
         verify(messageRepository).markMessagesAsRead(chatId, sender.getId(), MessageState.SEEN);
         verify(notificationService).sendMessageSeenNotification(eq(receiver.getEmail()), eq(chatId));
+    }
+
+    // ─── setMessagesToDelivered ───────────────────────────────────────────────
+
+    @Test
+    @DisplayName("setMessagesToDelivered() - đánh dấu delivered thành công")
+    void setMessagesToDelivered_success() {
+        when(userRepository.findByEmail("sender@gmail.com")).thenReturn(Optional.of(sender));
+        when(chatRepository.findById(chatId)).thenReturn(Optional.of(chat));
+
+        assertThatNoException().isThrownBy(
+                () -> messageService.setMessagesToDelivered(chatId.toString(), authentication));
+
+        verify(messageRepository).markMessagesAsDelivered(chatId, sender.getId(), MessageState.DELIVERED);
+        verify(notificationService).sendMessageDeliveredNotification(any(), any());
     }
 }

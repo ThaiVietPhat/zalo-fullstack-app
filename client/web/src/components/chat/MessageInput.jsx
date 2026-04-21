@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Send, Paperclip, Image, Smile, X } from 'lucide-react';
 import EmojiPicker from 'emoji-picker-react';
 
@@ -6,8 +6,10 @@ export default function MessageInput({
   onSendText,
   onSendMedia,
   onTyping,
+  onInputChange,
   placeholder = 'Nhập tin nhắn...',
   disabled = false,
+  externalValue,
 }) {
   const [text, setText] = useState('');
   const [showEmoji, setShowEmoji] = useState(false);
@@ -28,9 +30,18 @@ export default function MessageInput({
     }
   }, [onTyping]);
 
+  // Nhận giá trị từ bên ngoài (ví dụ: SmartReply chọn suggestion)
+  useEffect(() => {
+    if (externalValue !== undefined && externalValue !== null) {
+      setText(externalValue);
+      inputRef.current?.focus();
+    }
+  }, [externalValue]);
+
   const handleChange = (e) => {
     setText(e.target.value);
     handleTyping();
+    if (onInputChange) onInputChange(e.target.value);
   };
 
   const handleSend = () => {
@@ -44,6 +55,7 @@ export default function MessageInput({
     if (!trimmed) return;
     onSendText && onSendText(trimmed);
     setText('');
+    if (onInputChange) onInputChange('');
     if (onTyping) {
       clearTimeout(typingTimeoutRef.current);
       onTyping(false);

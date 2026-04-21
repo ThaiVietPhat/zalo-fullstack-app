@@ -10,11 +10,23 @@ import MessageBubble from './MessageBubble';
 import MessageInput from './MessageInput';
 import TypingIndicator from './TypingIndicator';
 import ChatInfoPanel from './ChatInfoPanel';
+import ChatSmartReplySuggestions from './ChatSmartReplySuggestions';
+import ChatSummaryBanner from './ChatSummaryBanner';
 import toast from 'react-hot-toast';
+
+const AI_BOT_USER_ID = '00000000-0000-0000-0000-000000000001';
 
 export default function ChatWindow() {
   const { activeChatId, messages, typingUsers, setMessages, prependMessages, addMessage, updateChatLastMessage, updateChatMessagesState, updateChat, setActiveChatId, clearUnread, setTyping, setViewingProfileId } = useChatStore();
   const { auth } = useAuthStore();
+
+  // ─── AI state ─────────────────────────────────────────────────────────────
+  const [latestIncomingMsg, setLatestIncomingMsg] = useState(null);
+  const [summaryDismissed, setSummaryDismissed] = useState(false);
+  const [unreadOnOpen, setUnreadOnOpen] = useState(0);
+  const [lastVisitAt, setLastVisitAt] = useState(null);
+  const [inputValue, setInputValue] = useState('');
+  const [smartReplyText, setSmartReplyText] = useState(null); // trigger fill input
 
   const subscribeToChat = (chatId) => {
     // Subscribe to message delivery topic (broadcast, same pattern as group messages)
@@ -29,6 +41,10 @@ export default function ChatWindow() {
       // Chat đang mở, nhận message từ người khác → mark seen ngay để sender cập nhật real-time
       if (event.senderId !== auth?.userId) {
         markSeen(chatId).catch(() => {});
+        // Smart Reply: chỉ trigger cho tin nhắn TEXT từ người thật (không phải bot)
+        if (event.type === 'TEXT' && event.senderId?.toString() !== AI_BOT_USER_ID) {
+          setLatestIncomingMsg(event);
+        }
       }
     });
     // Subscribe to typing indicator
@@ -68,6 +84,20 @@ export default function ChatWindow() {
   useEffect(() => {
     if (!activeChatId) return;
 
+    // Reset AI state khi chuyển chat
+    setLatestIncomingMsg(null);
+    setSummaryDismissed(false);
+    setInputValue('');
+    setSmartReplyText(null);
+
+    // Đọc lastVisit từ localStorage để tính unread cho Summary
+    const storageKey = `chatLastVisit_${activeChatId}`;
+    const lastVisit = localStorage.getItem(storageKey);
+    setLastVisitAt(lastVisit || null);
+
+    // Lưu lại thời điểm mở chat hiện tại
+    localStorage.setItem(storageKey, new Date().toISOString());
+
     setPage(0);
     setHasMore(true);
     setLoading(true);
@@ -100,6 +130,20 @@ export default function ChatWindow() {
         setMessages(activeChatId, [...sorted, ...wsOnlyMsgs]);
         setHasMore(fetchedMsgs.length === 30);
         setTimeout(() => scrollToBottom(false), 100);
+
+        // Tính unread cho Summary Banner: tin nhắn mới hơn lastVisit, không phải của mình, không phải bot
+        if (lastVisit) {
+          const prevVisitTime = new Date(lastVisit).getTime();
+          const unread = sorted.filter(
+            (m) =>
+              new Date(m.createdAt || m.createdDate).getTime() > prevVisitTime &&
+              m.senderId !== auth?.userId &&
+              m.senderId?.toString() !== AI_BOT_USER_ID
+          ).length;
+          setUnreadOnOpen(unread);
+        } else {
+          setUnreadOnOpen(0);
+        }
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -270,6 +314,16 @@ export default function ChatWindow() {
         </div>
       </div>
 
+      {/* Summary Banner — hiển thị khi có nhiều tin nhắn chưa đọc */}
+      {!summaryDismissed && (
+        <ChatSummaryBanner
+          chatId={activeChatId}
+          unreadCount={unreadOnOpen}
+          since={lastVisitAt}
+          onDismiss={() => setSummaryDismissed(true)}
+        />
+      )}
+
       {/* Messages */}
       <div
         ref={scrollContainerRef}
@@ -298,7 +352,7 @@ export default function ChatWindow() {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input */}
+      {/* Input area */}
       {chatDetail?.blockStatus && chatDetail.blockStatus !== 'NONE' ? (
         <div className="px-4 py-3 bg-gray-50 border-t border-gray-200 text-center text-sm text-gray-400 select-none">
           {chatDetail.blockStatus === 'BLOCKED_BY_ME'
@@ -306,12 +360,27 @@ export default function ChatWindow() {
             : 'Bạn không thể nhắn tin với người dùng này.'}
         </div>
       ) : (
-        <MessageInput
-          onSendText={handleSendText}
-          onSendMedia={handleSendMedia}
-          onTyping={handleTyping}
-          placeholder="Nhập tin nhắn..."
-        />
+        <div className="border-t border-gray-100 bg-white">
+          {/* Smart Reply Suggestions */}
+          <ChatSmartReplySuggestions
+            chatId={activeChatId}
+            latestMessage={latestIncomingMsg}
+            onSelect={(text) => {
+              setSmartReplyText(text);
+              // Reset sau 1 tick để cho phép re-trigger nếu user chọn lại
+              setTimeout(() => setSmartReplyText(null), 50);
+            }}
+            inputValue={inputValue}
+          />
+          <MessageInput
+            onSendText={handleSendText}
+            onSendMedia={handleSendMedia}
+            onTyping={handleTyping}
+            onInputChange={(val) => setInputValue(val)}
+            externalValue={smartReplyText}
+            placeholder="Nhập tin nhắn... (dùng @AI để hỏi trợ lý)"
+          />
+        </div>
       )}
     </div>
 

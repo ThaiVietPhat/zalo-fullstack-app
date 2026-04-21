@@ -10,6 +10,7 @@ import Avatar from '../common/Avatar';
 import toast from 'react-hot-toast';
 
 const BASE_URL = 'http://localhost:8080';
+const AI_BOT_USER_ID = '00000000-0000-0000-0000-000000000001';
 
 function getMediaUrl(url) {
   if (!url) return null;
@@ -59,6 +60,7 @@ export default function MessageBubble({ message, chatId, isGroup = false }) {
   const [imagePreview, setImagePreview] = useState(null);
   const [videoPreview, setVideoPreview] = useState(null);
 
+  const isBot = message.senderId?.toString() === AI_BOT_USER_ID;
   const isMine = isGroup
     ? message.isMine || message.senderId === auth?.userId
     : message.senderId === auth?.userId;
@@ -239,10 +241,16 @@ export default function MessageBubble({ message, chatId, isGroup = false }) {
         onMouseLeave={() => { if (!showEmoji) setShowActions(false); }}
       >
         <div className={`relative flex flex-col ${isMine ? 'items-end' : 'items-start'} max-w-[65%]`}>
-          {/* Sender name for group */}
+          {/* Sender name for group or bot */}
           {isGroup && !isMine && message.senderName && (
-            <span className="text-xs text-blue-600 font-medium mb-1 ml-1">
-              {message.senderName}
+            <span className={`text-xs font-medium mb-1 ml-1 ${isBot ? 'text-violet-600' : 'text-blue-600'}`}>
+              {isBot ? '🤖 ' : ''}{message.senderName}
+            </span>
+          )}
+          {/* Bot label in 1-1 chat */}
+          {!isGroup && isBot && (
+            <span className="text-xs text-violet-600 font-medium mb-1 ml-1">
+              🤖 Trợ lý AI
             </span>
           )}
 
@@ -253,13 +261,15 @@ export default function MessageBubble({ message, chatId, isGroup = false }) {
                 ? 'bg-gray-100 text-gray-400'
                 : isMine
                 ? 'bg-[#0068ff] text-white rounded-br-sm'
+                : isBot
+                ? 'bg-gradient-to-br from-violet-500 to-purple-600 text-white rounded-bl-sm'
                 : 'bg-white text-gray-800 rounded-bl-sm border border-gray-100'
             }`}
           >
             {renderContent()}
             <div
               className={`text-[10px] mt-1 ${
-                isMine ? 'text-blue-100 text-right' : 'text-gray-400 text-right'
+                isMine ? 'text-blue-100 text-right' : isBot ? 'text-violet-200 text-right' : 'text-gray-400 text-right'
               }`}
             >
               {formatTime(message.createdAt || message.createdDate)}

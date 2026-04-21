@@ -2,12 +2,12 @@ package com.example.backend.ai.service;
 
 import com.example.backend.ai.dto.SmartReplyResponse;
 import com.example.backend.ai.dto.SummarizeResponse;
-import com.example.backend.group.dto.GroupMessageDto;
-import com.example.backend.group.entity.Group;
-import com.example.backend.group.entity.GroupMessage;
-import com.example.backend.group.repository.GroupMessageRepository;
-import com.example.backend.group.repository.GroupRepository;
+import com.example.backend.chat.repository.ChatRepository;
+import com.example.backend.messaging.dto.MessageDto;
+import com.example.backend.messaging.entity.Message;
+import com.example.backend.messaging.enums.MessageState;
 import com.example.backend.messaging.enums.MessageType;
+import com.example.backend.messaging.repository.MessageRepository;
 import com.example.backend.user.entity.User;
 import com.example.backend.user.repository.UserRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -27,7 +27,7 @@ import java.util.stream.Collectors;
 
 @Service
 @Slf4j
-public class GroupAiService {
+public class ChatAiService {
 
     // UUID cố định cho AI Bot user (được seed qua V21 migration)
     public static final UUID AI_BOT_USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
@@ -35,31 +35,31 @@ public class GroupAiService {
 
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm dd/MM");
     private static final int CONTEXT_MSG_LIMIT = 30;
-    private static final int SUMMARIZE_MAX_MSGS = 100;
+    private static final int SUMMARIZE_MAX_MSGS = 50;
 
     private final ChatClient chatClient;
-    private final GroupMessageRepository groupMessageRepository;
-    private final GroupRepository groupRepository;
+    private final MessageRepository messageRepository;
+    private final ChatRepository chatRepository;
     private final UserRepository userRepository;
     private final SimpMessagingTemplate messagingTemplate;
     private final ObjectMapper objectMapper;
 
-    public GroupAiService(ChatClient.Builder chatClientBuilder,
-                          GroupMessageRepository groupMessageRepository,
-                          GroupRepository groupRepository,
-                          UserRepository userRepository,
-                          SimpMessagingTemplate messagingTemplate,
-                          ObjectMapper objectMapper) {
+    public ChatAiService(ChatClient.Builder chatClientBuilder,
+                         MessageRepository messageRepository,
+                         ChatRepository chatRepository,
+                         UserRepository userRepository,
+                         SimpMessagingTemplate messagingTemplate,
+                         ObjectMapper objectMapper) {
         this.chatClient = chatClientBuilder
                 .defaultSystem("""
-                        Bạn là trợ lý AI thông minh tích hợp trong ứng dụng chat nhóm Zalo Clone.
+                        Bạn là trợ lý AI thông minh tích hợp trong ứng dụng chat Zalo Clone.
                         Hãy trả lời bằng tiếng Việt khi người dùng viết tiếng Việt,
                         và bằng tiếng Anh khi họ viết tiếng Anh.
                         Câu trả lời nên ngắn gọn, rõ ràng và hữu ích.
                         """)
                 .build();
-        this.groupMessageRepository = groupMessageRepository;
-        this.groupRepository = groupRepository;
+        this.messageRepository = messageRepository;
+        this.chatRepository = chatRepository;
         this.userRepository = userRepository;
         this.messagingTemplate = messagingTemplate;
         this.objectMapper = objectMapper;
@@ -67,9 +67,9 @@ public class GroupAiService {
 
     // ─── Feature 1: Smart Reply ───────────────────────────────────────────────
 
-        public SmartReplyResponse getSmartReplies(UUID groupId) {
-        List<GroupMessage> messages = groupMessageRepository
-                .findRecentTextMessagesForAi(groupId, PageRequest.of(0, CONTEXT_MSG_LIMIT));
+    public SmartReplyResponse getSmartReplies(UUID chatId) {
+        List<Message> messages = messageRepository
+                .findRecentTextMessagesForAi(chatId, PageRequest.of(0, CONTEXT_MSG_LIMIT));
         Collections.reverse(messages);
 
         if (messages.isEmpty()) {
@@ -82,7 +82,7 @@ public class GroupAiService {
         String lastMsg = messages.get(messages.size() - 1).getContent();
 
         String prompt = """
-                Đây là lịch sử cuộc trò chuyện nhóm:
+                Đây là lịch sử cuộc trò chuyện:
                 ---
                 %s
                 ---
@@ -101,7 +101,7 @@ public class GroupAiService {
             List<String> suggestions = parseJsonArraySafe(raw);
             return SmartReplyResponse.builder().suggestions(suggestions).build();
         } catch (Exception e) {
-            log.warn("Smart reply AI call failed: {}", e.getMessage());
+            log.warn("Chat smart reply AI call failed: {}", e.getMessage());
             return SmartReplyResponse.builder()
                     .suggestions(List.of("Được rồi!", "OK bạn ơi", "Cho tôi xem thêm"))
                     .build();
@@ -110,11 +110,11 @@ public class GroupAiService {
 
     // ─── Feature 2: Summarize ─────────────────────────────────────────────────
 
-    public SummarizeResponse summarize(UUID groupId, LocalDateTime since) {
+    public SummarizeResponse summarize(UUID chatId, LocalDateTime since) {
         LocalDateTime to = LocalDateTime.now();
 
-        List<GroupMessage> messages = groupMessageRepository
-                .findMessagesForAiByDateRange(groupId, since, to);
+        List<Message> messages = messageRepository
+                .findMessagesForAiByDateRange(chatId, since, to);
 
         if (messages.isEmpty()) {
             return SummarizeResponse.builder()
@@ -126,7 +126,7 @@ public class GroupAiService {
                     .build();
         }
 
-        List<GroupMessage> sample = messages.size() > SUMMARIZE_MAX_MSGS
+        List<Message> sample = messages.size() > SUMMARIZE_MAX_MSGS
                 ? messages.subList(messages.size() - SUMMARIZE_MAX_MSGS, messages.size())
                 : messages;
 
@@ -139,14 +139,14 @@ public class GroupAiService {
                 .collect(Collectors.joining("\n"));
 
         String prompt = """
-                Đây là lịch sử cuộc trò chuyện nhóm từ %s đến %s (%d tin nhắn):
+                Đây là lịch sử cuộc trò chuyện từ %s đến %s (%d tin nhắn):
                 ---
                 %s
                 ---
 
-                Hãy tóm tắt cuộc trò chuyện trên ngắn gọn (3-5 câu), nêu:
+                Hãy tóm tắt cuộc trò chuyện trên ngắn gọn (2-4 câu), nêu:
                 - Các chủ đề chính được thảo luận
-                - Quyết định hoặc kết luận quan trọng (nếu có)
+                - Kết luận hoặc quyết định quan trọng (nếu có)
                 Trả lời bằng tiếng Việt.
                 """.formatted(since.format(TIME_FMT), to.format(TIME_FMT), messages.size(), context);
 
@@ -157,21 +157,14 @@ public class GroupAiService {
                     .call()
                     .content();
         } catch (Exception e) {
-            log.warn("Summarize AI call failed: {}", e.getMessage());
+            log.warn("Chat summarize AI call failed: {}", e.getMessage());
             summary = "Không thể tạo tóm tắt lúc này. Vui lòng thử lại sau.";
         }
-
-        List<Object[]> speakerRows = groupMessageRepository
-                .findTopSpeakersInGroup(groupId, since);
-        List<String> topSpeakers = speakerRows.stream()
-                .limit(3)
-                .map(row -> row[0] + " " + row[1] + " (" + row[2] + " tin)")
-                .collect(Collectors.toList());
 
         return SummarizeResponse.builder()
                 .summary(summary)
                 .messageCount(messages.size())
-                .topSpeakers(topSpeakers)
+                .topSpeakers(List.of()) // Chat 1-1 không cần top speakers
                 .from(since)
                 .to(to)
                 .build();
@@ -181,11 +174,11 @@ public class GroupAiService {
 
     @Async
     @Transactional
-    public void handleBotMentionAsync(UUID groupId, String messageContent, String senderName) {
-        log.info("AI Bot processing mention in group {} from {}", groupId, senderName);
+    public void handleBotMentionAsync(UUID chatId, String messageContent, String senderName) {
+        log.info("AI Bot processing @ai mention in chat {} from {}", chatId, senderName);
 
-        List<GroupMessage> contextMsgs = groupMessageRepository
-                .findRecentTextMessagesForAi(groupId, PageRequest.of(0, CONTEXT_MSG_LIMIT));
+        List<Message> contextMsgs = messageRepository
+                .findRecentTextMessagesForAi(chatId, PageRequest.of(0, CONTEXT_MSG_LIMIT));
         Collections.reverse(contextMsgs);
 
         String question = messageContent
@@ -194,7 +187,7 @@ public class GroupAiService {
         if (question.isEmpty()) question = "Xin chào!";
 
         String systemContext = contextMsgs.isEmpty() ? "" :
-                "Context cuộc trò chuyện nhóm gần đây:\n" + buildMessageContext(contextMsgs) + "\n\n";
+                "Context cuộc trò chuyện gần đây:\n" + buildMessageContext(contextMsgs) + "\n\n";
 
         String userPrompt = systemContext +
                 "Người dùng " + senderName + " hỏi: " + question + "\n\n" +
@@ -208,7 +201,7 @@ public class GroupAiService {
                     .call()
                     .content();
         } catch (Exception e) {
-            log.warn("Bot mention AI call failed: {}", e.getMessage());
+            log.warn("Chat bot mention AI call failed: {}", e.getMessage());
             reply = "Xin lỗi, tôi đang bận. Vui lòng thử lại sau nhé!";
         }
 
@@ -218,41 +211,42 @@ public class GroupAiService {
             return;
         }
 
-        Group group = groupRepository.findById(groupId).orElse(null);
-        if (group == null) {
-            log.warn("Group {} not found, aborting AI bot reply", groupId);
+        com.example.backend.chat.entity.Chat chat = chatRepository.findById(chatId).orElse(null);
+        if (chat == null) {
+            log.warn("Chat {} not found, aborting AI bot reply", chatId);
             return;
         }
 
-        GroupMessage botMsg = new GroupMessage();
-        botMsg.setGroup(group);
+        // Lưu tin nhắn bot vào DB
+        Message botMsg = new Message();
+        botMsg.setChat(chat);
         botMsg.setSender(botUser);
         botMsg.setContent(reply);
         botMsg.setType(MessageType.TEXT);
-        GroupMessage saved = groupMessageRepository.save(botMsg);
+        botMsg.setState(MessageState.SENT);
+        Message saved = messageRepository.save(botMsg);
 
-        GroupMessageDto dto = GroupMessageDto.builder()
+        // Build DTO thủ công (không dùng mapper vì bot không phải user1/user2 của chat)
+        MessageDto dto = MessageDto.builder()
                 .id(saved.getId())
+                .chatId(chatId)
                 .content(saved.getContent())
-                .type(saved.getType())
-                .groupId(groupId)
-                .senderId(botUser.getId())
+                .type(MessageType.TEXT)
+                .state(MessageState.SENT)
+                .senderId(AI_BOT_USER_ID)
                 .senderName(AI_BOT_NAME)
-                .isMine(false)
-                .createdDate(saved.getCreatedDate())
                 .deleted(false)
-                .pinned(false)
-                .hiddenForMe(false)
                 .reactions(List.of())
                 .build();
 
-        messagingTemplate.convertAndSend("/topic/group/" + groupId, dto);
-        log.info("AI Bot replied to group {}", groupId);
+        // Broadcast đến cả 2 người trong chat
+        messagingTemplate.convertAndSend("/topic/chat/" + chatId, dto);
+        log.info("AI Bot replied to chat {}", chatId);
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────────────
 
-    private String buildMessageContext(List<GroupMessage> messages) {
+    private String buildMessageContext(List<Message> messages) {
         return messages.stream()
                 .filter(m -> m.getContent() != null && !m.getContent().isBlank())
                 .map(m -> {

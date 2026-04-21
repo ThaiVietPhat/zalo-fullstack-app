@@ -23,4 +23,6 @@ public class MessageDto {
     private String fileName;
     private boolean deleted;
     private List<ReactionDto> reactions;
+    /** Tên người gửi — chỉ set cho tin nhắn của AI Bot, null với tin nhắn thường */
+    private String senderName;
 }

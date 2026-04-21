@@ -94,4 +94,26 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
     @Query("SELECT m.sender.id, COUNT(m) FROM Message m WHERE m.deleted = false " +
             "GROUP BY m.sender.id ORDER BY COUNT(m) DESC")
     List<Object[]> findTopSenderIds(Pageable pageable);
+
+    // ─── Query cho AI đọc context chat đơn ──────────────────────────────────
+
+    /**
+     * Lấy N tin nhắn TEXT gần nhất của chat 1-1 (dùng cho AI smart reply / bot mention).
+     * Trả về DESC → service sẽ reverse lại thành ASC trước khi đưa cho AI.
+     */
+    @Query("SELECT m FROM Message m WHERE m.chat.id = :chatId AND m.deleted = false " +
+           "AND m.type = com.example.backend.messaging.enums.MessageType.TEXT " +
+           "ORDER BY m.createdDate DESC")
+    List<Message> findRecentTextMessagesForAi(@Param("chatId") UUID chatId, Pageable pageable);
+
+    /**
+     * Lấy tin nhắn TEXT trong khoảng thời gian cụ thể (dùng cho AI tóm tắt).
+     */
+    @Query("SELECT m FROM Message m WHERE m.chat.id = :chatId AND m.deleted = false " +
+           "AND m.createdDate BETWEEN :from AND :to " +
+           "AND m.type = com.example.backend.messaging.enums.MessageType.TEXT " +
+           "ORDER BY m.createdDate ASC")
+    List<Message> findMessagesForAiByDateRange(@Param("chatId") UUID chatId,
+                                               @Param("from") LocalDateTime from,
+                                               @Param("to") LocalDateTime to);
 }

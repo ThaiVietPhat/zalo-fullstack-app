@@ -16,6 +16,7 @@ import com.example.backend.chat.repository.ChatRepository;
 import com.example.backend.messaging.repository.MessageReactionRepository;
 import com.example.backend.messaging.repository.MessageRepository;
 import com.example.backend.user.repository.UserRepository;
+import com.example.backend.ai.service.ChatAiService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -44,6 +45,7 @@ public class MessageServiceImpl implements MessageService {
     private final NotificationService notificationService;
     private final MessageReactionRepository messageReactionRepository;
     private final com.example.backend.user.service.BlockService blockService;
+    private final ChatAiService chatAiService;
 
     @Override
     @Transactional
@@ -98,6 +100,15 @@ public class MessageServiceImpl implements MessageService {
         notificationService.sendChatBroadcast(chat.getId(), savedDto);
         // Also notify receiver via user queue for background unread count updates
         notificationService.sendMessageNotification(receiver.getEmail(), savedDto);
+
+        // Detect @AI mention → trigger AI bot async reply
+        if (MessageType.TEXT.equals(savedMessage.getType())
+                && savedMessage.getContent() != null
+                && savedMessage.getContent().toLowerCase().contains("@ai")) {
+            String senderFullName = sender.getFirstName() + " " + sender.getLastName();
+            chatAiService.handleBotMentionAsync(chat.getId(), savedMessage.getContent(), senderFullName);
+        }
+
         return savedDto;
     }
 
