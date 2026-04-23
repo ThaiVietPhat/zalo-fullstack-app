@@ -1,11 +1,91 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Flag, CheckCircle, XCircle, ChevronLeft, ChevronRight, Loader, MessageCircle, ShieldOff } from 'lucide-react';
+import { Flag, CheckCircle, XCircle, ChevronLeft, ChevronRight, Loader, MessageCircle, ShieldOff, Image, FileText, Video, ExternalLink } from 'lucide-react';
 import { getReports, resolveReport } from '../../api/report';
 import { unbanUser } from '../../api/admin';
 import Avatar from '../common/Avatar';
 import toast from 'react-hot-toast';
 import { formatDistanceToNow } from 'date-fns';
 import { vi } from 'date-fns/locale';
+
+/** Mini component hiển thị danh sách bằng chứng của một báo cáo */
+function EvidenceList({ urls }) {
+  const [preview, setPreview] = useState(null);
+  if (!urls || urls.length === 0) return null;
+
+  return (
+    <div className="mt-2">
+      <p className="text-[10px] text-gray-400 font-medium mb-1.5">📎 Bằng chứng ({urls.length} file):</p>
+      <div className="flex flex-wrap gap-1.5">
+        {urls.map((url, i) => {
+          const isImage = /\.(jpg|jpeg|png|gif|webp)(\?|$)/i.test(url);
+          const isVideo = /\.(mp4|webm|mov)(\?|$)/i.test(url);
+
+          if (isImage) {
+            return (
+              <button
+                key={i}
+                onClick={() => setPreview(url)}
+                className="relative group"
+                title="Xem ảnh"
+              >
+                <img
+                  src={url}
+                  alt={`evidence-${i + 1}`}
+                  className="w-16 h-16 object-cover rounded-lg border border-gray-200 hover:border-orange-300 transition-colors"
+                />
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-lg transition-colors flex items-center justify-center">
+                  <ExternalLink size={12} className="text-white opacity-0 group-hover:opacity-100" />
+                </div>
+              </button>
+            );
+          }
+
+          if (isVideo) {
+            return (
+              <a
+                key={i}
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 px-2.5 py-1.5 bg-purple-50 border border-purple-100 rounded-lg text-xs text-purple-700 hover:bg-purple-100 transition-colors"
+              >
+                <Video size={12} />
+                Video {i + 1}
+              </a>
+            );
+          }
+
+          return (
+            <a
+              key={i}
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 px-2.5 py-1.5 bg-gray-50 border border-gray-100 rounded-lg text-xs text-gray-600 hover:bg-gray-100 transition-colors"
+            >
+              <FileText size={12} />
+              Tệp {i + 1}
+            </a>
+          );
+        })}
+      </div>
+
+      {/* Image preview modal */}
+      {preview && (
+        <div
+          className="fixed inset-0 z-[70] bg-black/80 flex items-center justify-center p-4"
+          onClick={() => setPreview(null)}
+        >
+          <img
+            src={preview}
+            alt="preview"
+            className="max-w-full max-h-full rounded-xl object-contain"
+          />
+        </div>
+      )}
+    </div>
+  );
+}
 
 const STATUS_TABS = [
   { id: '', label: 'Tất cả' },
@@ -137,6 +217,9 @@ export default function Reports({ onChatUser }) {
                           <p className="text-xs text-gray-500 line-clamp-2">{report.description}</p>
                         )}
                       </div>
+
+                      {/* Bằng chứng */}
+                      <EvidenceList urls={report.evidenceUrls} />
 
                       {report.resolution && (
                         <p className="text-xs text-gray-400 mt-1 italic">Xử lý: {report.resolution}</p>

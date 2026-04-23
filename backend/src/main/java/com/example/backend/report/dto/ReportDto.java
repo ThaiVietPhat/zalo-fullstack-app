@@ -4,6 +4,7 @@ import com.example.backend.report.entity.ReportStatus;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Data @Builder @NoArgsConstructor @AllArgsConstructor
@@ -22,4 +23,6 @@ public class ReportDto {
     private LocalDateTime resolvedAt;
     private String resolution;
     private boolean reportedBanned;
+    /** Presigned URLs của file bằng chứng (sinh mới mỗi lần trả về) */
+    private List<String> evidenceUrls;
 }

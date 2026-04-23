@@ -1,5 +1,6 @@
 package com.example.backend.report.controller;
 
+import com.example.backend.file.service.FileStorageService;
 import com.example.backend.report.dto.ReportDto;
 import com.example.backend.report.dto.ReportRequest;
 import com.example.backend.report.dto.ResolveReportRequest;
@@ -14,7 +15,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.annotation.Secured;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -23,6 +26,26 @@ public class ReportController {
 
     private final ReportService reportService;
     private final UserRepository userRepository;
+    private final FileStorageService fileStorageService;
+
+    // ─── User: upload file bằng chứng ───────────────────────────────────────
+
+    /**
+     * Upload một file bằng chứng lên S3.
+     * Frontend gọi endpoint này trước khi submit report, lấy key trả về,
+     * rồi đính kèm vào danh sách evidenceKeys khi gửi report.
+     *
+     * POST /api/v1/report/evidence
+     * Response: { "key": "...", "url": "..." }
+     */
+    @PostMapping("/api/v1/report/evidence")
+    public ResponseEntity<Map<String, String>> uploadEvidence(
+            @RequestParam("file") MultipartFile file,
+            Authentication auth) {
+        String key = fileStorageService.saveFile(file);
+        String url = fileStorageService.generatePresignedUrl(key);
+        return ResponseEntity.ok(Map.of("key", key, "url", url));
+    }
 
     // ─── User: tố cáo người dùng khác ───────────────────────────────────────
 

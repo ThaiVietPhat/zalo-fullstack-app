@@ -2,6 +2,7 @@ package com.example.backend.report.service;
 
 import com.example.backend.admin.entity.AuditLog;
 import com.example.backend.admin.repository.AuditLogRepository;
+import com.example.backend.file.service.FileStorageService;
 import com.example.backend.messaging.service.NotificationService;
 import com.example.backend.report.dto.ReportDto;
 import com.example.backend.report.dto.ReportRequest;
@@ -21,7 +22,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -32,6 +36,7 @@ public class ReportService {
     private final UserRepository userRepository;
     private final NotificationService notificationService;
     private final AuditLogRepository auditLogRepository;
+    private final FileStorageService fileStorageService;
 
     @Transactional
     public ReportDto createReport(UUID reporterId, UUID reportedId, ReportRequest req) {
@@ -51,6 +56,9 @@ public class ReportService {
         report.setReason(req.getReason());
         report.setDescription(req.getDescription());
         report.setStatus(ReportStatus.PENDING);
+        if (req.getEvidenceKeys() != null && !req.getEvidenceKeys().isEmpty()) {
+            report.setEvidenceKeys(req.getEvidenceKeys());
+        }
 
         reportRepository.save(report);
         log.info("Report created: {} reported {}", reporterId, reportedId);
@@ -125,6 +133,18 @@ public class ReportService {
     }
 
     private ReportDto toDto(Report r) {
+        // Sinh presigned URL cho từng evidence key
+        List<String> evidenceUrls = new ArrayList<>();
+        if (r.getEvidenceKeys() != null) {
+            for (String key : r.getEvidenceKeys()) {
+                try {
+                    evidenceUrls.add(fileStorageService.generatePresignedUrl(key));
+                } catch (Exception e) {
+                    log.warn("Cannot generate presigned URL for evidence key: {}", key);
+                }
+            }
+        }
+
         return ReportDto.builder()
                 .id(r.getId())
                 .reporterId(r.getReporter().getId())
@@ -140,6 +160,7 @@ public class ReportService {
                 .resolvedAt(r.getResolvedAt())
                 .resolution(r.getResolution())
                 .reportedBanned(r.getReported().isBanned())
+                .evidenceUrls(evidenceUrls)
                 .build();
     }
 }
