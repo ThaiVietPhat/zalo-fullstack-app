@@ -1,7 +1,7 @@
 {
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "http://34.59.79.51:8080/api/$1" },
-    { "source": "/ws/(.*)", "destination": "http://34.59.79.51:8080/ws/$1" },
+    { "source": "/api/:path*", "destination": "http://34.59.79.51:8080/api/:path*" },
+    { "source": "/ws/:path*", "destination": "http://34.59.79.51:8080/ws/:path*" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [
