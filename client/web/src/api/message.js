@@ -30,7 +30,7 @@ export const deleteMessageForMe = (messageId) =>
   api.delete(`/api/v1/message/${messageId}`);
 
 export const getMediaUrl = (filename) =>
-  `http://localhost:8080/api/v1/message/media/${filename}`;
+  `${import.meta.env.VITE_API_URL || ''}/api/v1/message/media/${filename}`;
 
 export const toggleReaction = (messageId, emoji) =>
   api.post(`/api/v1/message/${messageId}/reactions`, null, { params: { emoji } });
