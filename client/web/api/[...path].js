@@ -1,55 +1,46 @@
 const BACKEND_URL = 'http://34.59.79.51:8080';
 
 export default async function handler(req, res) {
-  const { path } = req.query;
-  const targetPath = Array.isArray(path) ? path.join('/') : path;
-
-  // Build target URL with query params
-  const queryString = new URLSearchParams(
-    Object.entries(req.query).filter(([key]) => key !== 'path')
-  ).toString();
-  const targetUrl = `${BACKEND_URL}/api/${targetPath}${queryString ? '?' + queryString : ''}`;
-
-  // Forward headers (exclude host)
-  const forwardHeaders = {
-    'Content-Type': req.headers['content-type'] || 'application/json',
-  };
-  if (req.headers['authorization']) {
-    forwardHeaders['Authorization'] = req.headers['authorization'];
-  }
-
-  const fetchOptions = {
-    method: req.method,
-    headers: forwardHeaders,
-  };
-
-  // Forward body for non-GET requests
-  if (!['GET', 'HEAD'].includes(req.method) && req.body) {
-    fetchOptions.body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
-  }
-
   try {
-    const response = await fetch(targetUrl, fetchOptions);
-    const contentType = response.headers.get('content-type') || '';
+    const { path } = req.query;
+    const segments = Array.isArray(path) ? path : [path];
+    const targetPath = segments.join('/');
 
-    // Forward response headers
-    response.headers.forEach((value, key) => {
-      if (!['transfer-encoding', 'connection', 'keep-alive'].includes(key.toLowerCase())) {
-        res.setHeader(key, value);
-      }
-    });
+    const queryParams = Object.entries(req.query)
+      .filter(([key]) => key !== 'path')
+      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+      .join('&');
+
+    const targetUrl = `${BACKEND_URL}/api/${targetPath}${queryParams ? '?' + queryParams : ''}`;
+    console.log(`[proxy] ${req.method} ${targetUrl}`);
+
+    const headers = { 'Content-Type': 'application/json' };
+    if (req.headers['authorization']) {
+      headers['Authorization'] = req.headers['authorization'];
+    }
+
+    const fetchOptions = {
+      method: req.method,
+      headers,
+    };
+
+    if (!['GET', 'HEAD'].includes(req.method) && req.body !== undefined) {
+      fetchOptions.body = JSON.stringify(req.body);
+    }
+
+    const response = await fetch(targetUrl, fetchOptions);
+    const text = await response.text();
 
     res.status(response.status);
+    res.setHeader('Content-Type', 'application/json');
 
-    if (contentType.includes('application/json')) {
-      const data = await response.json();
-      res.json(data);
-    } else {
-      const buffer = await response.arrayBuffer();
-      res.send(Buffer.from(buffer));
+    try {
+      res.json(JSON.parse(text));
+    } catch {
+      res.send(text);
     }
   } catch (error) {
-    console.error('Proxy error:', error);
-    res.status(502).json({ error: 'Backend unreachable', detail: error.message });
+    console.error('[proxy error]', error);
+    res.status(502).json({ error: 'Proxy error', message: error.message });
   }
 }
