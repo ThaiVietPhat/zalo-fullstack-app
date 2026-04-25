@@ -18,7 +18,7 @@ public abstract class MessageMapper {
     @Mapping(target = "senderId", source = "sender.id")
     @Mapping(target = "chatId", source = "chat.id")
     @Mapping(target = "createdAt", source = "createdDate")
-    @Mapping(target = "receiverId", expression = "java(message.getReceiver().getId())")
+    @Mapping(target = "receiverId", expression = "java(message.getReceiver() != null ? message.getReceiver().getId() : null)")
     @Mapping(target = "mediaUrl", source = "message", qualifiedByName = "toMediaUrl")
     @Mapping(target = "reactions", ignore = true)
     @Mapping(target = "senderName", ignore = true)
