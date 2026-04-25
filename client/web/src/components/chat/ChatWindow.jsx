@@ -94,7 +94,8 @@ export default function ChatWindow() {
     // Đọc lastVisit từ localStorage để tính unread cho Summary
     const storageKey = `chatLastVisit_${activeChatId}`;
     const lastVisit = localStorage.getItem(storageKey);
-    setLastVisitAt(lastVisit || null);
+    // Fallback 7 ngày trước nếu là lần đầu mở chat — đảm bảo banner hiện khi có tin chưa đọc
+    setLastVisitAt(lastVisit || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
 
     // Lưu lại thời điểm mở chat hiện tại
     localStorage.setItem(storageKey, new Date().toISOString());

@@ -400,7 +400,7 @@ export default function GroupWindow() {
     updateGroupMessageReactions, setTyping,
     pinnedMessages, setPinnedMessages,
     groupJoinRequests, setGroupJoinRequests, removeGroupJoinRequest,
-    clearGroupUnread,
+    clearGroupUnread, incrementGroupUnread,
   } = useChatStore();
   const { auth } = useAuthStore();
 
@@ -610,10 +610,27 @@ export default function GroupWindow() {
 
     subscribeToGroup(activeGroupId);
     return () => {
-      unsubscribeFromGroup(activeGroupId);
-      // KHÔNG lưu lastVisit ở đây — React StrictMode chạy cleanup rồi re-mount ngay,
-      // khiến localStorage bị ghi "now" trước khi đọc → unreadCount = 0 → banner tắt.
-      // Thay vào đó lưu khi SWITCH sang group khác (đầu useEffect) và khi đóng tab (beforeunload).
+      // Lưu lastVisit khi rời khỏi group window (tab switch, đóng window…)
+      // Lần mount tiếp theo của cùng group sẽ đọc giá trị này.
+      // Lưu ý: prevGroupIdRef.current cũng lưu khi SWITCH sang group khác ở đầu effect,
+      // nhưng khi chuyển TAB (activeGroupId → null) thì code đầu effect không chạy vì !activeGroupId,
+      // nên cần lưu ở đây để capture trường hợp đó.
+      if (activeGroupId) {
+        localStorage.setItem(`groupLastVisit_${activeGroupId}`, new Date().toISOString());
+      }
+      // Thay vì unsubscribeFromGroup hoàn toàn (xóa STOMP subscription),
+      // chuyển sang "global mode": chỉ cập nhật lastMessage + unreadCount.
+      // Điều này tránh race condition với useWebSocket.js vốn cũng subscribe cùng topic.
+      if (activeGroupId) {
+        wsService.subscribe(`/topic/group/${activeGroupId}`, (data) => {
+          if (data.messageId !== undefined && data.reactions !== undefined && !data.id) return;
+          if (data.id && data.deleted) return;
+          updateGroupLastMessage(activeGroupId, data);
+          if (data.type !== 'SYSTEM') incrementGroupUnread(activeGroupId);
+        });
+      }
+      wsService.unsubscribe(`/topic/group/${activeGroupId}/typing`);
+      wsService.unsubscribe(`/topic/group/${activeGroupId}/events`);
     };
   }, [activeGroupId]);
 
