@@ -539,14 +539,29 @@ export default function GroupWindow() {
   };
 
   useEffect(() => {
-    if (!activeGroupId) return;
-
-    // ─── AI: lưu visit time của group TRƯỚC khi mở group mới ────────────────
-    // (không lưu trong cleanup để tránh StrictMode double-invoke ghi "now" sai)
+    // ─── Khi rời group cũ: lưu lastVisit + chuyển sang global handler ────────
+    // Đặt TRƯỚC if(!activeGroupId) return để bắt cả trường hợp switch TAB (→ null).
+    // Đặt trong EFFECT (không phải cleanup) để tránh StrictMode fake-cleanup ghi
+    // localStorage "now" ngay trước khi effect tiếp theo đọc → visitAt = now → unread = 0.
+    // Gate: prevGroupIdRef !== activeGroupId → FALSE khi StrictMode re-run cùng groupId → an toàn.
     if (prevGroupIdRef.current && prevGroupIdRef.current !== activeGroupId) {
-      localStorage.setItem(`groupLastVisit_${prevGroupIdRef.current}`, new Date().toISOString());
+      const prevId = prevGroupIdRef.current;
+      localStorage.setItem(`groupLastVisit_${prevId}`, new Date().toISOString());
+      // Chuyển main topic sang global handler (tăng unread khi có tin mới)
+      wsService.subscribe(`/topic/group/${prevId}`, (data) => {
+        if (data.messageId !== undefined && data.reactions !== undefined && !data.id) return;
+        if (data.id && data.deleted) return;
+        updateGroupLastMessage(prevId, data);
+        if (data.type !== 'SYSTEM') incrementGroupUnread(prevId);
+      });
+      // Typing/events không cần khi window không mở
+      wsService.unsubscribe(`/topic/group/${prevId}/typing`);
+      wsService.unsubscribe(`/topic/group/${prevId}/events`);
     }
     prevGroupIdRef.current = activeGroupId;
+    // ─────────────────────────────────────────────────────────────────────────
+
+    if (!activeGroupId) return;
 
     // Đọc lastVisitAt của group vừa mở, fallback 7 ngày trước nếu lần đầu vào
     const storedVisit = localStorage.getItem(`groupLastVisit_${activeGroupId}`);
@@ -555,7 +570,6 @@ export default function GroupWindow() {
     setUnreadOnOpen(0); // sẽ được tính lại sau khi load messages
     setSummaryDismissed(false);
     setLatestIncomingMsg(null);
-    // ─────────────────────────────────────────────────────────────────────────
 
     clearGroupUnread(activeGroupId);
     setPage(0);
@@ -610,25 +624,9 @@ export default function GroupWindow() {
 
     subscribeToGroup(activeGroupId);
     return () => {
-      // Lưu lastVisit khi rời khỏi group window (tab switch, đóng window…)
-      // Lần mount tiếp theo của cùng group sẽ đọc giá trị này.
-      // Lưu ý: prevGroupIdRef.current cũng lưu khi SWITCH sang group khác ở đầu effect,
-      // nhưng khi chuyển TAB (activeGroupId → null) thì code đầu effect không chạy vì !activeGroupId,
-      // nên cần lưu ở đây để capture trường hợp đó.
-      if (activeGroupId) {
-        localStorage.setItem(`groupLastVisit_${activeGroupId}`, new Date().toISOString());
-      }
-      // Thay vì unsubscribeFromGroup hoàn toàn (xóa STOMP subscription),
-      // chuyển sang "global mode": chỉ cập nhật lastMessage + unreadCount.
-      // Điều này tránh race condition với useWebSocket.js vốn cũng subscribe cùng topic.
-      if (activeGroupId) {
-        wsService.subscribe(`/topic/group/${activeGroupId}`, (data) => {
-          if (data.messageId !== undefined && data.reactions !== undefined && !data.id) return;
-          if (data.id && data.deleted) return;
-          updateGroupLastMessage(activeGroupId, data);
-          if (data.type !== 'SYSTEM') incrementGroupUnread(activeGroupId);
-        });
-      }
+      // Chỉ unsubscribe typing/events — an toàn với StrictMode (re-subscribe khi remount).
+      // Việc lưu lastVisit + chuyển main topic sang global handler được xử lý ở ĐẦU effect
+      // khi activeGroupId thay đổi, tránh StrictMode fake-cleanup ghi "now" sai.
       wsService.unsubscribe(`/topic/group/${activeGroupId}/typing`);
       wsService.unsubscribe(`/topic/group/${activeGroupId}/events`);
     };
