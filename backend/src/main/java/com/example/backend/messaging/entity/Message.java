@@ -53,6 +53,11 @@ public class Message extends BaseAuditingEntity {
 
     @Transient
     public User getReceiver() {
-        return chat.getOtherUser(sender.getId());
+        try {
+            return chat.getOtherUser(sender.getId());
+        } catch (Exception e) {
+            // AI bot messages: sender không phải user1/user2 của chat → return null
+            return null;
+        }
     }
 }

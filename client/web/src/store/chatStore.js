@@ -67,7 +67,11 @@ const useChatStore = create(persist((set) => ({
     })),
   setGroups: (groups) =>
     set((state) => ({ groups: typeof groups === 'function' ? groups(state.groups) : groups })),
-  setActiveTab: (tab) => set({ activeTab: tab }),
+  setActiveTab: (tab) => set((state) => ({
+    activeTab: tab,
+    // Clear active window khi đổi tab — user phải click lại để mở
+    ...(tab !== state.activeTab ? { activeChatId: null, activeGroupId: null } : {}),
+  })),
 
   setViewingProfileId: (id) => set({ viewingProfileId: id }),
 

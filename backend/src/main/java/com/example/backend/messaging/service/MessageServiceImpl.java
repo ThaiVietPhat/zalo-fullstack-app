@@ -166,6 +166,7 @@ public class MessageServiceImpl implements MessageService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<MessageDto> getMessagesByChatId(String chatId, int page, int size, Authentication currentUser) {
         String email = currentUser.getName();
         User user = userRepository.findByEmail(email)
