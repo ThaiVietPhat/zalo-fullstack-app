@@ -29,21 +29,19 @@ public class FileStorageService {
 
     private static final Logger log = LoggerFactory.getLogger(FileStorageService.class);
 
-    @Value("${aws.access-key-id}")
+    @Value("${r2.access-key-id}")
     private String accessKeyId;
 
-    @Value("${aws.secret-access-key}")
+    @Value("${r2.secret-access-key}")
     private String secretAccessKey;
 
-    @Value("${aws.s3.bucket}")
+    @Value("${r2.bucket}")
     private String bucketName;
 
-    @Value("${aws.region:ap-southeast-1}")
+    @Value("${r2.region:auto}")
     private String region;
 
-    // R2 endpoint: https://<account-id>.r2.cloudflarestorage.com
-    // Để trống nếu vẫn dùng AWS S3 thật
-    @Value("${aws.s3.endpoint:}")
+    @Value("${r2.endpoint:}")
     private String s3Endpoint;
 
     private S3Client s3Client;
