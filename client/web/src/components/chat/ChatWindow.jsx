@@ -68,6 +68,7 @@ export default function ChatWindow() {
   };
   const [chatDetail, setChatDetail] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
   const [page, setPage] = useState(0);
@@ -101,6 +102,7 @@ export default function ChatWindow() {
     setPage(0);
     setHasMore(true);
     setLoading(true);
+    setLoadError(false);
 
     getChatDetail(activeChatId)
       .then((res) => {
@@ -145,7 +147,7 @@ export default function ChatWindow() {
           setUnreadOnOpen(0);
         }
       })
-      .catch(() => {})
+      .catch(() => { setLoadError(true); })
       .finally(() => setLoading(false));
 
     markSeen(activeChatId).catch(() => {});
@@ -338,6 +340,29 @@ export default function ChatWindow() {
         {loading ? (
           <div className="flex justify-center py-8">
             <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : loadError ? (
+          <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+            <p className="text-sm mb-3">Không thể tải tin nhắn</p>
+            <button
+              onClick={() => {
+                setLoadError(false);
+                setLoading(true);
+                getMessages(activeChatId, 0, 30)
+                  .then((res) => {
+                    const data = res.data;
+                    const fetchedMsgs = Array.isArray(data) ? data : (data.content || []);
+                    const sorted = fetchedMsgs.slice().reverse();
+                    setMessages(activeChatId, sorted);
+                    setTimeout(() => scrollToBottom(false), 100);
+                  })
+                  .catch(() => setLoadError(true))
+                  .finally(() => setLoading(false));
+              }}
+              className="text-xs text-blue-500 hover:text-blue-700 underline"
+            >
+              Thử lại
+            </button>
           </div>
         ) : (
           chatMessages.map((msg) => (
