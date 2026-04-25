@@ -67,7 +67,8 @@ public class GroupAiService {
 
     // ─── Feature 1: Smart Reply ───────────────────────────────────────────────
 
-        public SmartReplyResponse getSmartReplies(UUID groupId) {
+    @Transactional(readOnly = true)
+    public SmartReplyResponse getSmartReplies(UUID groupId) {
         List<GroupMessage> messages = groupMessageRepository
                 .findRecentTextMessagesForAi(groupId, PageRequest.of(0, CONTEXT_MSG_LIMIT));
         Collections.reverse(messages);
@@ -110,6 +111,7 @@ public class GroupAiService {
 
     // ─── Feature 2: Summarize ─────────────────────────────────────────────────
 
+    @Transactional(readOnly = true)
     public SummarizeResponse summarize(UUID groupId, LocalDateTime since) {
         LocalDateTime to = LocalDateTime.now();
 

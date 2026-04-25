@@ -67,6 +67,7 @@ public class ChatAiService {
 
     // ─── Feature 1: Smart Reply ───────────────────────────────────────────────
 
+    @Transactional(readOnly = true)
     public SmartReplyResponse getSmartReplies(UUID chatId) {
         List<Message> messages = messageRepository
                 .findRecentTextMessagesForAi(chatId, PageRequest.of(0, CONTEXT_MSG_LIMIT));
@@ -110,6 +111,7 @@ public class ChatAiService {
 
     // ─── Feature 2: Summarize ─────────────────────────────────────────────────
 
+    @Transactional(readOnly = true)
     public SummarizeResponse summarize(UUID chatId, LocalDateTime since) {
         LocalDateTime to = LocalDateTime.now();
 
