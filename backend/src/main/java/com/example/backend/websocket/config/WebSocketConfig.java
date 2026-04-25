@@ -3,6 +3,7 @@ package com.example.backend.websocket.config;
 import com.example.backend.security.service.JwtService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -20,7 +21,9 @@ import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBr
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Stream;
 
 @Configuration
 @EnableWebSocketMessageBroker
@@ -29,6 +32,9 @@ import java.util.List;
 @Order(Ordered.HIGHEST_PRECEDENCE + 99)
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     private final JwtService jwtService;
+
+    @Value("${app.cors.allowed-origins}")
+    private String allowedOriginsStr;
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry config) {
@@ -39,8 +45,14 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
+        // Gộp origins từ env var + localhost pattern + mobile
+        String[] origins = Stream.concat(
+                Arrays.stream(allowedOriginsStr.split(",")),
+                Stream.of("http://localhost:*", "capacitor://localhost")
+        ).map(String::trim).toArray(String[]::new);
+
         registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns("http://localhost:*", "https://*.yourdomain.com", "capacitor://localhost")
+                .setAllowedOriginPatterns(origins)
                 .withSockJS();
     }
 

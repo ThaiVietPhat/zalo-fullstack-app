@@ -11,7 +11,10 @@ import java.util.UUID;
 
 public interface ChatRepository extends JpaRepository<Chat, UUID> {
 
+    // JOIN FETCH user1 + user2 để tránh N+1 khi build ChatDto
     @Query("SELECT c FROM Chat c " +
+           "LEFT JOIN FETCH c.user1 " +
+           "LEFT JOIN FETCH c.user2 " +
            "WHERE (c.user1.id = :userId AND c.deletedByUser1 = false) " +
            "OR (c.user2.id = :userId AND c.deletedByUser2 = false) " +
            "ORDER BY c.lastModifiedDate DESC")

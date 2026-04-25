@@ -10,7 +10,12 @@ import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.*;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
+import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 
@@ -89,30 +94,9 @@ public class FileStorageService {
         s3Client = clientBuilder.build();
         s3Presigner = presignerBuilder.build();
 
-        configureBucket();
-    }
-
-    private void configureBucket() {
-        // Cấu hình CORS để presigned URL hoạt động từ browser
-        // Wrap try-catch: nếu fail (token thiếu quyền, bucket chưa tồn tại...) chỉ log warning,
-        // không crash app — CORS cũng có thể config thủ công trên R2/S3 dashboard
-        try {
-            s3Client.putBucketCors(PutBucketCorsRequest.builder()
-                    .bucket(bucketName)
-                    .corsConfiguration(CORSConfiguration.builder()
-                            .corsRules(CORSRule.builder()
-                                    .allowedOrigins("*")
-                                    .allowedMethods("GET", "HEAD")
-                                    .allowedHeaders("*")
-                                    .exposeHeaders("Content-Range", "Accept-Ranges", "Content-Length")
-                                    .maxAgeSeconds(3000)
-                                    .build())
-                            .build())
-                    .build());
-            log.info("Bucket CORS configured successfully for: {}", bucketName);
-        } catch (Exception e) {
-            log.warn("Could not configure bucket CORS (set manually in dashboard if needed): {}", e.getMessage());
-        }
+        log.info("R2 storage initialized for bucket: {}", bucketName);
+        // CORS cho R2 bucket được cấu hình thủ công trên Cloudflare Dashboard
+        // Không gọi putBucketCors tại đây để tránh block startup 5+ giây
     }
 
     /**

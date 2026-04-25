@@ -14,10 +14,16 @@ import java.util.UUID;
 public interface GroupRepository extends JpaRepository<Group, UUID> {
 
     // Lấy tất cả nhóm mà user là thành viên
+    // JOIN FETCH toàn bộ members + user + createdBy để tránh N+1 queries
     @Query("""
         SELECT DISTINCT g FROM Group g
-        JOIN g.members m
-        WHERE m.user.id = :userId
+        LEFT JOIN FETCH g.members gm
+        LEFT JOIN FETCH gm.user
+        LEFT JOIN FETCH g.createdBy
+        WHERE EXISTS (
+            SELECT m FROM GroupMember m
+            WHERE m.group = g AND m.user.id = :userId
+        )
         ORDER BY g.createdDate DESC
     """)
     List<Group> findAllGroupsByUserId(@Param("userId") UUID userId);
