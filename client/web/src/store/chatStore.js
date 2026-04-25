@@ -1,6 +1,7 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
-const useChatStore = create((set) => ({
+const useChatStore = create(persist((set) => ({
   chats: [],
   groups: [],
   contacts: [], // accepted friends (UserDto[])
@@ -286,6 +287,13 @@ const useChatStore = create((set) => ({
     groupJoinRequests: {},
     typingUsers: {},
     onlineUsers: {},
+  }),
+}), {
+  name: 'chat-session',
+  partialize: (state) => ({
+    activeChatId: state.activeChatId,
+    activeGroupId: state.activeGroupId,
+    activeTab: state.activeTab,
   }),
 }));
 
