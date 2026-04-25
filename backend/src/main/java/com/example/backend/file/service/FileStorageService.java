@@ -17,12 +17,17 @@ import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignReques
 import jakarta.annotation.PostConstruct;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
 import java.time.Duration;
 import java.util.Set;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 public class FileStorageService {
+
+    private static final Logger log = LoggerFactory.getLogger(FileStorageService.class);
 
     @Value("${aws.access-key-id}")
     private String accessKeyId;
@@ -35,6 +40,11 @@ public class FileStorageService {
 
     @Value("${aws.region:ap-southeast-1}")
     private String region;
+
+    // R2 endpoint: https://<account-id>.r2.cloudflarestorage.com
+    // Để trống nếu vẫn dùng AWS S3 thật
+    @Value("${aws.s3.endpoint:}")
+    private String s3Endpoint;
 
     private S3Client s3Client;
     private S3Presigner s3Presigner;
@@ -63,36 +73,48 @@ public class FileStorageService {
     public void init() {
         var credentials = StaticCredentialsProvider.create(
                 AwsBasicCredentials.create(accessKeyId, secretAccessKey));
-        var regionObj = Region.of(region);
+        var regionObj = Region.of(region.isBlank() ? "auto" : region);
 
-        s3Client = S3Client.builder()
+        var clientBuilder = S3Client.builder()
                 .region(regionObj)
-                .credentialsProvider(credentials)
-                .build();
+                .credentialsProvider(credentials);
+        var presignerBuilder = S3Presigner.builder()
+                .region(regionObj)
+                .credentialsProvider(credentials);
 
-        s3Presigner = S3Presigner.builder()
-                .region(regionObj)
-                .credentialsProvider(credentials)
-                .build();
+        // Nếu có endpoint (Cloudflare R2 hoặc MinIO), override endpoint
+        if (s3Endpoint != null && !s3Endpoint.isBlank()) {
+            clientBuilder.endpointOverride(URI.create(s3Endpoint));
+            presignerBuilder.endpointOverride(URI.create(s3Endpoint));
+        }
+
+        s3Client = clientBuilder.build();
+        s3Presigner = presignerBuilder.build();
 
         configureBucket();
     }
 
     private void configureBucket() {
-        // Bucket private — truy cập qua presigned URL, không public
-        // Chỉ cần CORS để presigned URL hoạt động từ browser
-        s3Client.putBucketCors(PutBucketCorsRequest.builder()
-                .bucket(bucketName)
-                .corsConfiguration(CORSConfiguration.builder()
-                        .corsRules(CORSRule.builder()
-                                .allowedOrigins("*")
-                                .allowedMethods("GET", "HEAD")
-                                .allowedHeaders("*")
-                                .exposeHeaders("Content-Range", "Accept-Ranges", "Content-Length")
-                                .maxAgeSeconds(3000)
-                                .build())
-                        .build())
-                .build());
+        // Cấu hình CORS để presigned URL hoạt động từ browser
+        // Wrap try-catch: nếu fail (token thiếu quyền, bucket chưa tồn tại...) chỉ log warning,
+        // không crash app — CORS cũng có thể config thủ công trên R2/S3 dashboard
+        try {
+            s3Client.putBucketCors(PutBucketCorsRequest.builder()
+                    .bucket(bucketName)
+                    .corsConfiguration(CORSConfiguration.builder()
+                            .corsRules(CORSRule.builder()
+                                    .allowedOrigins("*")
+                                    .allowedMethods("GET", "HEAD")
+                                    .allowedHeaders("*")
+                                    .exposeHeaders("Content-Range", "Accept-Ranges", "Content-Length")
+                                    .maxAgeSeconds(3000)
+                                    .build())
+                            .build())
+                    .build());
+            log.info("Bucket CORS configured successfully for: {}", bucketName);
+        } catch (Exception e) {
+            log.warn("Could not configure bucket CORS (set manually in dashboard if needed): {}", e.getMessage());
+        }
     }
 
     /**
@@ -210,15 +232,30 @@ public class FileStorageService {
     }
 
     /**
-     * Nếu identifier là full URL, trích xuất key; nếu không thì dùng nguyên.
+     * Nếu identifier là full URL (S3 hoặc R2), trích xuất key; nếu không thì dùng nguyên.
      */
     private String extractKey(String identifier) {
         if (identifier != null && identifier.startsWith("http")) {
-            // https://bucket.s3.region.amazonaws.com/key
+            // AWS S3: https://bucket.s3.region.amazonaws.com/key
             int idx = identifier.indexOf(".amazonaws.com/");
             if (idx != -1) {
                 return identifier.substring(idx + ".amazonaws.com/".length());
             }
+            // Cloudflare R2: https://<account>.r2.cloudflarestorage.com/bucket/key
+            int r2idx = identifier.indexOf(".r2.cloudflarestorage.com/");
+            if (r2idx != -1) {
+                String afterHost = identifier.substring(r2idx + ".r2.cloudflarestorage.com/".length());
+                // Bỏ bucket name prefix nếu có
+                int slashIdx = afterHost.indexOf('/');
+                return slashIdx != -1 ? afterHost.substring(slashIdx + 1) : afterHost;
+            }
+            // Generic: lấy path sau domain cuối cùng
+            try {
+                URI uri = URI.create(identifier);
+                String path = uri.getPath();
+                int lastSlash = path.lastIndexOf('/');
+                if (lastSlash >= 0) return path.substring(lastSlash + 1);
+            } catch (Exception ignored) {}
         }
         return identifier;
     }
