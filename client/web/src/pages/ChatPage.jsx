@@ -30,9 +30,9 @@ export default function ChatPage() {
   useWebSocket();
   const { startCall, acceptCall, rejectCall, endCall } = useCallManager();
 
-  // Auto-open VideoCallWindow when video call becomes active
+  // Auto-open VideoCallWindow for any VIDEO call (ringing, connecting, active)
   useEffect(() => {
-    if (activeCall?.callType === 'VIDEO' && activeCall?.status === 'active') {
+    if (activeCall?.callType === 'VIDEO') {
       setCallWindowOpen(true);
     }
   }, [activeCall?.callType, activeCall?.status]);
@@ -80,7 +80,7 @@ export default function ChatPage() {
             onStartCall={(p) => startCall(p)}
           />
         )}
-        {showGroupWindow && <GroupWindow key={activeGroupId} />}
+        {showGroupWindow && <GroupWindow key={activeGroupId} onStartCall={(p) => startCall(p)} />}
         {showEmpty && (
           <div className="flex-1 flex items-center justify-center bg-gray-50">
             <div className="text-center">

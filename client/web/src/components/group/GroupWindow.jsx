@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Info, LogOut, ChevronLeft, UserPlus, Pencil, Camera, Pin, MoreHorizontal, Smile, Copy, RotateCcw, Trash2, Share2, FolderOpen } from 'lucide-react';
+import { Info, LogOut, ChevronLeft, UserPlus, Pencil, Camera, Pin, MoreHorizontal, Smile, Copy, RotateCcw, Trash2, Share2, FolderOpen, Phone, Video as VideoIcon } from 'lucide-react';
 import {
   getGroupDetail, getGroupMessages, sendGroupMessage, uploadGroupMedia,
   leaveGroup, addGroupMembers, removeGroupMember, updateGroup, uploadGroupAvatar,
@@ -10,6 +10,7 @@ import {
   createGroupJoinRequest, getGroupJoinRequests, approveGroupJoinRequest, rejectGroupJoinRequest,
 } from '../../api/group';
 import { sendMessage } from '../../api/message';
+import { startChat } from '../../api/chat';
 import { getContacts } from '../../api/friendRequest';
 import useChatStore from '../../store/chatStore';
 import useAuthStore from '../../store/authStore';
@@ -392,7 +393,7 @@ function ForwardGroupModal({ message, onClose, currentGroupId }) {
 
 // ─── GroupWindow ──────────────────────────────────────────────────────────────
 
-export default function GroupWindow() {
+export default function GroupWindow({ onStartCall }) {
   const {
     activeGroupId, groupMessages, typingUsers,
     setGroupMessages, prependGroupMessages, setActiveGroupId,
@@ -441,6 +442,23 @@ export default function GroupWindow() {
   const isAdmin = groupDetail?.isAdmin ?? false;
   const memberCount = groupDetail?.memberCount || 0;
   const isLastAdmin = isAdmin && memberCount > 1;
+
+  // Gọi điện từ group — chỉ cho phép khi nhóm có đúng 2 thành viên (1-1)
+  const handleGroupCall = async (callType) => {
+    if (memberCount !== 2) return;
+    const otherMember = (groupDetail?.members || []).find((m) => m.userId !== auth?.userId);
+    if (!otherMember) return;
+    try {
+      const res = await startChat(otherMember.userId);
+      onStartCall?.({
+        chatId:    res.data.id,
+        peerId:    otherMember.userId,
+        peerName:  `${otherMember.firstName} ${otherMember.lastName}`.trim() || 'Người dùng',
+        peerAvatar: otherMember.avatarUrl || null,
+        callType,
+      });
+    } catch {}
+  };
 
   const subscribeToGroup = (groupId) => {
     wsService.subscribe(`/topic/group/${groupId}`, (data) => {
@@ -861,6 +879,24 @@ export default function GroupWindow() {
             <p className="text-xs text-gray-400">{groupDetail?.memberCount} thành viên</p>
           </div>
           <div className="flex items-center gap-1">
+            {memberCount === 2 && (
+              <>
+                <button
+                  onClick={() => handleGroupCall('VOICE')}
+                  className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
+                  title="Gọi thoại"
+                >
+                  <Phone size={18} className="text-gray-600" />
+                </button>
+                <button
+                  onClick={() => handleGroupCall('VIDEO')}
+                  className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
+                  title="Gọi video"
+                >
+                  <VideoIcon size={18} className="text-gray-600" />
+                </button>
+              </>
+            )}
             {pinned.length > 0 && (
               <button onClick={() => setShowPinned(!showPinned)}
                 className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors" title="Tin nhắn đã ghim">

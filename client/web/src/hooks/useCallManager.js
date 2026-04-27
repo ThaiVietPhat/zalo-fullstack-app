@@ -179,10 +179,10 @@ export function useCallManager() {
   }, [sendSignal, setIncomingCall, clearIncomingCall, updateActiveCall, cleanupPeer, clearActiveCall]);
 
   useEffect(() => {
-    if (!auth?.token) return;
+    if (!auth?.accessToken) return;
     wsService.subscribe(CALL_SIGNAL_DEST, handleSignal);
     return () => wsService.unsubscribe(CALL_SIGNAL_DEST);
-  }, [auth?.token, handleSignal]);
+  }, [auth?.accessToken, handleSignal]);
 
   // ------------------------------------------------------------------ //
 
