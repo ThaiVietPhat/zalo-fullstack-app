@@ -21,6 +21,8 @@ replay_pid*
 # ── Secrets / environment ─────────────────────────────
 .env
 .env.*
+application-local.properties
+railway-env.local
 *.pem
 *.key
 *.p12

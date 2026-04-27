@@ -25,7 +25,7 @@ public class AiRateLimitAspect {
 
     private final AiRateLimitService rateLimitService;
 
-    @Around("@annotation(AiRateLimit)")
+    @Around("@annotation(com.example.backend.shared.ratelimit.AiRateLimit)")
     public Object checkRateLimit(ProceedingJoinPoint joinPoint) throws Throwable {
         // Tim tham so Authentication trong args
         Authentication auth = Arrays.stream(joinPoint.getArgs())
