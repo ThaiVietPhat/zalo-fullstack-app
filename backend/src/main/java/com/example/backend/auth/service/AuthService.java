@@ -16,6 +16,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.Random;
 import com.example.backend.security.service.JwtService;
+import com.example.backend.shared.service.OnlineStatusService;
+import com.example.backend.shared.service.TokenBlacklistService;
 
 @Service
 @RequiredArgsConstructor
@@ -27,6 +29,8 @@ public class AuthService {
     private final JwtService jwtService;
     private final EmailService emailService;
     private final NotificationService notificationService;
+    private final OnlineStatusService onlineStatusService;
+    private final TokenBlacklistService tokenBlacklistService;
 
     private static final int OTP_LENGTH = 6;
     private static final int OTP_EXPIRY_MINUTES = 1;
@@ -134,9 +138,9 @@ public class AuthService {
 
         // Tăng tokenVersion → tất cả token cũ trở nên không hợp lệ
         user.setTokenVersion(user.getTokenVersion() + 1);
-        user.setOnline(true);
         user.setLastSeen(LocalDateTime.now());
         userRepository.save(user);
+        onlineStatusService.setOnline(user.getId());
 
         log.info("User đã đăng nhập: {}", user.getEmail());
         return buildAuthResponse(user);
@@ -224,12 +228,21 @@ public class AuthService {
     // ─── Đăng xuất ───────────────────────────────────────────────────────────
 
     @Transactional
-    public void logout(String email) {
+    public void logout(String email, String token) {
+        // Blacklist token hien tai de vo hieu hoa ngay lap tuc
+        if (token != null) {
+            try {
+                java.util.Date expiration = jwtService.extractExpiration(token);
+                tokenBlacklistService.blacklist(token, expiration);
+            } catch (Exception e) {
+                log.warn("Khong the blacklist token: {}", e.getMessage());
+            }
+        }
         userRepository.findByEmail(email).ifPresent(user -> {
-            user.setOnline(false);
             user.setLastSeen(LocalDateTime.now());
             userRepository.save(user);
-            log.info("User đã đăng xuất: {}", email);
+            onlineStatusService.setOffline(user.getId());
+            log.info("User da dang xuat: {}", email);
         });
     }
 

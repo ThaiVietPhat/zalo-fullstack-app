@@ -10,6 +10,7 @@ import com.example.backend.user.repository.BlockedUserRepository;
 import com.example.backend.user.repository.FriendRequestRepository;
 import com.example.backend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +27,7 @@ public class BlockServiceImpl implements BlockService {
     private final FriendRequestRepository friendRequestRepository;
     private final UserRepository userRepository;
     private final UserMapper userMapper;
+    private final CacheManager cacheManager;
 
     @Override
     @Transactional
@@ -49,6 +51,9 @@ public class BlockServiceImpl implements BlockService {
         // Xóa friend request giữa 2 người nếu có
         Optional<FriendRequest> existing = friendRequestRepository.findBetweenUsers(blockerId, targetId);
         existing.ifPresent(friendRequestRepository::delete);
+        // Xoa cache contacts cua ca 2 phia
+        evictContacts(blocker.getEmail());
+        evictContacts(blocked.getEmail());
     }
 
     @Override
@@ -56,6 +61,8 @@ public class BlockServiceImpl implements BlockService {
     public void unblockUser(UUID blockerId, UUID targetId) {
         blockedUserRepository.findByBlockerIdAndBlockedId(blockerId, targetId)
                 .ifPresent(blockedUserRepository::delete);
+        userRepository.findById(blockerId).ifPresent(u -> evictContacts(u.getEmail()));
+        userRepository.findById(targetId).ifPresent(u -> evictContacts(u.getEmail()));
     }
 
     @Override
@@ -78,5 +85,10 @@ public class BlockServiceImpl implements BlockService {
                     return dto;
                 })
                 .collect(Collectors.toList());
+    }
+
+    private void evictContacts(String email) {
+        var cache = cacheManager.getCache("contacts");
+        if (cache != null) cache.evict(email);
     }
 }

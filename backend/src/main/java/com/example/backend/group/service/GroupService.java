@@ -39,6 +39,7 @@ import com.example.backend.group.repository.PinnedGroupMessageRepository;
 import com.example.backend.messaging.enums.MessageType;
 import com.example.backend.reaction.dto.ReactionDto;
 import com.example.backend.shared.exception.ResourceNotFoundException;
+import com.example.backend.shared.service.GroupUnreadService;
 import com.example.backend.shared.exception.UnauthorizedException;
 import com.example.backend.user.entity.User;
 import com.example.backend.user.repository.UserRepository;
@@ -62,6 +63,7 @@ public class GroupService {
     private final SimpMessagingTemplate messagingTemplate;
     private final FileStorageService fileStorageService;
     private final GroupAiService groupAiService;
+    private final GroupUnreadService groupUnreadService;
 
     // ─── Tạo nhóm ────────────────────────────────────────────────────────────
 
@@ -97,7 +99,11 @@ public class GroupService {
         User user = getUser(currentUser);
         return groupRepository.findAllGroupsByUserId(user.getId())
                 .stream()
-                .map(g -> toGroupDto(g, user.getId(), false))
+                .map(g -> {
+                    GroupDto dto = toGroupDto(g, user.getId(), false);
+                    dto.setUnreadCount(groupUnreadService.getCount(g.getId(), user.getId()));
+                    return dto;
+                })
                 .collect(Collectors.toList());
     }
 
@@ -349,6 +355,7 @@ public class GroupService {
 
         groupMemberRepository.deleteByGroupId(groupId);
         groupRepository.delete(group);
+        groupUnreadService.deleteGroup(groupId); // Xoa Redis hash
         log.info("Group {} dissolved by admin {}", groupId, user.getEmail());
     }
 
@@ -539,6 +546,11 @@ public class GroupService {
 
         messagingTemplate.convertAndSend("/topic/group/" + groupId, dto);
         log.debug("Message sent to group {} by {}", groupId, user.getEmail());
+        // Tang unread count cho tat ca member tru sender
+        group.getMembers().stream()
+                .map(m -> m.getUser().getId())
+                .filter(id -> !id.equals(user.getId()))
+                .forEach(id -> groupUnreadService.increment(groupId, id));
 
         // @AI Bot: nếu tin nhắn mention @AI thì trigger bot reply async
         String content = request.getContent();
@@ -583,6 +595,11 @@ public class GroupService {
 
         messagingTemplate.convertAndSend("/topic/group/" + groupId, dto);
         log.info("Media message sent to group {} by {}", groupId, user.getEmail());
+        // Tang unread count cho tat ca member tru sender
+        group.getMembers().stream()
+                .map(m -> m.getUser().getId())
+                .filter(id -> !id.equals(user.getId()))
+                .forEach(id -> groupUnreadService.increment(groupId, id));
         return dto;
     }
 
@@ -638,7 +655,9 @@ public class GroupService {
 
     @Transactional(readOnly = true)
     public List<GroupMessageDto> getMessages(UUID groupId, int page, int size, Authentication currentUser) {
+        // Reset unread count khi user mo group
         User user = getUser(currentUser);
+        groupUnreadService.clear(groupId, user.getId());
         getGroupAndCheckMember(groupId, user.getId());
 
         List<GroupMessage> messages = groupMessageRepository

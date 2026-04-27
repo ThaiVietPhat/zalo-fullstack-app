@@ -10,6 +10,9 @@ import com.example.backend.chat.dto.ChatDto;
 import com.example.backend.chat.repository.ChatRepository;
 import com.example.backend.messaging.repository.MessageRepository;
 import com.example.backend.user.repository.UserRepository;
+import com.example.backend.shared.service.OnlineStatusService;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import com.example.backend.user.service.BlockService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
@@ -30,8 +33,10 @@ public class ChatServiceImpl implements ChatService {
     private final UserRepository userRepository;
     private final MessageMapper messageMapper;
     private final BlockService blockService;
+    private final OnlineStatusService onlineStatusService;
 
     @Override
+    @Cacheable(value = "chats", key = "#currentUser.name")
     @Transactional(readOnly = true)
     public List<ChatDto> getChatByReceiverId(Authentication currentUser) {
         final String email = currentUser.getName();
@@ -62,6 +67,7 @@ public class ChatServiceImpl implements ChatService {
     }
 
     @Override
+    @CacheEvict(value = "chats", key = "#currentUser.name")
     @Transactional
     public ChatDto getOrCreateChat(UUID otherUserId, Authentication currentUser) {
         String email = currentUser.getName();
@@ -87,6 +93,7 @@ public class ChatServiceImpl implements ChatService {
     }
 
     @Override
+    @CacheEvict(value = "chats", key = "#currentUser.name")
     @Transactional
     public void deleteChat(UUID chatId, Authentication currentUser) {
         String email = currentUser.getName();
@@ -121,7 +128,7 @@ public class ChatServiceImpl implements ChatService {
         dto.setRecipientId(otherUser.getId());
         dto.setRecipientEmail(otherUser.getEmail());
         dto.setAvatarUrl(otherUser.getAvatarUrl());
-        dto.setRecipientOnline(otherUser.isUserOnline());
+        dto.setRecipientOnline(onlineStatusService.isOnline(otherUser.getId()));
         dto.setRecipientLastSeenText(otherUser.getLastSeenText());
         messageRepository.findTop1ByChatIdOrderByCreatedDateDesc(chat.getId())
                 .ifPresent(last -> {
@@ -133,9 +140,3 @@ public class ChatServiceImpl implements ChatService {
         boolean blockedByMe = blockService.isBlockedByMe(currentUser.getId(), otherUser.getId());
         boolean blockedByThem = blockService.isBlockedByMe(otherUser.getId(), currentUser.getId());
         if (blockedByMe) dto.setBlockStatus("BLOCKED_BY_ME");
-        else if (blockedByThem) dto.setBlockStatus("BLOCKED_BY_THEM");
-        else dto.setBlockStatus("NONE");
-
-        return dto;
-    }
-}

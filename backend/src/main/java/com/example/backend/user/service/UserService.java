@@ -23,4 +23,6 @@ public interface UserService {
     UserDto uploadAvatar(MultipartFile file, Authentication currentUser);
 
     void changePassword(ChangePasswordRequest request, Authentication currentUser);
+
+    void heartbeat(Authentication currentUser);
 }

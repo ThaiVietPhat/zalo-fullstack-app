@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/layout/Sidebar';
 import ChatWindow from '../components/chat/ChatWindow';
@@ -6,26 +6,43 @@ import GroupWindow from '../components/group/GroupWindow';
 import SessionReplacedModal from '../components/common/SessionReplacedModal';
 import BannedModal from '../components/common/BannedModal';
 import UserProfileModal from '../components/user/UserProfileModal';
+import IncomingCallModal from '../components/call/IncomingCallModal';
+import ActiveCallBar from '../components/call/ActiveCallBar';
+import VideoCallWindow from '../components/call/VideoCallWindow';
 import useChatStore from '../store/chatStore';
 import useAuthStore from '../store/authStore';
+import useCallStore from '../store/callStore';
 import { useWebSocket } from '../hooks/useWebSocket';
+import { useCallManager } from '../hooks/useCallManager';
 
 export default function ChatPage() {
   const { activeTab, activeChatId, activeGroupId } = useChatStore();
   const { auth } = useAuthStore();
   const navigate = useNavigate();
+  const activeCall   = useCallStore((s) => s.activeCall);
+  const incomingCall = useCallStore((s) => s.incomingCall);
+  const [callWindowOpen, setCallWindowOpen] = useState(false);
 
-  // Admin bị trôi về /chat → redirect về /admin
   useEffect(() => {
-    if (auth?.role === 'ADMIN') {
-      navigate('/admin', { replace: true });
-    }
+    if (auth?.role === 'ADMIN') navigate('/admin', { replace: true });
   }, [auth?.role, navigate]);
 
-  // Initialize WebSocket connection (handles connect + all subscriptions)
   useWebSocket();
+  const { startCall, acceptCall, rejectCall, endCall } = useCallManager();
 
-  const showChatWindow = activeTab === 'chats' && activeChatId;
+  // Auto-open VideoCallWindow when video call becomes active
+  useEffect(() => {
+    if (activeCall?.callType === 'VIDEO' && activeCall?.status === 'active') {
+      setCallWindowOpen(true);
+    }
+  }, [activeCall?.callType, activeCall?.status]);
+
+  // Close window when call ends
+  useEffect(() => {
+    if (!activeCall) setCallWindowOpen(false);
+  }, [activeCall]);
+
+  const showChatWindow  = activeTab === 'chats'  && activeChatId;
   const showGroupWindow = activeTab === 'groups' && activeGroupId;
   const showEmpty = !showChatWindow && !showGroupWindow
     && !['ai', 'contacts', 'search'].includes(activeTab);
@@ -35,14 +52,34 @@ export default function ChatPage() {
       <SessionReplacedModal />
       <BannedModal />
       <UserProfileModal />
-      {/* Sidebar - 320px fixed */}
-      <div className="w-80 flex-shrink-0 h-full border-r border-gray-200 shadow-sm">
+
+      {incomingCall && (
+        <IncomingCallModal onAccept={acceptCall} onReject={rejectCall} />
+      )}
+      {activeCall && !callWindowOpen && (
+        <ActiveCallBar
+          onEndCall={endCall}
+          onExpand={() => setCallWindowOpen(true)}
+        />
+      )}
+      {callWindowOpen && activeCall && (
+        <VideoCallWindow
+          onEndCall={endCall}
+          onMinimize={() => setCallWindowOpen(false)}
+        />
+      )}
+
+      <div className={`w-80 flex-shrink-0 h-full border-r border-gray-200 shadow-sm${activeCall && !callWindowOpen ? ' pt-10' : ''}`}>
         <Sidebar />
       </div>
 
-      {/* Main content area */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden">
-        {showChatWindow && <ChatWindow key={activeChatId} />}
+      <div className={`flex-1 flex flex-col h-full overflow-hidden${activeCall && !callWindowOpen ? ' pt-10' : ''}`}>
+        {showChatWindow && (
+          <ChatWindow
+            key={activeChatId}
+            onStartCall={(p) => startCall(p)}
+          />
+        )}
         {showGroupWindow && <GroupWindow key={activeGroupId} />}
         {showEmpty && (
           <div className="flex-1 flex items-center justify-center bg-gray-50">

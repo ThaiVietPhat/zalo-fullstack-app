@@ -31,3 +31,6 @@ export const unblockUser = (userId) =>
 
 export const getBlockedUsers = () =>
   api.get('/api/v1/user/block');
+
+export const heartbeat = () =>
+  api.post('/api/v1/user/me/heartbeat');

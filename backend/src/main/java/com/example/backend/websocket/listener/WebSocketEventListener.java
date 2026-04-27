@@ -1,5 +1,6 @@
 package com.example.backend.websocket.listener;
 
+import com.example.backend.shared.service.OnlineStatusService;
 import com.example.backend.user.repository.UserRepository;
 import com.example.backend.messaging.service.NotificationService;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +22,7 @@ public class WebSocketEventListener {
 
     private final UserRepository userRepository;
     private final NotificationService notificationService;
+    private final OnlineStatusService onlineStatusService;
 
     @EventListener
     @Transactional
@@ -31,9 +33,11 @@ public class WebSocketEventListener {
         if (email == null) return;
 
         userRepository.findByEmail(email).ifPresent(user -> {
-            user.setOnline(true);
+            // Cap nhat lastSeen trong DB (khong can setOnline - dung Redis)
             user.setLastSeen(LocalDateTime.now());
             userRepository.save(user);
+
+            onlineStatusService.setOnline(user.getId());
 
             log.info("User CONNECTED: {}", email);
             notificationService.sendUserStatusNotification(user.getId(), true);
@@ -49,11 +53,12 @@ public class WebSocketEventListener {
         if (email == null) return;
 
         userRepository.findByEmail(email).ifPresent(user -> {
-            user.setOnline(false);
             user.setLastSeen(LocalDateTime.now());
             userRepository.save(user);
 
-            log.info("User DISCONNECTED: {} — last seen: {}", email, user.getLastSeen());
+            onlineStatusService.setOffline(user.getId());
+
+            log.info("User DISCONNECTED: {} - last seen: {}", email, user.getLastSeen());
             notificationService.sendUserStatusNotification(user.getId(), false);
         });
     }

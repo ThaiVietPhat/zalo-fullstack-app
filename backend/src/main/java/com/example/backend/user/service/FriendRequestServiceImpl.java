@@ -12,6 +12,9 @@ import com.example.backend.user.mapper.UserMapper;
 import com.example.backend.user.repository.FriendRequestRepository;
 import com.example.backend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -61,6 +64,10 @@ public class FriendRequestServiceImpl implements FriendRequestService {
     }
 
     @Override
+    @Caching(evict = {
+        @CacheEvict(value = "contacts", key = "#auth.name"),
+        @CacheEvict(value = "contacts", key = "#result.senderEmail")
+    })
     @Transactional
     public FriendRequestDto acceptFriendRequest(UUID requestId, Authentication auth) {
         User currentUser = getCurrentUser(auth);
@@ -122,6 +129,7 @@ public class FriendRequestServiceImpl implements FriendRequestService {
     }
 
     @Override
+    @Cacheable(value = "contacts", key = "#auth.name")
     @Transactional(readOnly = true)
     public List<UserDto> getContacts(Authentication auth) {
         User currentUser = getCurrentUser(auth);
@@ -155,6 +163,7 @@ public class FriendRequestServiceImpl implements FriendRequestService {
     }
 
     @Override
+    @CacheEvict(value = "contacts", key = "#auth.name")
     @Transactional
     public void unfriend(UUID friendId, Authentication auth) {
         User currentUser = getCurrentUser(auth);

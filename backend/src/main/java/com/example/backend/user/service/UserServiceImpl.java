@@ -9,6 +9,7 @@ import com.example.backend.auth.dto.ChangePasswordRequest;
 import com.example.backend.user.dto.UpdateProfileRequest;
 import com.example.backend.user.dto.UserDto;
 import com.example.backend.user.repository.FriendRequestRepository;
+import com.example.backend.shared.service.OnlineStatusService;
 import com.example.backend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -27,6 +28,7 @@ import com.example.backend.file.service.FileStorageService;
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
+    private final OnlineStatusService onlineStatusService;
     private final UserRepository userRepository;
     private final UserMapper userMapper;
     private final FileStorageService fileStorageService;
@@ -195,5 +197,13 @@ public class UserServiceImpl implements UserService {
 
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
+    }
+
+    @Override
+    public void heartbeat(Authentication currentUser) {
+        String email = currentUser.getName();
+        userRepository.findByEmail(email).ifPresent(user ->
+            onlineStatusService.setOnline(user.getId())
+        );
     }
 }

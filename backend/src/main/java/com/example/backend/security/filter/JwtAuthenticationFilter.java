@@ -1,6 +1,7 @@
 package com.example.backend.security.filter;
 
 import com.example.backend.security.service.JwtService;
+import com.example.backend.shared.service.TokenBlacklistService;
 import com.example.backend.user.repository.UserRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -27,6 +28,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final UserRepository userRepository;
+    private final TokenBlacklistService tokenBlacklistService;
 
     private static final List<String> SKIP_PATHS = List.of(
             "/swagger-ui",
@@ -55,6 +57,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (StringUtils.hasText(token)) {
             try {
                 if (jwtService.isTokenValid(token) && jwtService.isAccessToken(token)) {
+                    // Kiem tra blacklist truoc (logout tuong minh)
+                    if (tokenBlacklistService.isBlacklisted(token)) {
+                        log.warn("Blacklisted token used for: {}", request.getRequestURI());
+                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                        response.setContentType("application/json");
+                        response.getWriter().write("{"error":"TOKEN_REVOKED"}");
+                        return;
+                    }
                     String email = jwtService.extractEmail(token);
                     int tokenVersion = jwtService.extractTokenVersion(token);
 

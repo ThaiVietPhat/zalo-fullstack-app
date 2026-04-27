@@ -67,16 +67,28 @@ const useChatStore = create(persist((set) => ({
     })),
   setGroups: (groups) =>
     set((state) => ({ groups: typeof groups === 'function' ? groups(state.groups) : groups })),
-  setActiveTab: (tab) => set((state) => ({
-    activeTab: tab,
-    // Clear active window khi đổi tab — user phải click lại để mở
-    ...(tab !== state.activeTab ? { activeChatId: null, activeGroupId: null } : {}),
-  })),
+  setActiveTab: (tab) => set((state) => {
+    // Lưu lastVisit khi rời tab groups (group đang mở)
+    if (state.activeGroupId && tab !== state.activeTab) {
+      localStorage.setItem(`groupLastVisit_${state.activeGroupId}`, new Date().toISOString());
+    }
+    return {
+      activeTab: tab,
+      // Clear active window khi đổi tab — user phải click lại để mở
+      ...(tab !== state.activeTab ? { activeChatId: null, activeGroupId: null } : {}),
+    };
+  }),
 
   setViewingProfileId: (id) => set({ viewingProfileId: id }),
 
   setActiveChatId: (id) => set({ activeChatId: id, activeGroupId: null }),
-  setActiveGroupId: (id) => set({ activeGroupId: id, activeChatId: null }),
+  setActiveGroupId: (id) => set((state) => {
+    // Lưu lastVisit khi rời group cũ (kể cả switch sang group khác hoặc đóng về null)
+    if (state.activeGroupId && state.activeGroupId !== id) {
+      localStorage.setItem(`groupLastVisit_${state.activeGroupId}`, new Date().toISOString());
+    }
+    return { activeGroupId: id, activeChatId: null };
+  }),
 
   setMessages: (chatId, messages) =>
     set((state) => ({

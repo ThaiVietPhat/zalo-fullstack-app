@@ -18,6 +18,7 @@ import com.example.backend.messaging.repository.MessageRepository;
 import com.example.backend.user.repository.UserRepository;
 import com.example.backend.ai.service.ChatAiService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.CacheManager;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -46,6 +47,7 @@ public class MessageServiceImpl implements MessageService {
     private final MessageReactionRepository messageReactionRepository;
     private final com.example.backend.user.service.BlockService blockService;
     private final ChatAiService chatAiService;
+    private final CacheManager cacheManager;
 
     @Override
     @Transactional
@@ -100,6 +102,11 @@ public class MessageServiceImpl implements MessageService {
         notificationService.sendChatBroadcast(chat.getId(), savedDto);
         // Also notify receiver via user queue for background unread count updates
         notificationService.sendMessageNotification(receiver.getEmail(), savedDto);
+        evictChatsCache(sender.getEmail());
+        evictChatsCache(receiver.getEmail());
+        // Xoa cache chat list cua ca 2 phia de lastMessage preview cap nhat
+        evictChatsCache(sender.getEmail());
+        evictChatsCache(receiver.getEmail());
 
         // Detect @AI mention → trigger AI bot async reply
         if (MessageType.TEXT.equals(savedMessage.getType())
@@ -340,5 +347,10 @@ public class MessageServiceImpl implements MessageService {
                 user.getId(), chatUuid, sender.getId());
         notificationService.sendMessageSeenNotification(sender.getEmail(), chatUuid);
         notificationService.sendStateChangeBroadcast(chatUuid, MessageState.SEEN, sender.getId());
+    }
+
+    private void evictChatsCache(String email) {
+        var cache = cacheManager.getCache("chats");
+        if (cache != null) cache.evict(email);
     }
 }

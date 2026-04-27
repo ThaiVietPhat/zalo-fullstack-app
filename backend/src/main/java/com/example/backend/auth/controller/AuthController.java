@@ -3,6 +3,7 @@ package com.example.backend.auth.controller;
 import com.example.backend.auth.dto.AuthRequest;
 import com.example.backend.auth.dto.AuthResponse;
 import com.example.backend.auth.service.AuthService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -57,8 +58,13 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<Void> logout(Authentication currentUser) {
-        authService.logout(currentUser.getName());
+    public ResponseEntity<Void> logout(Authentication currentUser, HttpServletRequest request) {
+        String token = null;
+        String bearerToken = request.getHeader("Authorization");
+        if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
+            token = bearerToken.substring(7);
+        }
+        authService.logout(currentUser.getName(), token);
         return ResponseEntity.ok().build();
     }
 }

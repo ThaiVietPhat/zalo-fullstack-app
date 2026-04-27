@@ -16,7 +16,7 @@ import toast from 'react-hot-toast';
 
 const AI_BOT_USER_ID = '00000000-0000-0000-0000-000000000001';
 
-export default function ChatWindow() {
+export default function ChatWindow({ onStartCall }) {
   const { activeChatId, messages, typingUsers, setMessages, prependMessages, addMessage, updateChatLastMessage, updateChatMessagesState, updateChat, setActiveChatId, clearUnread, setTyping, setViewingProfileId } = useChatStore();
   const { auth } = useAuthStore();
 
@@ -26,7 +26,6 @@ export default function ChatWindow() {
   const [unreadOnOpen, setUnreadOnOpen] = useState(0);
   const [lastVisitAt, setLastVisitAt] = useState(null);
   const [inputValue, setInputValue] = useState('');
-  const [smartReplyText, setSmartReplyText] = useState(null); // trigger fill input
 
   const subscribeToChat = (chatId) => {
     // Subscribe to message delivery topic (broadcast, same pattern as group messages)
@@ -89,7 +88,6 @@ export default function ChatWindow() {
     setLatestIncomingMsg(null);
     setSummaryDismissed(false);
     setInputValue('');
-    setSmartReplyText(null);
 
     // Đọc lastVisit từ localStorage để tính unread cho Summary
     const storageKey = `chatLastVisit_${activeChatId}`;
@@ -301,10 +299,32 @@ export default function ChatWindow() {
           </p>
         </div>
         <div className="flex items-center gap-1">
-          <button className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors" title="Gọi thoại">
+          <button
+            onClick={() => onStartCall?.({
+              chatId:    activeChatId,
+              peerId:    chatDetail?.recipientId,
+              peerName:  recipientName,
+              peerAvatar: chatDetail?.avatarUrl || null,
+              callType:  'VOICE',
+            })}
+            disabled={!chatDetail?.recipientId}
+            className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            title="Gọi thoại"
+          >
             <Phone size={18} className="text-gray-600" />
           </button>
-          <button className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors" title="Gọi video">
+          <button
+            onClick={() => onStartCall?.({
+              chatId:    activeChatId,
+              peerId:    chatDetail?.recipientId,
+              peerName:  recipientName,
+              peerAvatar: chatDetail?.avatarUrl || null,
+              callType:  'VIDEO',
+            })}
+            disabled={!chatDetail?.recipientId}
+            className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            title="Gọi video"
+          >
             <Video size={18} className="text-gray-600" />
           </button>
           <button
@@ -391,11 +411,7 @@ export default function ChatWindow() {
           <ChatSmartReplySuggestions
             chatId={activeChatId}
             latestMessage={latestIncomingMsg}
-            onSelect={(text) => {
-              setSmartReplyText(text);
-              // Reset sau 1 tick để cho phép re-trigger nếu user chọn lại
-              setTimeout(() => setSmartReplyText(null), 50);
-            }}
+            onSelect={(text) => handleSendText(text)}
             inputValue={inputValue}
           />
           <MessageInput
@@ -403,7 +419,6 @@ export default function ChatWindow() {
             onSendMedia={handleSendMedia}
             onTyping={handleTyping}
             onInputChange={(val) => setInputValue(val)}
-            externalValue={smartReplyText}
             placeholder="Nhập tin nhắn... (dùng @AI để hỏi trợ lý)"
           />
         </div>

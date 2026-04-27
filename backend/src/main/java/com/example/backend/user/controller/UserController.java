@@ -60,4 +60,11 @@ public class UserController {
             Authentication currentUser) {
         return ResponseEntity.ok(userService.searchUsers(keyword, currentUser));
     }
+
+    /** Frontend goi moi 60s de refresh Redis TTL, giu trang thai online. */
+    @PostMapping("/me/heartbeat")
+    public ResponseEntity<Void> heartbeat(Authentication currentUser) {
+        userService.heartbeat(currentUser);
+        return ResponseEntity.ok().build();
+    }
 }

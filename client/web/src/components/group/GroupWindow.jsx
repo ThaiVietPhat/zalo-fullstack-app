@@ -426,8 +426,6 @@ export default function GroupWindow() {
   const [summaryDismissed, setSummaryDismissed] = useState(false);
   const [unreadOnOpen, setUnreadOnOpen] = useState(0);
   const [lastVisitAt, setLastVisitAt] = useState(null);
-  // Ref để tránh StrictMode double-invoke ghi đè localStorage sai thời điểm
-  const prevGroupIdRef = useRef(null);
   // ────────────────────────────────────────────────────────────────────────────
   const messagesEndRef = useRef(null);
   const scrollContainerRef = useRef(null);
@@ -539,28 +537,6 @@ export default function GroupWindow() {
   };
 
   useEffect(() => {
-    // ─── Khi rời group cũ: lưu lastVisit + chuyển sang global handler ────────
-    // Đặt TRƯỚC if(!activeGroupId) return để bắt cả trường hợp switch TAB (→ null).
-    // Đặt trong EFFECT (không phải cleanup) để tránh StrictMode fake-cleanup ghi
-    // localStorage "now" ngay trước khi effect tiếp theo đọc → visitAt = now → unread = 0.
-    // Gate: prevGroupIdRef !== activeGroupId → FALSE khi StrictMode re-run cùng groupId → an toàn.
-    if (prevGroupIdRef.current && prevGroupIdRef.current !== activeGroupId) {
-      const prevId = prevGroupIdRef.current;
-      localStorage.setItem(`groupLastVisit_${prevId}`, new Date().toISOString());
-      // Chuyển main topic sang global handler (tăng unread khi có tin mới)
-      wsService.subscribe(`/topic/group/${prevId}`, (data) => {
-        if (data.messageId !== undefined && data.reactions !== undefined && !data.id) return;
-        if (data.id && data.deleted) return;
-        updateGroupLastMessage(prevId, data);
-        if (data.type !== 'SYSTEM') incrementGroupUnread(prevId);
-      });
-      // Typing/events không cần khi window không mở
-      wsService.unsubscribe(`/topic/group/${prevId}/typing`);
-      wsService.unsubscribe(`/topic/group/${prevId}/events`);
-    }
-    prevGroupIdRef.current = activeGroupId;
-    // ─────────────────────────────────────────────────────────────────────────
-
     if (!activeGroupId) return;
 
     // Đọc lastVisitAt của group vừa mở, fallback 7 ngày trước nếu lần đầu vào
@@ -609,13 +585,17 @@ export default function GroupWindow() {
         setTimeout(() => messagesEndRef.current?.scrollIntoView(), 100);
 
         // ─── AI: tính unreadOnOpen từ messages thực tế ───────────────────
-        // Dùng field isMine (backend đã set) thay vì so sánh senderId
-        // để tránh phụ thuộc vào auth store
+        // Parse visitAt (UTC ISO) → ms timestamp
         const visitTimestamp = new Date(visitAt).getTime();
         const allLoaded = [...sorted, ...wsOnlyMsgs];
-        const unreadMsgCount = allLoaded.filter(
-          (m) => new Date(m.createdDate).getTime() > visitTimestamp && !m.isMine && m.type !== 'SYSTEM'
-        ).length;
+        const unreadMsgCount = allLoaded.filter((m) => {
+          if (m.isMine || m.type === 'SYSTEM') return false;
+          // Backend trả LocalDateTime không có timezone (server chạy UTC).
+          // Append 'Z' để browser parse đúng UTC thay vì local time, tránh lệch 7h.
+          const dateStr = m.createdDate;
+          const mTime = new Date(dateStr && !dateStr.endsWith('Z') ? dateStr + 'Z' : dateStr).getTime();
+          return mTime > visitTimestamp;
+        }).length;
         setUnreadOnOpen(unreadMsgCount);
         // ─────────────────────────────────────────────────────────────────
       })
@@ -624,9 +604,9 @@ export default function GroupWindow() {
 
     subscribeToGroup(activeGroupId);
     return () => {
-      // Chỉ unsubscribe typing/events — an toàn với StrictMode (re-subscribe khi remount).
-      // Việc lưu lastVisit + chuyển main topic sang global handler được xử lý ở ĐẦU effect
-      // khi activeGroupId thay đổi, tránh StrictMode fake-cleanup ghi "now" sai.
+      // Unsubscribe typing/events khi component unmount (key thay đổi hoặc tab switch).
+      // Main topic (/topic/group/${id}) KHÔNG unsubscribe ở đây — useWebSocket sẽ
+      // re-subscribe nó với incrementGroupUnread handler khi activeGroupId thay đổi.
       wsService.unsubscribe(`/topic/group/${activeGroupId}/typing`);
       wsService.unsubscribe(`/topic/group/${activeGroupId}/events`);
     };
@@ -635,13 +615,13 @@ export default function GroupWindow() {
   // Lưu lastVisit khi đóng tab/trình duyệt
   useEffect(() => {
     const handleUnload = () => {
-      if (prevGroupIdRef.current) {
-        localStorage.setItem(`groupLastVisit_${prevGroupIdRef.current}`, new Date().toISOString());
+      if (activeGroupId) {
+        localStorage.setItem(`groupLastVisit_${activeGroupId}`, new Date().toISOString());
       }
     };
     window.addEventListener('beforeunload', handleUnload);
     return () => window.removeEventListener('beforeunload', handleUnload);
-  }, []);
+  }, [activeGroupId]);
 
   useEffect(() => {
     if (!activeGroupId) return;

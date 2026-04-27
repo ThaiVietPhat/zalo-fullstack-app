@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import wsService from '../services/websocket';
+import { heartbeat } from '../api/user';
 import useAuthStore from '../store/authStore';
 import useChatStore from '../store/chatStore';
 import { getChatDetail } from '../api/chat';
@@ -102,6 +103,8 @@ export function useWebSocket() {
 
   useEffect(() => {
     if (!auth?.accessToken) return;
+
+    const heartbeatInterval = setInterval(() => { heartbeat().catch(() => {}); }, 60_000);
 
     wsService.connect(auth.accessToken, () => {
       // Khi reconnect: đánh dấu tất cả messages chưa nhận → DELIVERED
@@ -212,6 +215,7 @@ export function useWebSocket() {
     });
 
     return () => {
+      clearInterval(heartbeatInterval);
       // Don't disconnect on unmount of hook — managed by logout
     };
   }, [auth?.accessToken]);

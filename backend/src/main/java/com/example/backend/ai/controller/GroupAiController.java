@@ -7,6 +7,7 @@ import com.example.backend.ai.dto.SummarizeResponse;
 import com.example.backend.ai.service.GroupAiService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import com.example.backend.shared.ratelimit.AiRateLimit;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -24,6 +25,7 @@ public class GroupAiController {
      * POST /api/v1/group/{groupId}/ai/smart-reply
      * Response: { "suggestions": ["...", "...", "..."] }
      */
+    @AiRateLimit
     @PostMapping("/smart-reply")
     public ResponseEntity<SmartReplyResponse> smartReply(
             @PathVariable UUID groupId,
@@ -37,6 +39,7 @@ public class GroupAiController {
      * POST /api/v1/group/{groupId}/ai/summarize
      * Body: { "since": "2026-04-17T14:30:00" }
      */
+    @AiRateLimit
     @PostMapping("/summarize")
     public ResponseEntity<SummarizeResponse> summarize(
             @PathVariable UUID groupId,

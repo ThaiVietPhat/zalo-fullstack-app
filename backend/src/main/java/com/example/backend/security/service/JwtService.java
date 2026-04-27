@@ -118,6 +118,11 @@ public class JwtService {
         }
     }
 
+    /** Tra ve thoi gian het han cua token (de tinh TTL cho Redis blacklist). */
+    public Date extractExpiration(String token) {
+        return extractAllClaims(token).getExpiration();
+    }
+
     private Claims extractAllClaims(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(getSignKey())

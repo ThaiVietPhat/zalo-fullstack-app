@@ -29,4 +29,7 @@ public class GroupDto {
     private boolean isAdmin;
 
     private List<GroupMessageDto> pinnedMessages;
+
+    // So tin nhan chua doc cua user hien tai (tu Redis)
+    private int unreadCount;
 }

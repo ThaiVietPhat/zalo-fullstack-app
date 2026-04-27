@@ -7,6 +7,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
+import com.example.backend.shared.ratelimit.AiRateLimit;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,6 +18,7 @@ public class AiChatController {
 
     private final AiChatService aiChatService;
 
+    @AiRateLimit
     @PostMapping("/chat")
     public ResponseEntity<AiMessageDto> chat(
             @Valid @RequestBody AiChatRequest request,
