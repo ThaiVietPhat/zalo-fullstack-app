@@ -35,6 +35,7 @@ export function useCallManager() {
   // ------------------------------------------------------------------ //
 
   const sendSignal = useCallback((signal) => {
+    console.log('[call] sending signal:', signal.type, '→', signal.targetUserId);
     wsService.publish(CALL_APP_DEST, signal);
   }, []);
 
@@ -124,6 +125,7 @@ export function useCallManager() {
   // ------------------------------------------------------------------ //
 
   const handleSignal = useCallback(async (signal) => {
+    console.log('[call] received signal:', signal.type, 'from', signal.fromUserId);
     const { type } = signal;
 
     if (type === 'call-offer') {
@@ -180,8 +182,12 @@ export function useCallManager() {
 
   useEffect(() => {
     if (!auth?.accessToken) return;
+    console.log('[call] subscribing to', CALL_SIGNAL_DEST);
     wsService.subscribe(CALL_SIGNAL_DEST, handleSignal);
-    return () => wsService.unsubscribe(CALL_SIGNAL_DEST);
+    return () => {
+      console.log('[call] unsubscribing from', CALL_SIGNAL_DEST);
+      wsService.unsubscribe(CALL_SIGNAL_DEST);
+    };
   }, [auth?.accessToken, handleSignal]);
 
   // ------------------------------------------------------------------ //
