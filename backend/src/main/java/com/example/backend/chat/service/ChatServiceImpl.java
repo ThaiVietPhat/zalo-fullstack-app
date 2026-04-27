@@ -140,3 +140,9 @@ public class ChatServiceImpl implements ChatService {
         boolean blockedByMe = blockService.isBlockedByMe(currentUser.getId(), otherUser.getId());
         boolean blockedByThem = blockService.isBlockedByMe(otherUser.getId(), currentUser.getId());
         if (blockedByMe) dto.setBlockStatus("BLOCKED_BY_ME");
+        else if (blockedByThem) dto.setBlockStatus("BLOCKED_BY_THEM");
+        else dto.setBlockStatus("NONE");
+
+        return dto;
+    }
+}

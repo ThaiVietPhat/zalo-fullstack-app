@@ -62,7 +62,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         log.warn("Blacklisted token used for: {}", request.getRequestURI());
                         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                         response.setContentType("application/json");
-                        response.getWriter().write("{"error":"TOKEN_REVOKED"}");
+                        response.getWriter().write("{\"error\":\"TOKEN_REVOKED\"}");
                         return;
                     }
                     String email = jwtService.extractEmail(token);
