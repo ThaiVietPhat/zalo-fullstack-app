@@ -28,6 +28,7 @@ export function useCallManager() {
   const activeCallRef           = useRef(activeCall);
   const incomingCallRef         = useRef(incomingCall);
   const handlePeerDisconnectRef = useRef(null);
+  const handleSignalRef         = useRef(null); // stable ref → subscription không bị teardown
 
   useEffect(() => { activeCallRef.current = activeCall; }, [activeCall]);
   useEffect(() => { incomingCallRef.current = incomingCall; }, [incomingCall]);
@@ -180,15 +181,21 @@ export function useCallManager() {
     }
   }, [sendSignal, setIncomingCall, clearIncomingCall, updateActiveCall, cleanupPeer, clearActiveCall]);
 
+  // Luôn cập nhật ref để wrapper bên dưới luôn gọi handler mới nhất
+  useEffect(() => { handleSignalRef.current = handleSignal; }, [handleSignal]);
+
+  // Subscription chỉ tạo 1 lần khi có accessToken — không re-subscribe khi re-render
   useEffect(() => {
     if (!auth?.accessToken) return;
     console.log('[call] subscribing to', CALL_SIGNAL_DEST);
-    wsService.subscribe(CALL_SIGNAL_DEST, handleSignal);
+    // Dùng stable wrapper → wsService.handlers không bao giờ bị overwrite do handleSignal thay đổi
+    const stableHandler = (signal) => handleSignalRef.current?.(signal);
+    wsService.subscribe(CALL_SIGNAL_DEST, stableHandler);
     return () => {
       console.log('[call] unsubscribing from', CALL_SIGNAL_DEST);
       wsService.unsubscribe(CALL_SIGNAL_DEST);
     };
-  }, [auth?.accessToken, handleSignal]);
+  }, [auth?.accessToken]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ------------------------------------------------------------------ //
 
