@@ -65,8 +65,7 @@ public class CallSignalingController {
         }
         String targetEmail = targetOpt.get().getEmail();
 
-        log.info("[call] Relaying {} from {} to {} ({})", signal.getType(), sender.getId(), signal.getTargetUserId(), targetEmail);
-        messagingTemplate.convertAndSendToUser(targetEmail, "/queue/call", signal);
-        log.info("[call] Relay sent to {}", targetEmail);
+        log.info("[call] Relaying {} from {} to {}", signal.getType(), sender.getId(), signal.getTargetUserId());
+        messagingTemplate.convertAndSend("/topic/call/" + signal.getTargetUserId(), signal);
     }
 }

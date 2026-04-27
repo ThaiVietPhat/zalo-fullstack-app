@@ -5,8 +5,8 @@ import useCallStore from '../store/callStore';
 import { getIceServers } from '../services/iceServers';
 import { saveCallSession } from '../api/call';
 
-const CALL_SIGNAL_DEST = '/user/queue/call';
-const CALL_APP_DEST    = '/app/call/signal';
+const CALL_APP_DEST = '/app/call/signal';
+// Dùng /topic/call/{userId} — đơn giản, không phụ thuộc user-destination routing của Spring
 
 export function useCallManager() {
   const { auth } = useAuthStore();
@@ -182,20 +182,20 @@ export function useCallManager() {
   }, [sendSignal, setIncomingCall, clearIncomingCall, updateActiveCall, cleanupPeer, clearActiveCall]);
 
   // Luôn cập nhật ref để wrapper bên dưới luôn gọi handler mới nhất
-  useEffect(() => { handleSignalRef.current = handleSignal; }, [handleSignal]);
+  handleSignalRef.current = handleSignal;
 
-  // Subscription chỉ tạo 1 lần khi có accessToken — không re-subscribe khi re-render
+  // Subscribe theo /topic/call/{userId} — cùng pattern với messages/group, không cần user-destination
   useEffect(() => {
-    if (!auth?.accessToken) return;
-    console.log('[call] subscribing to', CALL_SIGNAL_DEST);
-    // Dùng stable wrapper → wsService.handlers không bao giờ bị overwrite do handleSignal thay đổi
+    if (!auth?.userId) return;
+    const dest = `/topic/call/${auth.userId}`;
+    console.log('[call] subscribing to', dest);
     const stableHandler = (signal) => handleSignalRef.current?.(signal);
-    wsService.subscribe(CALL_SIGNAL_DEST, stableHandler);
+    wsService.subscribe(dest, stableHandler);
     return () => {
-      console.log('[call] unsubscribing from', CALL_SIGNAL_DEST);
-      wsService.unsubscribe(CALL_SIGNAL_DEST);
+      console.log('[call] unsubscribing from', dest);
+      wsService.unsubscribe(dest);
     };
-  }, [auth?.accessToken]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [auth?.userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ------------------------------------------------------------------ //
 
