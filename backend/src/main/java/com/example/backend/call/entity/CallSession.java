@@ -20,7 +20,7 @@ import java.util.UUID;
         @Index(name = "idx_call_receiver",  columnList = "receiver_id"),
     }
 )
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor @SuperBuilder
 public class CallSession extends BaseAuditingEntity {
 
     @Id
