@@ -5,10 +5,10 @@ import axiosInstance from './axios';
  * Chỉ caller gọi endpoint này.
  */
 export const saveCallSession = (data) =>
-  axiosInstance.post('/calls', data);
+  axiosInstance.post('/api/v1/calls', data);
 
 /**
  * Lấy lịch sử cuộc gọi của một chat.
  */
 export const getCallHistory = (chatId) =>
-  axiosInstance.get(`/calls/${chatId}`);
+  axiosInstance.get(`/api/v1/calls/${chatId}`);
