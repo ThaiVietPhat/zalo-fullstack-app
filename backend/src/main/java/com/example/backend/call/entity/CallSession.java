@@ -5,6 +5,7 @@ import com.example.backend.shared.entity.BaseAuditingEntity;
 import com.example.backend.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UuidGenerator;
 import org.hibernate.type.SqlTypes;
