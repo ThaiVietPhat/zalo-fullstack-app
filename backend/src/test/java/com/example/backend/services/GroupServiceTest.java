@@ -322,7 +322,7 @@ class GroupServiceTest {
                 .thenReturn(Optional.of(memberRecord));
 
         assertThatNoException().isThrownBy(
-                () -> groupService.leaveGroup(groupId, authentication));
+                () -> groupService.leaveGroup(groupId, null, authentication));
 
         verify(groupMemberRepository).delete(memberRecord);
     }
@@ -332,7 +332,7 @@ class GroupServiceTest {
     void leaveGroup_adminStillHasMembers_throws() {
         when(groupRepository.findById(groupId)).thenReturn(Optional.of(group));
 
-        assertThatThrownBy(() -> groupService.leaveGroup(groupId, authentication))
+        assertThatThrownBy(() -> groupService.leaveGroup(groupId, null, authentication))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 

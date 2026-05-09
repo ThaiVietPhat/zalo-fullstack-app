@@ -3,7 +3,7 @@ package com.example.backend.admin.dto;
 import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 
-@Data @NoArgsConstructor @AllArgsConstructor
+@Data @NoArgsConstructor @AllArgsConstructor @Builder
 public class BanRequest {
     @NotBlank(message = "Lý do ban không được để trống")
     private String reason;

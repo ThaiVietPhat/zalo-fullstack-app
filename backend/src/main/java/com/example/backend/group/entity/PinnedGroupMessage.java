@@ -9,16 +9,21 @@ import org.hibernate.type.SqlTypes;
 import com.example.backend.user.entity.User;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import lombok.experimental.SuperBuilder;
 
 import java.util.UUID;
 
+import com.example.backend.shared.entity.BaseAuditingEntity;
+
 @Entity
 @Table(name = "pinned_group_message")
-@Getter @Setter @NoArgsConstructor
-public class PinnedGroupMessage {
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor
+@SuperBuilder
+public class PinnedGroupMessage extends BaseAuditingEntity {
 
     @Id
     @UuidGenerator
@@ -37,12 +42,4 @@ public class PinnedGroupMessage {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "pinned_by", nullable = false)
     private User pinnedBy;
-
-    @Column(name = "created_date", nullable = false)
-    private LocalDateTime createdDate;
-
-    @PrePersist
-    public void prePersist() {
-        if (createdDate == null) createdDate = LocalDateTime.now();
-    }
 }

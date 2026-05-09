@@ -2,6 +2,7 @@ package com.example.backend.user.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UuidGenerator;
 import org.hibernate.type.SqlTypes;
@@ -17,6 +18,7 @@ import com.example.backend.shared.entity.BaseAuditingEntity;
         }
 )
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor
+@SuperBuilder
 public class User extends BaseAuditingEntity {
 
     @Id
@@ -101,4 +103,7 @@ public class User extends BaseAuditingEntity {
         if (minutesAgo < 1440) return (minutesAgo / 60) + " giờ trước";
         return (minutesAgo / 1440) + " ngày trước";
     }
+
+    @Version
+    private Long version;
 }

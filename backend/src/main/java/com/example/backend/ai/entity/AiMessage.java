@@ -2,6 +2,7 @@ package com.example.backend.ai.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UuidGenerator;
 import org.hibernate.type.SqlTypes;
@@ -18,6 +19,7 @@ import com.example.backend.user.entity.User;
         }
 )
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor
+@SuperBuilder
 public class AiMessage extends BaseAuditingEntity {
 
     @Id

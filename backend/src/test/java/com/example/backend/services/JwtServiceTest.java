@@ -1,6 +1,7 @@
 package com.example.backend.services;
 
 import com.example.backend.security.service.JwtService;
+import com.example.backend.security.service.JwtServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -13,7 +14,7 @@ import static org.assertj.core.api.Assertions.*;
 @DisplayName("JwtService Unit Tests")
 class JwtServiceTest {
 
-    private JwtService jwtService;
+    private JwtServiceImpl jwtService;
 
     private static final String SECRET  = "zalo-clone-test-secret-key-min32chars!!";
     private static final String EMAIL   = "test@gmail.com";
@@ -21,7 +22,7 @@ class JwtServiceTest {
 
     @BeforeEach
     void setUp() {
-        jwtService = new JwtService();
+        jwtService = new JwtServiceImpl();
         ReflectionTestUtils.setField(jwtService, "secretKey",             SECRET);
         ReflectionTestUtils.setField(jwtService, "expirationMs",          86400000L);
         ReflectionTestUtils.setField(jwtService, "refreshExpirationMs",   604800000L);
@@ -130,24 +131,5 @@ class JwtServiceTest {
     void extractRole_admin() {
         String token = jwtService.generateAccessToken(EMAIL, USER_ID, "ADMIN", 1);
         assertThat(jwtService.extractRole(token)).isEqualTo("ADMIN");
-    }
-
-    // ─── Deprecated overloads ─────────────────────────────────────────────────
-
-    @Test
-    @DisplayName("generateAccessToken (3-arg deprecated) vẫn hoạt động")
-    void generateAccessToken_deprecated_works() {
-        @SuppressWarnings("deprecation")
-        String token = jwtService.generateAccessToken(EMAIL, USER_ID, "USER");
-        assertThat(jwtService.isTokenValid(token)).isTrue();
-        assertThat(jwtService.extractEmail(token)).isEqualTo(EMAIL);
-    }
-
-    @Test
-    @DisplayName("generateRefreshToken (2-arg deprecated) vẫn hoạt động")
-    void generateRefreshToken_deprecated_works() {
-        @SuppressWarnings("deprecation")
-        String token = jwtService.generateRefreshToken(EMAIL, USER_ID);
-        assertThat(jwtService.isTokenValid(token)).isTrue();
     }
 }

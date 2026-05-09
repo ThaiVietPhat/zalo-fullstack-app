@@ -4,6 +4,7 @@ import com.example.backend.messaging.enums.MessageState;
 import com.example.backend.messaging.enums.MessageType;
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UuidGenerator;
 import org.hibernate.type.SqlTypes;
@@ -15,6 +16,7 @@ import com.example.backend.chat.entity.Chat;
 
 @Entity
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor
+@SuperBuilder
 public class Message extends BaseAuditingEntity {
     @Id
     @UuidGenerator
@@ -25,22 +27,27 @@ public class Message extends BaseAuditingEntity {
     private String content;
 
     @Enumerated(EnumType.STRING)
+    @Builder.Default
     private MessageState state = MessageState.SENT;
 
     @Enumerated(EnumType.STRING)
+    @Builder.Default
     private MessageType type = MessageType.TEXT;
 
     @Column(nullable = false)
+    @Builder.Default
     private boolean deleted = false;
 
     private String fileName;
 
     /** Người gửi tự xóa khỏi giao diện của mình */
     @Column(nullable = false)
+    @Builder.Default
     private boolean deletedBySender = false;
 
     /** Người nhận tự xóa khỏi giao diện của mình */
     @Column(nullable = false)
+    @Builder.Default
     private boolean deletedByReceiver = false;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -60,4 +67,7 @@ public class Message extends BaseAuditingEntity {
             return null;
         }
     }
+
+    @Version
+    private Long version;
 }

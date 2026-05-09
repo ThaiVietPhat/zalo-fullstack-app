@@ -2,6 +2,7 @@ package com.example.backend.group.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UuidGenerator;
 import org.hibernate.type.SqlTypes;
@@ -25,6 +26,7 @@ import com.example.backend.group.entity.Group;
         }
 )
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor
+@SuperBuilder
 public class GroupMember extends BaseAuditingEntity {
 
     @Id
@@ -42,14 +44,15 @@ public class GroupMember extends BaseAuditingEntity {
 
     // true = admin nhóm, false = thành viên thường
     @Column(nullable = false)
+    @Builder.Default
     private boolean admin = false;
 
     // Factory method tiện dụng
     public static GroupMember of(Group group, User user, boolean isAdmin) {
-        GroupMember member = new GroupMember();
-        member.setGroup(group);
-        member.setUser(user);
-        member.setAdmin(isAdmin);
-        return member;
+        return GroupMember.builder()
+                .group(group)
+                .user(user)
+                .admin(isAdmin)
+                .build();
     }
 }

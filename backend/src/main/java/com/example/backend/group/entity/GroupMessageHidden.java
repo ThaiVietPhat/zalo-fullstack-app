@@ -10,6 +10,7 @@ import com.example.backend.user.entity.User;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -19,6 +20,7 @@ import lombok.Setter;
 @Table(name = "group_message_hidden")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor
 @IdClass(GroupMessageHidden.GroupMessageHiddenId.class)
+@Builder
 public class GroupMessageHidden {
 
     @Id

@@ -2,6 +2,7 @@ package com.example.backend.chat.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UuidGenerator;
 import org.hibernate.type.SqlTypes;
@@ -19,6 +20,7 @@ import com.example.backend.user.entity.User;
         }
 )
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor
+@SuperBuilder
 public class Chat extends BaseAuditingEntity {
 
     @Id
@@ -74,4 +76,7 @@ public class Chat extends BaseAuditingEntity {
     public boolean containsUser(UUID userId) {
         return user1.getId().equals(userId) || user2.getId().equals(userId);
     }
+
+    @Version
+    private Long version;
 }

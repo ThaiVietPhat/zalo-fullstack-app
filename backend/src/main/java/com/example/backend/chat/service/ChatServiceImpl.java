@@ -43,9 +43,38 @@ public class ChatServiceImpl implements ChatService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        return chatRepository.findAllChatsByUserId(user.getId())
+        return chatRepository.findAllChatsWithSummaryByUserId(user.getId())
                 .stream()
-                .map(chat -> mapChatToDto(chat, user))
+                .map(row -> {
+                    Chat chat = (Chat) row[0];
+                    Long unreadCount = (Long) row[1];
+                    String lastContent = (String) row[2];
+                    com.example.backend.messaging.enums.MessageType lastType = (com.example.backend.messaging.enums.MessageType) row[3];
+                    java.time.LocalDateTime lastTime = (java.time.LocalDateTime) row[4];
+
+                    ChatDto dto = chatMapper.toDto(chat);
+                    dto.setChatName(chat.getChatName(user.getId()));
+                    dto.setUnreadCount(unreadCount.intValue());
+
+                    User otherUser = chat.getOtherUser(user.getId());
+                    dto.setRecipientId(otherUser.getId());
+                    dto.setRecipientEmail(otherUser.getEmail());
+                    dto.setAvatarUrl(otherUser.getAvatarUrl());
+                    dto.setRecipientOnline(onlineStatusService.isOnline(otherUser.getId()));
+                    dto.setRecipientLastSeenText(otherUser.getLastSeenText());
+
+                    dto.setLastMessage(lastContent);
+                    dto.setLastMessageType(lastType);
+                    dto.setLastMessageTime(lastTime);
+
+                    boolean blockedByMe = blockService.isBlockedByMe(user.getId(), otherUser.getId());
+                    boolean blockedByThem = blockService.isBlockedByMe(otherUser.getId(), user.getId());
+                    if (blockedByMe) dto.setBlockStatus("BLOCKED_BY_ME");
+                    else if (blockedByThem) dto.setBlockStatus("BLOCKED_BY_THEM");
+                    else dto.setBlockStatus("NONE");
+
+                    return dto;
+                })
                 .collect(Collectors.toList());
     }
 
@@ -83,9 +112,10 @@ public class ChatServiceImpl implements ChatService {
 
         Chat chat = chatRepository.findChatBetweenTwoUsers(user.getId(), otherUserId)
                 .orElseGet(() -> {
-                    Chat newChat = new Chat();
-                    newChat.setUser1(user);
-                    newChat.setUser2(otherUser);
+                    Chat newChat = Chat.builder()
+                            .user1(user)
+                            .user2(otherUser)
+                            .build();
                     return chatRepository.save(newChat);
                 });
 

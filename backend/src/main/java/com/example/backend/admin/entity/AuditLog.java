@@ -3,6 +3,7 @@ package com.example.backend.admin.entity;
 import com.example.backend.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UuidGenerator;
 import org.hibernate.type.SqlTypes;
@@ -10,10 +11,13 @@ import org.hibernate.type.SqlTypes;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import com.example.backend.shared.entity.BaseAuditingEntity;
+
 @Entity
 @Table(name = "audit_log")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor
-public class AuditLog {
+@SuperBuilder
+public class AuditLog extends BaseAuditingEntity {
 
     @Id
     @UuidGenerator
@@ -42,12 +46,4 @@ public class AuditLog {
 
     @Column(columnDefinition = "TEXT")
     private String details;
-
-    @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt;
-
-    @PrePersist
-    protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-    }
 }

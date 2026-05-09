@@ -3,6 +3,7 @@ package com.example.backend.group.entity;
 import com.example.backend.messaging.enums.MessageType;
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UuidGenerator;
 import org.hibernate.type.SqlTypes;
@@ -21,6 +22,7 @@ import com.example.backend.group.entity.Group;
         }
 )
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor
+@SuperBuilder
 public class GroupMessage extends BaseAuditingEntity {
 
     @Id
@@ -33,9 +35,11 @@ public class GroupMessage extends BaseAuditingEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
+    @Builder.Default
     private MessageType type = MessageType.TEXT;
 
     @Column(nullable = false)
+    @Builder.Default
     private boolean deleted = false;
 
     private String fileName;
@@ -47,4 +51,7 @@ public class GroupMessage extends BaseAuditingEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "sender_id", nullable = false)
     private User sender;
+
+    @Version
+    private Long version;
 }

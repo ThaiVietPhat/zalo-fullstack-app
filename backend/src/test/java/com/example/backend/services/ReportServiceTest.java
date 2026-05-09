@@ -51,31 +51,35 @@ class ReportServiceTest {
 
     @BeforeEach
     void setUp() {
-        reporter = new User();
-        reporter.setId(UUID.randomUUID());
-        reporter.setEmail("reporter@gmail.com");
-        reporter.setFirstName("Reporter");
-        reporter.setLastName("User");
+        reporter = User.builder()
+                .id(UUID.randomUUID())
+                .email("reporter@gmail.com")
+                .firstName("Reporter")
+                .lastName("User")
+                .build();
 
-        reported = new User();
-        reported.setId(UUID.randomUUID());
-        reported.setEmail("reported@gmail.com");
-        reported.setFirstName("Reported");
-        reported.setLastName("User");
-        reported.setBanned(false);
+        reported = User.builder()
+                .id(UUID.randomUUID())
+                .email("reported@gmail.com")
+                .firstName("Reported")
+                .lastName("User")
+                .banned(false)
+                .build();
 
-        admin = new User();
-        admin.setId(UUID.randomUUID());
-        admin.setEmail("admin@gmail.com");
-        admin.setFirstName("Admin");
-        admin.setLastName("User");
+        admin = User.builder()
+                .id(UUID.randomUUID())
+                .email("admin@gmail.com")
+                .firstName("Admin")
+                .lastName("User")
+                .build();
 
-        pendingReport = new Report();
-        pendingReport.setId(reportId);
-        pendingReport.setReporter(reporter);
-        pendingReport.setReported(reported);
-        pendingReport.setReason("Spam");
-        pendingReport.setStatus(ReportStatus.PENDING);
+        pendingReport = Report.builder()
+                .id(reportId)
+                .reporter(reporter)
+                .reported(reported)
+                .reason("Spam")
+                .status(ReportStatus.PENDING)
+                .build();
     }
 
     // ─── createReport ─────────────────────────────────────────────────────────
@@ -83,7 +87,10 @@ class ReportServiceTest {
     @Test
     @DisplayName("createReport() - thành công")
     void createReport_success() {
-        ReportRequest req = new ReportRequest("Spam", "Gửi spam liên tục");
+        ReportRequest req = ReportRequest.builder()
+                .reason("Spam")
+                .description("Gửi spam liên tục")
+                .build();
 
         when(reportRepository.existsByReporter_IdAndReported_IdAndStatus(
                 reporter.getId(), reported.getId(), ReportStatus.PENDING)).thenReturn(false);
@@ -101,8 +108,8 @@ class ReportServiceTest {
     @Test
     @DisplayName("createReport() - tự tố cáo chính mình → throw")
     void createReport_selfReport_throws() {
-        assertThatThrownBy(() -> reportService.createReport(reporter.getId(), reporter.getId(),
-                new ReportRequest("Spam", null)))
+        ReportRequest req = ReportRequest.builder().reason("Spam").build();
+        assertThatThrownBy(() -> reportService.createReport(reporter.getId(), reporter.getId(), req))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("chính mình");
     }
@@ -110,11 +117,11 @@ class ReportServiceTest {
     @Test
     @DisplayName("createReport() - đã có report pending → throw")
     void createReport_duplicatePending_throws() {
+        ReportRequest req = ReportRequest.builder().reason("Spam").build();
         when(reportRepository.existsByReporter_IdAndReported_IdAndStatus(
                 reporter.getId(), reported.getId(), ReportStatus.PENDING)).thenReturn(true);
 
-        assertThatThrownBy(() -> reportService.createReport(reporter.getId(), reported.getId(),
-                new ReportRequest("Spam", null)))
+        assertThatThrownBy(() -> reportService.createReport(reporter.getId(), reported.getId(), req))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("đang chờ xử lý");
     }
@@ -122,13 +129,13 @@ class ReportServiceTest {
     @Test
     @DisplayName("createReport() - reported user không tồn tại → ResourceNotFoundException")
     void createReport_reportedNotFound_throws() {
+        ReportRequest req = ReportRequest.builder().reason("Spam").build();
         when(reportRepository.existsByReporter_IdAndReported_IdAndStatus(
                 reporter.getId(), reported.getId(), ReportStatus.PENDING)).thenReturn(false);
         when(userRepository.findById(reporter.getId())).thenReturn(Optional.of(reporter));
         when(userRepository.findById(reported.getId())).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> reportService.createReport(reporter.getId(), reported.getId(),
-                new ReportRequest("Spam", null)))
+        assertThatThrownBy(() -> reportService.createReport(reporter.getId(), reported.getId(), req))
                 .isInstanceOf(ResourceNotFoundException.class);
     }
 
@@ -138,7 +145,7 @@ class ReportServiceTest {
     @DisplayName("getReports() - lấy tất cả reports")
     void getReports_all() {
         Page<Report> page = new PageImpl<>(List.of(pendingReport));
-        when(reportRepository.findAllByOrderByCreatedAtDesc(any(Pageable.class))).thenReturn(page);
+        when(reportRepository.findAllByOrderByCreatedDateDesc(any(Pageable.class))).thenReturn(page);
 
         Page<ReportDto> result = reportService.getReports("ALL", 0, 10);
 
@@ -149,20 +156,20 @@ class ReportServiceTest {
     @DisplayName("getReports() - lọc theo status PENDING")
     void getReports_byPendingStatus() {
         Page<Report> page = new PageImpl<>(List.of(pendingReport));
-        when(reportRepository.findAllByStatusOrderByCreatedAtDesc(eq(ReportStatus.PENDING), any(Pageable.class)))
+        when(reportRepository.findAllByStatusOrderByCreatedDateDesc(eq(ReportStatus.PENDING), any(Pageable.class)))
                 .thenReturn(page);
 
         Page<ReportDto> result = reportService.getReports("PENDING", 0, 10);
 
         assertThat(result.getTotalElements()).isEqualTo(1);
-        verify(reportRepository).findAllByStatusOrderByCreatedAtDesc(eq(ReportStatus.PENDING), any());
+        verify(reportRepository).findAllByStatusOrderByCreatedDateDesc(eq(ReportStatus.PENDING), any());
     }
 
     @Test
     @DisplayName("getReports() - status null → lấy tất cả")
     void getReports_nullStatus_returnsAll() {
         Page<Report> page = new PageImpl<>(List.of(pendingReport));
-        when(reportRepository.findAllByOrderByCreatedAtDesc(any(Pageable.class))).thenReturn(page);
+        when(reportRepository.findAllByOrderByCreatedDateDesc(any(Pageable.class))).thenReturn(page);
 
         Page<ReportDto> result = reportService.getReports(null, 0, 10);
 

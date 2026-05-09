@@ -4,6 +4,7 @@ import com.example.backend.shared.converter.StringListConverter;
 import com.example.backend.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.experimental.SuperBuilder;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
@@ -11,11 +12,13 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.example.backend.shared.entity.BaseAuditingEntity;
+
 @Entity
 @Table(name = "reports")
-@EntityListeners(AuditingEntityListener.class)
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor
-public class Report {
+@SuperBuilder
+public class Report extends BaseAuditingEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -37,11 +40,8 @@ public class Report {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
+    @Builder.Default
     private ReportStatus status = ReportStatus.PENDING;
-
-    @CreatedDate
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
 
     @Column(name = "resolved_at")
     private LocalDateTime resolvedAt;
@@ -56,5 +56,6 @@ public class Report {
     /** Danh sách S3 key của file bằng chứng (ảnh/video/tài liệu) — lưu dưới dạng JSON array */
     @Convert(converter = StringListConverter.class)
     @Column(name = "evidence_keys", columnDefinition = "TEXT")
+    @Builder.Default
     private List<String> evidenceKeys = new ArrayList<>();
 }

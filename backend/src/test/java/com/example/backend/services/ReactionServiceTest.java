@@ -15,6 +15,7 @@ import com.example.backend.messaging.repository.MessageRepository;
 import com.example.backend.messaging.service.NotificationService;
 import com.example.backend.reaction.dto.ReactionDto;
 import com.example.backend.reaction.service.ReactionService;
+import com.example.backend.reaction.service.ReactionServiceImpl;
 import com.example.backend.shared.exception.ResourceNotFoundException;
 import com.example.backend.shared.exception.UnauthorizedException;
 import com.example.backend.user.entity.User;
@@ -237,7 +238,7 @@ class ReactionServiceTest {
         assertThat(result).isNotNull();
         verify(groupMessageReactionRepository).save(any(GroupMessageReaction.class));
         verify(messagingTemplate).convertAndSend(
-                eq("/topic/group/" + group.getId()), any(ReactionService.ReactionGroupEvent.class));
+                eq("/topic/group/" + group.getId()), any(ReactionServiceImpl.ReactionGroupEvent.class));
     }
 
     @Test

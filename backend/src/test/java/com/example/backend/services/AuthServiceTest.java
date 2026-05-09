@@ -454,7 +454,7 @@ class AuthServiceTest {
         when(userRepository.findByEmail("verified@gmail.com")).thenReturn(Optional.of(verifiedUser));
         when(userRepository.save(any())).thenReturn(verifiedUser);
 
-        authService.logout("verified@gmail.com");
+        authService.logout("verified@gmail.com", "mock-token");
 
         assertThat(verifiedUser.isOnline()).isFalse();
         verify(userRepository).save(verifiedUser);
@@ -465,7 +465,7 @@ class AuthServiceTest {
     void logout_emailNotFound_noOp() {
         when(userRepository.findByEmail("nobody@gmail.com")).thenReturn(Optional.empty());
 
-        assertThatNoException().isThrownBy(() -> authService.logout("nobody@gmail.com"));
+        assertThatNoException().isThrownBy(() -> authService.logout("nobody@gmail.com", "mock-token"));
         verify(userRepository, never()).save(any());
     }
 }

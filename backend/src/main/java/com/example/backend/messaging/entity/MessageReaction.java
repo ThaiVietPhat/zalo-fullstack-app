@@ -2,6 +2,7 @@ package com.example.backend.messaging.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UuidGenerator;
 import org.hibernate.type.SqlTypes;
@@ -17,6 +18,7 @@ import com.example.backend.messaging.entity.Message;
         indexes = @Index(name = "idx_reaction_message", columnList = "message_id")
 )
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor
+@SuperBuilder
 public class MessageReaction extends BaseAuditingEntity {
 
     @Id

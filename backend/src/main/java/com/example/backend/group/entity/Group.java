@@ -2,6 +2,7 @@ package com.example.backend.group.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UuidGenerator;
 import org.hibernate.type.SqlTypes;
@@ -20,6 +21,7 @@ import com.example.backend.group.entity.GroupMember;
         }
 )
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor
+@SuperBuilder
 public class Group extends BaseAuditingEntity {
 
     @Id
@@ -42,6 +44,7 @@ public class Group extends BaseAuditingEntity {
     private User createdBy;
 
     @OneToMany(mappedBy = "group", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
     private List<GroupMember> members = new ArrayList<>();
 
     @Transient

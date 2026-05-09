@@ -4,149 +4,34 @@ import com.example.backend.messaging.dto.MessageDto;
 import com.example.backend.messaging.enums.MessageState;
 import com.example.backend.reaction.dto.ReactionDto;
 import com.example.backend.user.dto.FriendRequestDto;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
-@Service
-@RequiredArgsConstructor
-@Slf4j
-public class NotificationService {
+public interface NotificationService {
+    void sendMessageNotification(String recipientEmail, MessageDto messageDto);
+    void sendChatBroadcast(UUID chatId, MessageDto messageDto);
+    void sendMessageDeliveredNotification(String senderEmail, UUID chatId);
+    void sendMessageSeenNotification(String recipientEmail, UUID chatId);
+    void sendTypingNotification(UUID chatId, UUID userId, boolean isTyping);
+    void sendUserStatusNotification(UUID userId, boolean isOnline);
+    void sendMessageRecalledNotification(String recipientEmail, UUID messageId, UUID chatId);
+    void sendReactionNotification(String recipientEmail, UUID messageId, UUID chatId, List<ReactionDto> reactions);
+    void sendGroupReactionNotification(String recipientEmail, UUID groupId, String reactorName, String emoji);
+    void sendFriendRequestNotification(String receiverEmail, FriendRequestDto dto);
+    void sendForceLogout(String email, String reason);
+    void sendAccountBanned(String email, String reason, LocalDateTime banUntil);
+    void sendFriendRequestAcceptedNotification(String senderEmail, FriendRequestDto dto);
+    void sendStateChangeBroadcast(UUID chatId, MessageState newState, UUID messageSenderId);
 
-    private final SimpMessagingTemplate messagingTemplate;
-
-    public void sendMessageNotification(String recipientEmail, MessageDto messageDto) {
-        log.info("Sending message notification to user: {}", recipientEmail);
-        messagingTemplate.convertAndSendToUser(
-                recipientEmail,
-                "/queue/messages",
-                messageDto
-        );
-    }
-
-    public void sendChatBroadcast(UUID chatId, MessageDto messageDto) {
-        log.info("Broadcasting message to chat topic: {}", chatId);
-        messagingTemplate.convertAndSend("/topic/chat/" + chatId, messageDto);
-    }
-
-    public void sendMessageDeliveredNotification(String senderEmail, UUID chatId) {
-        log.info("Sending message delivered notification to user: {} for chat: {}", senderEmail, chatId);
-        messagingTemplate.convertAndSendToUser(
-                senderEmail,
-                "/queue/delivered",
-                new MessageDeliveredPayload(chatId)
-        );
-    }
-
-    public void sendMessageSeenNotification(String recipientEmail, UUID chatId) {
-        log.info("Sending message seen notification to user: {} for chat: {}", recipientEmail, chatId);
-        messagingTemplate.convertAndSendToUser(
-                recipientEmail,
-                "/queue/seen",
-                new MessageSeenPayload(chatId)
-        );
-    }
-
-    public void sendTypingNotification(UUID chatId, UUID userId, boolean isTyping) {
-        log.debug("User {} is {}typing in chat {}", userId, isTyping ? "" : "not ", chatId);
-        messagingTemplate.convertAndSend(
-                "/topic/chat/" + chatId + "/typing",
-                new TypingPayload(userId, isTyping)
-        );
-    }
-
-    public void sendUserStatusNotification(UUID userId, boolean isOnline) {
-        log.info("User {} is now {}", userId, isOnline ? "online" : "offline");
-        messagingTemplate.convertAndSend(
-                "/topic/user/" + userId + "/status",
-                new UserStatusPayload(userId, isOnline)
-        );
-    }
-
-    public void sendMessageRecalledNotification(String recipientEmail, UUID messageId, UUID chatId) {
-        log.info("Sending message recalled notification to user: {} for message: {}", recipientEmail, messageId);
-        messagingTemplate.convertAndSendToUser(
-                recipientEmail,
-                "/queue/message-recalled",
-                new MessageRecalledPayload(messageId, chatId)
-        );
-    }
-
-    public void sendReactionNotification(String recipientEmail, UUID messageId, UUID chatId, List<ReactionDto> reactions) {
-        messagingTemplate.convertAndSendToUser(
-                recipientEmail,
-                "/queue/reactions",
-                new ReactionEventPayload(messageId, chatId, reactions)
-        );
-    }
-
-    public void sendGroupReactionNotification(String recipientEmail, UUID groupId, String reactorName, String emoji) {
-        messagingTemplate.convertAndSendToUser(
-                recipientEmail,
-                "/queue/group-reactions",
-                new GroupReactionPayload(groupId, reactorName, emoji)
-        );
-    }
-
-    public void sendFriendRequestNotification(String receiverEmail, FriendRequestDto dto) {
-        log.info("Sending friend request notification to user: {}", receiverEmail);
-        messagingTemplate.convertAndSendToUser(
-                receiverEmail,
-                "/queue/friend-request",
-                dto
-        );
-    }
-
-    public void sendForceLogout(String email, String reason) {
-        log.info("Sending force-logout to user: {} — reason: {}", email, reason);
-        messagingTemplate.convertAndSendToUser(
-                email,
-                "/queue/force-logout",
-                new ForceLogoutPayload(reason)
-        );
-    }
-
-    public void sendAccountBanned(String email, String reason, LocalDateTime banUntil) {
-        log.info("Sending account-banned notification to user: {} — reason: {}", email, reason);
-        messagingTemplate.convertAndSendToUser(
-                email,
-                "/queue/force-logout",
-                Map.of(
-                    "reason", "ACCOUNT_BANNED",
-                    "banReason", reason != null ? reason : "",
-                    "banUntil", banUntil != null ? banUntil.toString() : ""
-                )
-        );
-    }
-
-    public void sendFriendRequestAcceptedNotification(String senderEmail, FriendRequestDto dto) {
-        log.info("Sending friend request accepted notification to user: {}", senderEmail);
-        messagingTemplate.convertAndSendToUser(
-                senderEmail,
-                "/queue/friend-request-accepted",
-                dto
-        );
-    }
-
-    public void sendStateChangeBroadcast(UUID chatId, MessageState newState, UUID messageSenderId) {
-        log.debug("Broadcasting state change to chat {}: {} for sender {}", chatId, newState, messageSenderId);
-        messagingTemplate.convertAndSend("/topic/chat/" + chatId,
-                new MessageStateChangePayload(chatId, newState, messageSenderId));
-    }
-
-    public record GroupReactionPayload(UUID groupId, String reactorName, String emoji) {}
-    public record ForceLogoutPayload(String reason) {}
-    public record MessageDeliveredPayload(UUID chatId) {}
-    public record MessageSeenPayload(UUID chatId) {}
-    public record MessageStateChangePayload(UUID chatId, MessageState newState, UUID messageSenderId) {}
-    public record TypingPayload(UUID userId, boolean isTyping) {}
-    public record UserStatusPayload(UUID userId, boolean isOnline) {}
-    public record MessageRecalledPayload(UUID messageId, UUID chatId) {}
-    public record ReactionEventPayload(UUID messageId, UUID chatId, List<ReactionDto> reactions) {}
+    record GroupReactionPayload(UUID groupId, String reactorName, String emoji) {}
+    record ForceLogoutPayload(String reason) {}
+    record MessageDeliveredPayload(UUID chatId) {}
+    record MessageSeenPayload(UUID chatId) {}
+    record MessageStateChangePayload(UUID chatId, MessageState newState, UUID messageSenderId) {}
+    record TypingPayload(UUID userId, boolean isTyping) {}
+    record UserStatusPayload(UUID userId, boolean isOnline) {}
+    record MessageRecalledPayload(UUID messageId, UUID chatId) {}
+    record ReactionEventPayload(UUID messageId, UUID chatId, List<ReactionDto> reactions) {}
 }

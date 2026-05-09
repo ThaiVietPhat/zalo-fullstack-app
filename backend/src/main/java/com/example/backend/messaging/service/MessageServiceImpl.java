@@ -48,6 +48,7 @@ public class MessageServiceImpl implements MessageService {
     private final com.example.backend.user.service.BlockService blockService;
     private final ChatAiService chatAiService;
     private final CacheManager cacheManager;
+    private final com.example.backend.messaging.mapper.ReactionMapper reactionMapper;
 
     @Override
     @Transactional
@@ -77,38 +78,31 @@ public class MessageServiceImpl implements MessageService {
         // Khi gửi tin nhắn: restore chat cho cả người gửi lẫn người nhận
         boolean needSave = false;
         if (chat.getUser1().getId().equals(sender.getId())) {
-            // sender là user1: restore user1 (người gửi) + user2 (người nhận)
             if (chat.isDeletedByUser1()) { chat.setDeletedByUser1(false); needSave = true; }
             if (chat.isDeletedByUser2()) { chat.setDeletedByUser2(false); needSave = true; }
         } else {
-            // sender là user2: restore user2 (người gửi) + user1 (người nhận)
             if (chat.isDeletedByUser2()) { chat.setDeletedByUser2(false); needSave = true; }
             if (chat.isDeletedByUser1()) { chat.setDeletedByUser1(false); needSave = true; }
         }
         if (needSave) chatRepository.save(chat);
 
-        Message message = new Message();
-        message.setChat(chat);
-        message.setSender(sender);
-        message.setContent(messageDto.getContent());
-        message.setState(MessageState.SENT);
-        message.setType(messageDto.getType() != null ? messageDto.getType() : MessageType.TEXT);
+        Message message = Message.builder()
+                .chat(chat)
+                .sender(sender)
+                .content(messageDto.getContent())
+                .state(MessageState.SENT)
+                .type(messageDto.getType() != null ? messageDto.getType() : MessageType.TEXT)
+                .build();
 
         Message savedMessage = messageRepository.save(message);
         MessageDto savedDto = messageMapper.toDto(savedMessage);
 
         log.info("Broadcasting real-time message in chat {} from {}", chat.getId(), sender.getId());
-        // Broadcast to chat topic (both sender & receiver subscribe) — same pattern as group messages
         notificationService.sendChatBroadcast(chat.getId(), savedDto);
-        // Also notify receiver via user queue for background unread count updates
         notificationService.sendMessageNotification(receiver.getEmail(), savedDto);
         evictChatsCache(sender.getEmail());
         evictChatsCache(receiver.getEmail());
-        // Xoa cache chat list cua ca 2 phia de lastMessage preview cap nhat
-        evictChatsCache(sender.getEmail());
-        evictChatsCache(receiver.getEmail());
 
-        // Detect @AI mention → trigger AI bot async reply
         if (MessageType.TEXT.equals(savedMessage.getType())
                 && savedMessage.getContent() != null
                 && savedMessage.getContent().toLowerCase().contains("@ai")) {
@@ -152,22 +146,21 @@ public class MessageServiceImpl implements MessageService {
 
         String filePath = fileStorageService.saveFile(file);
 
-        Message message = new Message();
-        message.setChat(chat);
-        message.setContent(filePath);
-        message.setState(MessageState.SENT);
-        message.setType(messageType);
-        message.setFileName(file.getOriginalFilename());
-        message.setSender(sender);
+        Message message = Message.builder()
+                .chat(chat)
+                .sender(sender)
+                .content(filePath)
+                .state(MessageState.SENT)
+                .type(messageType)
+                .fileName(file.getOriginalFilename())
+                .build();
 
         Message savedMessage = messageRepository.save(message);
         MessageDto savedDto = messageMapper.toDto(savedMessage);
 
         User receiver = chat.getOtherUser(sender.getId());
         log.info("Broadcasting media message in chat {} from {}", chat.getId(), sender.getId());
-        // Broadcast to chat topic (both sender & receiver subscribe) — same pattern as group messages
         notificationService.sendChatBroadcast(chat.getId(), savedDto);
-        // Also notify receiver via user queue for background unread count updates
         notificationService.sendMessageNotification(receiver.getEmail(), savedDto);
         return savedDto;
     }
@@ -187,7 +180,6 @@ public class MessageServiceImpl implements MessageService {
             throw new UnauthorizedException("Access denied: you are not a member of this chat");
         }
 
-        // Lấy timestamp xóa của user hiện tại để lọc tin nhắn cũ
         LocalDateTime deletedAt = chat.getDeletedAtFor(user.getId());
 
         Page<Message> messagePage = messageRepository.findByChatIdForUser(
@@ -202,7 +194,6 @@ public class MessageServiceImpl implements MessageService {
                 .map(messageMapper::toDto)
                 .collect(Collectors.toList());
 
-        // Gắn reactions vào từng tin nhắn (batch query tránh N+1)
         List<UUID> messageIds = messagePage.getContent().stream()
                 .map(Message::getId)
                 .collect(Collectors.toList());
@@ -213,13 +204,7 @@ public class MessageServiceImpl implements MessageService {
                     .stream()
                     .collect(Collectors.groupingBy(
                             r -> r.getMessage().getId(),
-                            Collectors.mapping(r -> ReactionDto.builder()
-                                    .id(r.getId())
-                                    .userId(r.getUser().getId())
-                                    .userFullName(r.getUser().getFirstName() + " " + r.getUser().getLastName())
-                                    .emoji(r.getEmoji())
-                                    .createdDate(r.getCreatedDate())
-                                    .build(), Collectors.toList())
+                            Collectors.mapping(reactionMapper::toDto, Collectors.toList())
                     ));
 
             dtos.forEach(dto -> dto.setReactions(reactionsByMsgId.getOrDefault(dto.getId(), List.of())));

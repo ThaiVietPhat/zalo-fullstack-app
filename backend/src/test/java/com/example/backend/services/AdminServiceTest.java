@@ -5,8 +5,9 @@ import com.example.backend.admin.dto.AdminStatsDto;
 import com.example.backend.admin.dto.AdminUserDto;
 import com.example.backend.admin.dto.BanRequest;
 import com.example.backend.admin.entity.AuditLog;
+import com.example.backend.admin.mapper.AdminMapper;
 import com.example.backend.admin.repository.AuditLogRepository;
-import com.example.backend.admin.service.AdminService;
+import com.example.backend.admin.service.AdminServiceImpl;
 import com.example.backend.chat.repository.ChatRepository;
 import com.example.backend.group.entity.Group;
 import com.example.backend.group.repository.GroupMessageRepository;
@@ -49,8 +50,9 @@ class AdminServiceTest {
     @Mock AuditLogRepository auditLogRepository;
     @Mock PasswordEncoder passwordEncoder;
     @Mock NotificationService notificationService;
+    @Mock AdminMapper adminMapper;
 
-    @InjectMocks AdminService adminService;
+    @InjectMocks AdminServiceImpl adminService;
 
     private User targetUser;
     private User adminUser;
@@ -81,7 +83,25 @@ class AdminServiceTest {
         testGroup.setCreatedBy(adminUser);
         testGroup.setMembers(new ArrayList<>());
 
-        when(auditLogRepository.save(any())).thenReturn(new AuditLog());
+        lenient().when(auditLogRepository.save(any())).thenReturn(new AuditLog());
+        lenient().when(adminMapper.toUserDto(any())).thenAnswer(inv -> {
+            User u = inv.getArgument(0);
+            return AdminUserDto.builder()
+                    .id(u.getId())
+                    .email(u.getEmail())
+                    .firstName(u.getFirstName())
+                    .lastName(u.getLastName())
+                    .role(u.getRole())
+                    .banned(u.isBanned())
+                    .build();
+        });
+        lenient().when(adminMapper.toGroupDto(any())).thenAnswer(inv -> {
+            Group g = inv.getArgument(0);
+            return AdminGroupDto.builder()
+                    .id(g.getId())
+                    .name(g.getName())
+                    .build();
+        });
     }
 
     // ─── getAllUsers ──────────────────────────────────────────────────────────
