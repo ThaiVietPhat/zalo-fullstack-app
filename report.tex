@@ -17,6 +17,7 @@
 \usepackage[top=2.5cm, bottom=2.5cm, left=3.5cm, right=2cm]{geometry}
 \usepackage{setspace}
 \onehalfspacing                % Dãn dòng 1.5
+\raggedbottom                  % Tránh giãn dòng gây trang trắng
 
 % ---------------------- Toán & Ký hiệu ----------------------
 \usepackage{amsmath,amssymb}
@@ -176,7 +177,6 @@
 \listoftables
 \addcontentsline{toc}{chapter}{DANH MỤC CÁC BẢNG BIỂU}
 
-\newpage
 \setcounter{page}{1}
 
 % #############################################################################
@@ -296,6 +296,9 @@ React là thư viện JavaScript mã nguồn mở do Facebook phát triển, dù
     \begin{plantuml}
         @startuml
         !theme plain
+        autonumber
+        skinparam ParticipantPadding 20
+        skinparam BoxPadding 7
         actor "Client A" as A
         actor "Client B" as B
         participant "STOMP Broker" as Broker
@@ -350,50 +353,286 @@ Groq là nền tảng inference AI với tốc độ cao, sử dụng LPU (Langu
 \begin{figure}[H]
     \centering
     \begin{plantuml}
-        @startuml
+        @startuml usercase
         !theme plain
-        skinparam usecaseFontSize 12
-        skinparam actorFontSize 12
-        skinparam defaultFontSize 12
+        scale 0.5
+        skinparam usecaseFontSize 11
+        skinparam actorFontSize 14
+        skinparam packageBorderColor #888888
+        skinparam packageFontSize 12
+        skinparam packageFontStyle bold
+
+        left to right direction
 
         actor "Khách\n(Guest)" as G
         actor "Người dùng\n(User)" as U
         actor "Quản trị viên\n(Admin)" as A
 
-        (Đăng ký) as UC_REG
-        (Đăng nhập) as UC_LOGIN
-        (Quản lý hồ sơ) as UC_PROFILE
-        (Nhắn tin 1-1) as UC_CHAT
-        (Nhắn tin nhóm) as UC_GROUP
-        (Kết bạn) as UC_FRIEND
-        (Thả cảm xúc) as UC_REACT
-        (AI Chat) as UC_AI
-        (Ghi log cuộc gọi) as UC_CALL
-        (Chặn người dùng) as UC_BLOCK
-        (Báo cáo vi phạm) as UC_REPORT
-        (Xử lý báo cáo) as UC_RESOLVE
-        (Quản lý người dùng) as UC_ADMIN_USER
-        (Xem thống kê) as UC_STATS
+        package "Đăng ký và Đăng nhập" {
+            (Đăng ký tài khoản)
+            (Xác thực email)
+            (Đăng nhập)
+            (Quên mật khẩu)
+        }
 
-        G --> UC_REG
-        G --> UC_LOGIN
-        U --> UC_PROFILE
-        U --> UC_CHAT
-        U --> UC_GROUP
-        U --> UC_FRIEND
-        U --> UC_REACT
-        U --> UC_AI
-        U --> UC_CALL
-        U --> UC_BLOCK
-        U --> UC_REPORT
-        A --> UC_BLOCK
-        A --> UC_REPORT
-        A --> UC_RESOLVE
-        A --> UC_ADMIN_USER
-        A --> UC_STATS
+        package "Hồ sơ và Kết bạn" {
+            (Quản lý hồ sơ)
+            (Tìm kiếm bạn bè)
+            (Kết bạn)
+        }
+
+        package "Nhắn tin và Nhóm" {
+            (Nhắn tin 1-1)
+            (Gửi media)
+            (Quản lý nhóm)
+        }
+
+        package "Tính năng mở rộng" {
+            (AI trò chuyện)
+            (Bài viết)
+            (Cảm xúc bài viết)
+        }
+
+        package "Quản trị hệ thống" {
+            (Quản lý người dùng)
+            (Quản lý nhóm)
+            (Xem thống kê)
+        }
+
+        package "Tiện ích khác" {
+            (Báo cáo vi phạm)
+            (Gọi điện)
+        }
+
+        G --> (Đăng ký tài khoản)
+        G --> (Đăng nhập)
+        G --> (Quên mật khẩu)
+
+        U --> (Quản lý hồ sơ)
+        U --> (Kết bạn)
+        U --> (Nhắn tin 1-1)
+        U --> (Quản lý nhóm)
+        U --> (AI trò chuyện)
+        U --> (Bài viết)
+        U --> (Báo cáo vi phạm)
+        U --> (Gọi điện)
+
+        A --> (Quản lý người dùng)
+        A --> (Quản lý nhóm)
+        A --> (Xem thống kê)
         @enduml
     \end{plantuml}
     \caption{Use case tổng quát của hệ thống}
+\end{figure}
+
+\subsection{Use case Khách (Guest)}
+
+\begin{figure}[H]
+    \centering
+    \begin{plantuml}
+        @startuml usercase
+        !theme plain
+        skinparam usecaseFontSize 12
+        skinparam actorFontSize 14
+        skinparam packageBorderColor #888888
+        skinparam packageFontSize 12
+        skinparam packageFontStyle bold
+
+        left to right direction
+
+        actor "Khách\n(Guest)" as G
+
+        package "Đăng ký và Đăng nhập" {
+            (Đăng ký tài khoản)
+            (Xác thực email)
+            (Gửi lại mã xác thực)
+            (Đăng nhập)
+            (Quên mật khẩu)
+            (Đặt lại mật khẩu)
+        }
+
+        G --> (Đăng ký tài khoản)
+        G --> (Xác thực email)
+        G --> (Gửi lại mã xác thực)
+        G --> (Đăng nhập)
+        G --> (Quên mật khẩu)
+        G --> (Đặt lại mật khẩu)
+
+        (Đăng ký tài khoản) ..> (Xác thực email) : <<include>>
+        (Quên mật khẩu) ..> (Đặt lại mật khẩu) : <<include>>
+        @enduml
+    \end{plantuml}
+    \caption{Use case dành cho khách (chưa đăng nhập)}
+\end{figure}
+
+\subsection{Use case Người dùng (User)}
+
+\begin{figure}[H]
+    \centering
+    \begin{plantuml}
+        @startuml usercase
+        !theme plain
+        skinparam usecaseFontSize 11
+        skinparam actorFontSize 14
+        skinparam packageBorderColor #888888
+        skinparam packageFontSize 12
+        skinparam packageFontStyle bold
+
+        left to right direction
+
+        actor "Người dùng\n(User)" as U
+
+        package "Hồ sơ cá nhân" {
+            (Xem/Sửa hồ sơ)
+            (Đổi mật khẩu)
+            (Upload ảnh đại diện)
+            (Đăng xuất)
+        }
+
+        package "Kết bạn" {
+            (Tìm kiếm người dùng)
+            (Gửi lời mời kết bạn)
+            (Chấp nhận/Từ chối)
+            (Xem danh sách bạn bè)
+            (Hủy kết bạn)
+        }
+
+        package "Nhắn tin 1-1" {
+            (Bắt đầu/Xem danh sách chat)
+            (Gửi tin nhắn văn bản)
+            (Gửi file/media)
+            (Thu hồi tin nhắn)
+            (Xóa tin nhắn)
+            (Đánh dấu đã xem/gửi)
+        }
+
+        package "Nhóm chat" {
+            (Tạo nhóm)
+            (Mời/Xóa thành viên)
+            (Rời nhóm/Giải tán)
+            (Phân quyền admin)
+            (Gửi tin nhắn nhóm)
+            (Ghim tin nhắn)
+        }
+
+        package "Cuộc gọi và\nCảm xúc" {
+            (Gọi thoại/video)
+            (Xem lịch sử cuộc gọi)
+            (Thả/Gỡ cảm xúc)
+        }
+
+        package "AI" {
+            (Trò chuyện với AI)
+            (Gợi ý trả lời thông minh)
+            (Tóm tắt hội thoại)
+        }
+
+        package "An toàn" {
+            (Chặn/Mở khóa người dùng)
+            (Báo cáo vi phạm)
+        }
+
+        U --> (Xem/Sửa hồ sơ)
+        U --> (Đổi mật khẩu)
+        U --> (Upload ảnh đại diện)
+        U --> (Đăng xuất)
+        U --> (Tìm kiếm người dùng)
+        U --> (Gửi lời mời kết bạn)
+        U --> (Chấp nhận/Từ chối)
+        U --> (Xem danh sách bạn bè)
+        U --> (Hủy kết bạn)
+        U --> (Bắt đầu/Xem danh sách chat)
+        U --> (Gửi tin nhắn văn bản)
+        U --> (Gửi file/media)
+        U --> (Thu hồi tin nhắn)
+        U --> (Xóa tin nhắn)
+        U --> (Đánh dấu đã xem/gửi)
+        U --> (Tạo nhóm)
+        U --> (Mời/Xóa thành viên)
+        U --> (Rời nhóm/Giải tán)
+        U --> (Phân quyền admin)
+        U --> (Gửi tin nhắn nhóm)
+        U --> (Ghim tin nhắn)
+        U --> (Gọi thoại/video)
+        U --> (Xem lịch sử cuộc gọi)
+        U --> (Thả/Gỡ cảm xúc)
+        U --> (Trò chuyện với AI)
+        U --> (Gợi ý trả lời thông minh)
+        U --> (Tóm tắt hội thoại)
+        U --> (Chặn/Mở khóa người dùng)
+        U --> (Báo cáo vi phạm)
+
+        (Gửi tin nhắn văn bản) <.. (Gửi file/media) : <<extend>>
+        (Gửi tin nhắn văn bản) <.. (Thu hồi tin nhắn) : <<extend>>
+        (Gửi tin nhắn nhóm) <.. (Ghim tin nhắn) : <<extend>>
+        @enduml
+    \end{plantuml}
+    \caption{Use case dành cho người dùng đã đăng nhập}
+\end{figure}
+
+\subsection{Use case Quản trị viên (Admin)}
+
+\begin{figure}[H]
+    \centering
+    \begin{plantuml}
+        @startuml usercase
+        !theme plain
+        skinparam usecaseFontSize 12
+        skinparam actorFontSize 14
+        skinparam packageBorderColor #888888
+        skinparam packageFontSize 12
+        skinparam packageFontStyle bold
+
+        left to right direction
+
+        actor "Quản trị viên\n(Admin)" as A
+
+        package "Quản lý người dùng" {
+            (Xem danh sách người dùng)
+            (Xem chi tiết người dùng)
+            (Cấm/Bỏ cấm người dùng)
+            (Xóa người dùng)
+            (Phân/Thu hồi quyền Admin)
+            (Đặt lại mật khẩu)
+        }
+
+        package "Quản lý nhóm" {
+            (Xem danh sách nhóm)
+            (Xóa nhóm)
+        }
+
+        package "Giám sát" {
+            (Xem thống kê hệ thống)
+            (Xem nhật ký hệ thống)
+        }
+
+        package "Xử lý báo cáo" {
+            (Xem danh sách báo cáo)
+            (Giải quyết báo cáo)
+        }
+
+        package "Hệ thống" {
+            (Tạo tài khoản Admin)
+            (Hỗ trợ người dùng)
+        }
+
+        A --> (Xem danh sách người dùng)
+        A --> (Xem chi tiết người dùng)
+        A --> (Cấm/Bỏ cấm người dùng)
+        A --> (Xóa người dùng)
+        A --> (Phân/Thu hồi quyền Admin)
+        A --> (Đặt lại mật khẩu)
+        A --> (Xem danh sách nhóm)
+        A --> (Xóa nhóm)
+        A --> (Xem thống kê hệ thống)
+        A --> (Xem nhật ký hệ thống)
+        A --> (Xem danh sách báo cáo)
+        A --> (Giải quyết báo cáo)
+        A --> (Tạo tài khoản Admin)
+        A --> (Hỗ trợ người dùng)
+        @enduml
+    \end{plantuml}
+    \caption{Use case dành cho quản trị viên}
 \end{figure}
 
 \subsection{Danh sách tác nhân và mô tả}
@@ -405,11 +644,11 @@ Groq là nền tảng inference AI với tốc độ cao, sử dụng LPU (Langu
         \hline
         \textbf{Tác nhân} & \textbf{Mô tả} \\
         \hline
-        Khách (Guest) & Người dùng chưa đăng nhập, có thể đăng ký tài khoản mới \\
+        Khách (Guest) & Người dùng chưa đăng nhập, có thể đăng ký tài khoản mới, đăng nhập hoặc khôi phục mật khẩu \\
         \hline
-        Người dùng (User) & Thành viên đã đăng nhập, sử dụng toàn bộ tính năng chat và xã hội \\
+        Người dùng (User) & Thành viên đã đăng nhập, sử dụng các tính năng nhắn tin 1-1, nhóm, gọi thoại/video, kết bạn, quản lý hồ sơ, trò chuyện AI, chặn/báo cáo người dùng \\
         \hline
-        Quản trị viên (Admin) & Người dùng có quyền quản trị, quản lý hệ thống và xử lý vi phạm \\
+        Quản trị viên (Admin) & Người dùng có quyền quản trị, quản lý người dùng/nhóm, xử lý báo cáo, xem thống kê và nhật ký hệ thống, hỗ trợ người dùng \\
         \hline
     \end{tabularx}
 \end{table}
@@ -453,6 +692,56 @@ Groq là nền tảng inference AI với tốc độ cao, sử dụng LPU (Langu
     UC16 & Xem thống kê hệ thống (Admin) \\
     \hline
     UC17 & Ghi log cuộc gọi \\
+    \hline
+    UC18 & Xác thực email \\
+    \hline
+    UC19 & Quên mật khẩu / Đặt lại mật khẩu \\
+    \hline
+    UC20 & Đổi mật khẩu \\
+    \hline
+    UC21 & Tải ảnh đại diện \\
+    \hline
+    UC22 & Đăng xuất \\
+    \hline
+    UC23 & Từ chối lời mời kết bạn \\
+    \hline
+    UC24 & Xem danh sách bạn bè \\
+    \hline
+    UC25 & Hủy kết bạn \\
+    \hline
+    UC26 & Thu hồi tin nhắn \\
+    \hline
+    UC27 & Xóa tin nhắn cá nhân \\
+    \hline
+    UC28 & Đánh dấu đã xem / đã gửi \\
+    \hline
+    UC29 & Cập nhật thông tin nhóm \\
+    \hline
+    UC30 & Rời nhóm / Giải tán nhóm \\
+    \hline
+    UC31 & Phân quyền admin nhóm \\
+    \hline
+    UC32 & Ghim / Bỏ ghim tin nhắn \\
+    \hline
+    UC33 & Mở khóa người dùng \\
+    \hline
+    UC34 & Xem lịch sử cuộc gọi \\
+    \hline
+    UC35 & Gỡ cảm xúc khỏi tin nhắn \\
+    \hline
+    UC36 & Gợi ý trả lời thông minh (AI) \\
+    \hline
+    UC37 & Tóm tắt hội thoại (AI) \\
+    \hline
+    UC38 & Xóa lịch sử AI \\
+    \hline
+    UC39 & Quản lý nhóm (Admin) \\
+    \hline
+    UC40 & Xem nhật ký hệ thống (Admin) \\
+    \hline
+    UC41 & Hỗ trợ người dùng (Admin) \\
+    \hline
+    UC42 & Tạo tài khoản admin \\
     \hline
     \caption{Danh sách các tình huống sử dụng trong hệ thống}
 \end{longtable}
@@ -567,6 +856,9 @@ Groq là nền tảng inference AI với tốc độ cao, sử dụng LPU (Langu
     \begin{plantuml}
         @startuml
         !theme plain
+        autonumber
+        skinparam ParticipantPadding 20
+        skinparam BoxPadding 7
         actor "User" as U
         participant "GD_DangNhap\n(Đăng nhập)" as GD1
         participant "GD_DangKy\n(Đăng ký)" as GD2
@@ -707,6 +999,9 @@ Groq là nền tảng inference AI với tốc độ cao, sử dụng LPU (Langu
     \begin{plantuml}
         @startuml
         !theme plain
+        autonumber
+        skinparam ParticipantPadding 20
+        skinparam BoxPadding 7
         actor "Người dùng" as U
         participant "GD_DangNhap\n(Giao diện đăng nhập)" as GD
         participant "Ctrl_Login\n(Controller)" as CTRL
@@ -840,6 +1135,9 @@ Groq là nền tảng inference AI với tốc độ cao, sử dụng LPU (Langu
     \begin{plantuml}
         @startuml
         !theme plain
+        autonumber
+        skinparam ParticipantPadding 20
+        skinparam BoxPadding 7
         actor "Người dùng" as U
         participant "GD_HoSoCaNhan\n(Giao diện)" as GD
         participant "Ctrl_HoSoCaNhan\n(Controller)" as CTRL
@@ -977,6 +1275,9 @@ Groq là nền tảng inference AI với tốc độ cao, sử dụng LPU (Langu
     \begin{plantuml}
         @startuml
         !theme plain
+        autonumber
+        skinparam ParticipantPadding 20
+        skinparam BoxPadding 7
         actor "Người dùng" as U
         participant "GD_TimKiem\n(Giao diện)" as GD
         participant "Ctrl_TimKiem\n(Controller)" as CTRL
@@ -1080,46 +1381,23 @@ Groq là nền tảng inference AI với tốc độ cao, sử dụng LPU (Langu
         :Xem profile người dùng B;
         :Nhấn "Kết bạn";
         |Frontend|
-        :POST /friend-request;
+        :POST /api/v1/friend-request;
         |Backend|
-        :Kiểm tra quan hệ bạn bè;
-        |Database|
-        :SELECT friend_request, block;
-        |Backend|
-        if (Đã là bạn?) then (Có - ngoại lệ)
+        :Kiểm tra quan hệ\n(đã là bạn, đã gửi, bị chặn);
+        if (Hợp lệ?) then (Không)
           |Frontend|
-          :Hiển thị "Đã là bạn bè";
+          :Hiển thị lỗi tương ứng;
           |User A|
           stop
-        else (Chưa là bạn)
-          if (Đã gửi lời mời?) then (Rồi - ngoại lệ)
-            |Frontend|
-            :Hiển thị "Đã gửi lời mời";
-            |User A|
-            stop
-          else (Chưa gửi)
-            if (Bị chặn?) then (Bị chặn - ngoại lệ)
-              |Frontend|
-              :Hiển thị "Không thể gửi lời mời";
-              |User A|
-              stop
-            else (OK)
-              :INSERT friend_request (PENDING);
-              |Database|
-              :Lưu lời mời;
-              |Backend|
-              :Gửi WS notification;
-              |WebSocket|
-              :/user/queue/friend-request;
-              |User B|
-              :Nhận thông báo lời mời;
-              |User A|
-              :Thấy "Đã gửi lời mời";
-              stop
-            endif
-          endif
+        else (Có)
+          :INSERT friend_request (PENDING);
+          :Gửi WS notification\nđến /user/queue/friend-request;
+          |User B|
+          :Nhận thông báo lời mời;
+          |User A|
+          :Thấy "Đã gửi lời mời";
+          stop
         endif
-        stop
         @enduml
     \end{plantuml}
     \caption{Activity diagram --- Gửi lời mời kết bạn}
@@ -1130,6 +1408,9 @@ Groq là nền tảng inference AI với tốc độ cao, sử dụng LPU (Langu
     \begin{plantuml}
         @startuml
         !theme plain
+        autonumber
+        skinparam ParticipantPadding 20
+        skinparam BoxPadding 7
         actor "User A" as U
         participant "Frontend A" as FE
         participant "Backend" as BE
@@ -1241,48 +1522,30 @@ Groq là nền tảng inference AI với tốc độ cao, sử dụng LPU (Langu
         :Nhận thông báo lời mời;
         :Mở danh sách lời mời;
         |Frontend|
-        :GET /friend-request/pending;
-        |Backend|
-        :Lấy danh sách PENDING;
-        |Database|
-        :SELECT pending requests;
-        |Backend|
-        |Frontend|
+        :GET /api/v1/friend-request/pending;
         :Hiển thị danh sách;
         |User B|
         :Chọn lời mời từ A;
         :Nhấn "Chấp nhận";
         |Frontend|
-        :PUT /friend-request/{id}/accept;
+        :PUT /api/v1/friend-request/{id}/accept;
         |Backend|
-        if (Lời mời tồn tại?) then (Có)
-          if (Trạng thái PENDING?) then (Còn hiệu lực)
-            :UPDATE status = ACCEPTED;
-            :INSERT chat 1-1;
-            |Database|
-            :Cập nhật DB;
-            |Backend|
-            :Gửi WS notification;
-            |WebSocket|
-            :/user/queue/friend-request-accepted;
-            |User A|
-            :Nhận thông báo;
-            |User B|
-            :Thấy "Đã kết bạn";
-            stop
-          else (Đã xử lý - ngoại lệ)
-            |Frontend|
-            :Hiển thị "Lời mời đã xử lý";
-            |User B|
-            stop
-          endif
-        else (Không - ngoại lệ)
+        :Kiểm tra lời mời\n(tồn tại, PENDING, quyền);
+        if (Hợp lệ?) then (Không)
           |Frontend|
-          :Hiển thị "Không tìm thấy";
+          :Hiển thị lỗi tương ứng;
           |User B|
           stop
+        else (Có)
+          :UPDATE status = ACCEPTED;
+          :INSERT chat 1-1;
+          :Gửi WS notification\nđến người gửi;
+          |User A|
+          :Nhận thông báo;
+          |User B|
+          :Thấy "Đã kết bạn";
+          stop
         endif
-        stop
         @enduml
     \end{plantuml}
     \caption{Activity diagram --- Chấp nhận lời mời kết bạn}
@@ -1293,6 +1556,9 @@ Groq là nền tảng inference AI với tốc độ cao, sử dụng LPU (Langu
     \begin{plantuml}
         @startuml
         !theme plain
+        autonumber
+        skinparam ParticipantPadding 20
+        skinparam BoxPadding 7
         actor "User B (Người nhận)" as U
         participant "Frontend B" as FE
         participant "Backend" as BE
@@ -1419,54 +1685,36 @@ Groq là nền tảng inference AI với tốc độ cao, sử dụng LPU (Langu
     \begin{plantuml}
         @startuml
         !theme plain
-        |User A|
+        title Gửi tin nhắn 1-1
+        |Actor (User A)|
         start
         :Mở chat với B;
-        |Frontend|
-        :GET /message/chat/{chatId};
-        :Hiển thị lịch sử tin nhắn;
-        |User A|
         :Nhập nội dung;
         :Nhấn Gửi;
         |Frontend|
-        if (Nội dung trống?) then (Có - ngoại lệ)
-          :Hiển thị "Không thể gửi tin nhắn trống";
-          |User A|
+        if (Nội dung trống?) then (Có)
+          :Hiển thị lỗi;
           stop
-        else (Có nội dung)
+        else (Không)
           :POST /api/v1/message;
-          |Backend|
-          :Kiểm tra quyền gửi;
-          if (Bị chặn?) then (Có - ngoại lệ)
+        |Backend|
+          :Kiểm tra quyền gửi\n(chặn, chat tồn tại);
+          if (Hợp lệ?) then (Không)
             |Frontend|
-            :Hiển thị "Bạn đã bị chặn";
-            |User A|
+            :Hiển thị lỗi tương ứng;
             stop
-          else (Không bị chặn)
-            if (Chat tồn tại?) then (OK)
+          else (Có)
             :INSERT message (SENT);
-            |Database|
-            :Lưu tin nhắn;
-            |Backend|
-            :Gửi WS broadcast;
-            :Gửi WS notification;
-            |WebSocket|
-            :/topic/chat/{id};
-            :/user/queue/messages;
-            |User A|
-            :Tin nhắn hiển thị;
-            |User B|
+            :Gửi WS broadcast\n+ notification;
+            |Frontend|
+            :Hiển thị tin nhắn;
+            |Actor (User A)|
+            :Tin nhắn đã gửi;
+            |Actor (User B)|
             :Nhận tin nhắn real-time;
             stop
-            else (Không - ngoại lệ)
-              |Frontend|
-              :Hiển thị "Chat không tồn tại";
-              |User A|
-              stop
           endif
         endif
-        endif
-        stop
         @enduml
     \end{plantuml}
     \caption{Activity diagram --- Nhắn tin văn bản 1-1}
@@ -1477,6 +1725,9 @@ Groq là nền tảng inference AI với tốc độ cao, sử dụng LPU (Langu
     \begin{plantuml}
         @startuml
         !theme plain
+        autonumber
+        skinparam ParticipantPadding 20
+        skinparam BoxPadding 7
         actor "Người gửi (Sender)" as S
         participant "Frontend" as FE
         participant "Backend" as BE
@@ -1591,43 +1842,30 @@ Groq là nền tảng inference AI với tốc độ cao, sử dụng LPU (Langu
         :Chọn biểu tượng đính kèm;
         :Chọn file từ máy tính;
         |Frontend|
-        if (Loại file hợp lệ?) then (Hợp lệ)
-          if (Kích thước <= 50MB?) then (OK)
-            :POST /upload-media/{chatId};
-            |Backend|
-            :Tạo UUID key;
-            :Upload file lên R2;
-            |Cloudflare R2|
-            :PUT object (S3);
-            if (Upload thành công?) then (Có)
-              |Backend|
-              :INSERT message (IMAGE/VIDEO/FILE);
-              |Database|
-              :Lưu message + media URL;
-              |Backend|
-              :Gửi WS broadcast;
-              |Frontend|
-              :Hiển thị media trong chat;
-              |User|
-              stop
-            else (Không - ngoại lệ)
-              |Backend|
-              |Frontend|
-              :Hiển thị "Upload thất bại\nThử lại";
-              |User|
-              stop
-            endif
-          else (Quá lớn - ngoại lệ)
-            :Hiển thị "File quá lớn";
+        :Kiểm tra loại file + kích thước;
+        if (Hợp lệ?) then (Không)
+          :Hiển thị lỗi tương ứng;
+          |User|
+          stop
+        else (Có)
+          :POST /api/v1/message/upload-media/{chatId};
+          |Backend|
+          :Tạo UUID key;
+          :Upload file lên R2 (S3);
+          if (Upload thành công?) then (Không)
+            |Frontend|
+            :Hiển thị "Upload thất bại\nThử lại";
+            |User|
+            stop
+          else (Có)
+            :INSERT message (IMAGE/VIDEO/FILE);
+            :Gửi WS broadcast\n/topic/chat/{chatId};
+            |Frontend|
+            :Hiển thị media trong chat;
             |User|
             stop
           endif
-        else (Không - ngoại lệ)
-          :Hiển thị "Định dạng không hỗ trợ";
-          |User|
-          stop
         endif
-        stop
         @enduml
     \end{plantuml}
     \caption{Activity diagram --- Gửi file đa phương tiện}
@@ -1638,6 +1876,9 @@ Groq là nền tảng inference AI với tốc độ cao, sử dụng LPU (Langu
     \begin{plantuml}
         @startuml
         !theme plain
+        autonumber
+        skinparam ParticipantPadding 20
+        skinparam BoxPadding 7
         actor "User" as U
         participant "Frontend" as FE
         participant "Backend" as BE
@@ -1787,6 +2028,9 @@ Groq là nền tảng inference AI với tốc độ cao, sử dụng LPU (Langu
     \begin{plantuml}
         @startuml
         !theme plain
+        autonumber
+        skinparam ParticipantPadding 20
+        skinparam BoxPadding 7
         actor "User (Creator)" as C
         participant "Frontend" as FE
         participant "Backend" as BE
@@ -1896,35 +2140,23 @@ Groq là nền tảng inference AI với tốc độ cao, sử dụng LPU (Langu
         :Chọn bạn bè để thêm;
         :Xác nhận;
         |Frontend|
-        :POST /group/{id}/members;
+        :POST /api/v1/group/{id}/members;
         |Backend|
-        if (Là Admin nhóm?) then (Có)
-          if (Nhóm tồn tại?) then (Có)
-            :Thêm thành viên mới;
-            |Database|
-            :INSERT group_member;
-            |Backend|
-            :Gửi WS event;
-            |WebSocket|
-            :/topic/group/{id}/events\nMEMBER_ADDED;
-            |Các thành viên|
-            :Nhận cập nhật;
-            |User (Admin)|
-            :Thấy thông báo thành công;
-            stop
-          else (Không - ngoại lệ)
-            |Frontend|
-            :Hiển thị "Nhóm không tồn tại";
-            |User (Admin)|
-            stop
-          endif
-        else (Không - ngoại lệ)
+        :Kiểm tra quyền + nhóm tồn tại;
+        if (Hợp lệ?) then (Không)
           |Frontend|
-          :Hiển thị "Không có quyền";
+          :Hiển thị lỗi tương ứng;
           |User (Admin)|
           stop
+        else (Có)
+          :INSERT group_member;
+          :Gửi WS event\nMEMBER_ADDED;
+          |Các thành viên|
+          :Nhận cập nhật;
+          |User (Admin)|
+          :Thấy thông báo thành công;
+          stop
         endif
-        stop
         @enduml
     \end{plantuml}
     \caption{Activity diagram --- Thêm thành viên vào nhóm}
@@ -1935,6 +2167,9 @@ Groq là nền tảng inference AI với tốc độ cao, sử dụng LPU (Langu
     \begin{plantuml}
         @startuml
         !theme plain
+        autonumber
+        skinparam ParticipantPadding 20
+        skinparam BoxPadding 7
         actor "User (Admin)" as U
         participant "Frontend" as FE
         participant "Backend" as BE
@@ -2073,6 +2308,9 @@ Groq là nền tảng inference AI với tốc độ cao, sử dụng LPU (Langu
     \begin{plantuml}
         @startuml
         !theme plain
+        autonumber
+        skinparam ParticipantPadding 20
+        skinparam BoxPadding 7
         actor "User" as U
         participant "Frontend" as FE
         participant "Backend" as BE
@@ -2223,6 +2461,9 @@ Groq là nền tảng inference AI với tốc độ cao, sử dụng LPU (Langu
     \begin{plantuml}
         @startuml
         !theme plain
+        autonumber
+        skinparam ParticipantPadding 20
+        skinparam BoxPadding 7
         actor "User" as U
         participant "Frontend" as FE
         participant "Backend" as BE
@@ -2346,6 +2587,9 @@ Groq là nền tảng inference AI với tốc độ cao, sử dụng LPU (Langu
     \begin{plantuml}
         @startuml
         !theme plain
+        autonumber
+        skinparam ParticipantPadding 20
+        skinparam BoxPadding 7
         actor "User A" as U
         participant "Frontend" as FE
         participant "Backend" as BE
@@ -2483,6 +2727,9 @@ Groq là nền tảng inference AI với tốc độ cao, sử dụng LPU (Langu
     \begin{plantuml}
         @startuml
         !theme plain
+        autonumber
+        skinparam ParticipantPadding 20
+        skinparam BoxPadding 7
         actor "Người báo cáo" as R
         actor "Admin" as A
         participant "Frontend" as FE
@@ -2644,6 +2891,9 @@ Groq là nền tảng inference AI với tốc độ cao, sử dụng LPU (Langu
     \begin{plantuml}
         @startuml
         !theme plain
+        autonumber
+        skinparam ParticipantPadding 20
+        skinparam BoxPadding 7
         actor "Admin" as A
         participant "Frontend" as FE
         participant "Backend" as BE
@@ -2780,6 +3030,9 @@ Groq là nền tảng inference AI với tốc độ cao, sử dụng LPU (Langu
     \begin{plantuml}
         @startuml
         !theme plain
+        autonumber
+        skinparam ParticipantPadding 20
+        skinparam BoxPadding 7
         actor "Admin" as A
         participant "Frontend" as FE
         participant "Backend" as BE
@@ -2919,6 +3172,9 @@ Groq là nền tảng inference AI với tốc độ cao, sử dụng LPU (Langu
     \begin{plantuml}
         @startuml
         !theme plain
+        autonumber
+        skinparam ParticipantPadding 20
+        skinparam BoxPadding 7
         actor "User A" as A
         participant "Frontend A" as FEA
         participant "WebRTC" as RTC
@@ -2967,6 +3223,8 @@ Groq là nền tảng inference AI với tốc độ cao, sử dụng LPU (Langu
 
 \section{Class diagram}
 
+\subsection{Core chat}
+
 \begin{figure}[H]
     \centering
     \begin{plantuml}
@@ -2988,14 +3246,8 @@ Groq là nền tảng inference AI với tốc độ cao, sử dụng LPU (Langu
             +password: String
             +role: String
             +avatarUrl: String
-            +banned: boolean
-            +banReason: String
-            +banUntil: LocalDateTime
-            +bannedAt: LocalDateTime
-            +emailVerified: boolean
             +online: boolean
             +lastSeen: LocalDateTime
-            +tokenVersion: int
         }
 
         class Chat {
@@ -3015,6 +3267,50 @@ Groq là nền tảng inference AI với tốc độ cao, sử dụng LPU (Langu
             +deleted: boolean
             +chat: Chat
             +sender: User
+        }
+
+        class MessageReaction {
+            +id: UUID
+            +message: Message
+            +user: User
+            +emoji: String
+        }
+
+        BaseAuditingEntity <|-- User
+        BaseAuditingEntity <|-- Chat
+        BaseAuditingEntity <|-- Message
+        BaseAuditingEntity <|-- MessageReaction
+
+        Chat "1" *-- "2" User : contains
+        Message "*" *-- "1" Chat : belongs to
+        Message "*" *-- "1" User : sent by
+        MessageReaction "*" -- "1" Message
+        MessageReaction "*" -- "1" User
+        @enduml
+    \end{plantuml}
+    \caption{Class diagram --- Core chat}
+\end{figure}
+
+\subsection{Group chat}
+
+\begin{figure}[H]
+    \centering
+    \begin{plantuml}
+        @startuml
+        !theme plain
+        skinparam classAttributeIconSize 0
+        skinparam defaultFontSize 11
+
+        class BaseAuditingEntity {
+            +createdDate: LocalDateTime
+            +lastModifiedDate: LocalDateTime
+        }
+
+        class User {
+            +id: UUID
+            +firstName: String
+            +lastName: String
+            +email: String
         }
 
         class Group {
@@ -3042,25 +3338,66 @@ Groq là nền tảng inference AI với tốc độ cao, sử dụng LPU (Langu
             +sender: User
         }
 
-        class FriendRequest {
-            +id: UUID
-            +sender: User
-            +receiver: User
-            +status: String
-        }
-
-        class MessageReaction {
-            +id: UUID
-            +message: Message
-            +user: User
-            +emoji: String
-        }
-
         class GroupMessageReaction {
             +id: UUID
             +groupMessage: GroupMessage
             +user: User
             +emoji: String
+        }
+
+        class GroupJoinRequest {
+            +id: UUID
+            +group: Group
+            +requestedBy: User
+            +targetUser: User
+            +status: String
+        }
+
+        BaseAuditingEntity <|-- Group
+        BaseAuditingEntity <|-- GroupMember
+        BaseAuditingEntity <|-- GroupMessage
+        BaseAuditingEntity <|-- GroupMessageReaction
+        BaseAuditingEntity <|-- GroupJoinRequest
+
+        GroupMember "*" -- "1" Group
+        GroupMember "*" -- "1" User
+        GroupMessage "*" -- "1" Group
+        GroupMessage "*" -- "1" User
+        GroupJoinRequest "*" -- "1" Group
+        GroupJoinRequest "*" -- "1" User : requestedBy
+        GroupJoinRequest "*" -- "1" User : targetUser
+        @enduml
+    \end{plantuml}
+    \caption{Class diagram --- Group chat}
+\end{figure}
+
+\subsection{Phụ trợ}
+
+\begin{figure}[H]
+    \centering
+    \begin{plantuml}
+        @startuml
+        !theme plain
+        skinparam classAttributeIconSize 0
+        skinparam defaultFontSize 11
+
+        class BaseAuditingEntity {
+            +createdDate: LocalDateTime
+            +lastModifiedDate: LocalDateTime
+        }
+
+        class User {
+            +id: UUID
+            +firstName: String
+            +lastName: String
+            +email: String
+        }
+
+        class FriendRequest {
+            +id: UUID
+            +sender: User
+            +receiver: User
+            +status: String
         }
 
         class BlockedUser {
@@ -3086,14 +3423,6 @@ Groq là nền tảng inference AI với tốc độ cao, sử dụng LPU (Langu
             +content: String
         }
 
-        class GroupJoinRequest {
-            +id: UUID
-            +group: Group
-            +requestedBy: User
-            +targetUser: User
-            +status: String
-        }
-
         class Report {
             +id: Long
             +reporter: User
@@ -3114,40 +3443,19 @@ Groq là nền tảng inference AI với tốc độ cao, sử dụng LPU (Langu
             +details: String
         }
 
-        BaseAuditingEntity <|-- User
-        BaseAuditingEntity <|-- Chat
-        BaseAuditingEntity <|-- Message
-        BaseAuditingEntity <|-- Group
-        BaseAuditingEntity <|-- GroupMember
-        BaseAuditingEntity <|-- GroupMessage
         BaseAuditingEntity <|-- FriendRequest
-        BaseAuditingEntity <|-- MessageReaction
-        BaseAuditingEntity <|-- GroupMessageReaction
         BaseAuditingEntity <|-- CallSession
         BaseAuditingEntity <|-- AiMessage
-        BaseAuditingEntity <|-- GroupJoinRequest
 
-        Chat "1" *-- "2" User : contains
-        Message "*" *-- "1" Chat : belongs to
-        Message "*" *-- "1" User : sent by
-        GroupMember "*" -- "1" Group
-        GroupMember "*" -- "1" User
-        GroupMessage "*" -- "1" Group
-        GroupMessage "*" -- "1" User
         FriendRequest "*" -- "1" User : sender
         FriendRequest "*" -- "1" User : receiver
-        MessageReaction "*" -- "1" Message
-        MessageReaction "*" -- "1" User
         BlockedUser "*" -- "1" User : blocker
         BlockedUser "*" -- "1" User : blocked
         CallSession "*" -- "1" Chat
         AiMessage "*" -- "1" User
-        GroupJoinRequest "*" -- "1" Group
-        GroupJoinRequest "*" -- "1" User : requestedBy
-        GroupJoinRequest "*" -- "1" User : targetUser
         @enduml
     \end{plantuml}
-    \caption{Class diagram --- Mô hình lớp tổng quát}
+    \caption{Class diagram --- Phụ trợ}
 \end{figure}
 
 \section{Architecture diagram}

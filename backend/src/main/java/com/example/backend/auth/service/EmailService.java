@@ -1,21 +1,19 @@
 package com.example.backend.auth.service;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.client.RestClient;
 
 import java.util.List;
 import java.util.Map;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class EmailService {
 
-    private final WebClient.Builder webClientBuilder;
+    private final RestClient restClient = RestClient.create();
 
     @Value("${brevo.api.key}")
     private String brevoApiKey;
@@ -45,18 +43,14 @@ public class EmailService {
                 "htmlContent", htmlContent
             );
 
-            webClientBuilder.build()
-                .post()
+            String response = restClient.post()
                 .uri("https://api.brevo.com/v3/smtp/email")
                 .header("api-key", brevoApiKey)
-                .header("Content-Type", "application/json")
-                .bodyValue(body)
+                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .body(body)
                 .retrieve()
-                .bodyToMono(String.class)
-                .subscribe(
-                    response -> log.info("Email sent to {}: {}", toEmail, response),
-                    error -> log.error("Failed to send email to {}: {}", toEmail, error.getMessage())
-                );
+                .body(String.class);
+            log.info("Email sent to {}: {}", toEmail, response);
         } catch (Exception e) {
             log.error("Failed to send email to {}: {}", toEmail, e.getMessage());
         }

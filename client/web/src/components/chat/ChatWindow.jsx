@@ -2,11 +2,14 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Phone, Video, Info, ChevronLeft } from 'lucide-react';
 import { getChatDetail } from '../../api/chat';
 import { getMessages, sendMessage, uploadMedia, markSeen } from '../../api/message';
+import { getCallHistory } from '../../api/call';
 import useChatStore from '../../store/chatStore';
 import useAuthStore from '../../store/authStore';
+import useCallStore from '../../store/callStore';
 import wsService from '../../services/websocket';
 import Avatar from '../common/Avatar';
 import MessageBubble from './MessageBubble';
+import CallBubble from '../call/CallBubble';
 import MessageInput from './MessageInput';
 import TypingIndicator from './TypingIndicator';
 import ChatInfoPanel from './ChatInfoPanel';
@@ -65,6 +68,9 @@ export default function ChatWindow({ onStartCall }) {
   const sendTyping = (chatId, isTypingNow) => {
     wsService.publish(`/app/chat/${chatId}/typing`, { typing: isTypingNow });
   };
+  const [callHistory, setCallHistory] = useState([]);
+  const activeCall = useCallStore((s) => s.activeCall);
+  const prevActiveCallRef = useRef(null);
   const [chatDetail, setChatDetail] = useState(null);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState(false);
@@ -81,13 +87,18 @@ export default function ChatWindow({ onStartCall }) {
   const typingSet = typingUsers[typingKey] || new Set();
   const isTyping = typingSet.size > 0;
 
+  function scrollToBottom(smooth = true) {
+    messagesEndRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto' });
+  }
+
   useEffect(() => {
     if (!activeChatId) return;
 
-    // Reset AI state khi chuyển chat
+    // Reset state khi chuyển chat
     setLatestIncomingMsg(null);
     setSummaryDismissed(false);
     setInputValue('');
+    setCallHistory([]);
 
     // Đọc lastVisit từ localStorage để tính unread cho Summary
     const storageKey = `chatLastVisit_${activeChatId}`;
@@ -153,6 +164,11 @@ export default function ChatWindow({ onStartCall }) {
     clearUnread(activeChatId);
     subscribeToChat(activeChatId);
 
+    // Fetch call history cho chat này
+    getCallHistory(activeChatId)
+      .then((res) => setCallHistory(res.data || []))
+      .catch(() => {});
+
     return () => {
       unsubscribeFromChat(activeChatId);
     };
@@ -189,9 +205,20 @@ export default function ChatWindow({ onStartCall }) {
     }
   }, [chatMessages.length]);
 
-  const scrollToBottom = (smooth = true) => {
-    messagesEndRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto' });
-  };
+  // Refetch call history khi cuộc gọi kết thúc (activeCall → null)
+  useEffect(() => {
+    const wasActive = prevActiveCallRef.current !== null;
+    const isNowNull = activeCall === null;
+    if (wasActive && isNowNull && activeChatId) {
+      // Đợi 1s để backend kịp lưu call session
+      setTimeout(() => {
+        getCallHistory(activeChatId)
+          .then((res) => setCallHistory(res.data || []))
+          .catch(() => {});
+      }, 1000);
+    }
+    prevActiveCallRef.current = activeCall;
+  }, [activeCall, activeChatId]);
 
   const handleScroll = useCallback(async () => {
     const container = scrollContainerRef.current;
@@ -216,7 +243,7 @@ export default function ChatWindow({ onStartCall }) {
             container.scrollTop = newScrollHeight - prevScrollHeightRef.current;
           }, 50);
         }
-      } catch {}
+      } catch {} // eslint-disable-line no-empty
       setLoadingMore(false);
     }
   }, [activeChatId, page, loadingMore, hasMore]);
@@ -249,6 +276,13 @@ export default function ChatWindow({ onStartCall }) {
 
   const handleTyping = (isTypingNow) => {
     sendTyping(activeChatId, isTypingNow);
+  };
+
+  // Merge messages + call history thành một timeline sắp xếp theo thời gian
+  const buildTimeline = (msgs, calls) => {
+    const msgItems = msgs.map((m) => ({ ...m, _isCall: false, _time: new Date(m.createdDate || m.createdAt || 0).getTime() }));
+    const callItems = calls.map((c) => ({ ...c, _isCall: true, _time: new Date(c.startedAt || 0).getTime() }));
+    return [...msgItems, ...callItems].sort((a, b) => a._time - b._time);
   };
 
   if (!activeChatId) {
@@ -386,12 +420,12 @@ export default function ChatWindow({ onStartCall }) {
             </button>
           </div>
         ) : (
-          chatMessages.map((msg) => (
-            <MessageBubble
-              key={msg.id}
-              message={msg}
-              chatId={activeChatId}
-            />
+          buildTimeline(chatMessages, callHistory).map((item) => (
+            item._isCall ? (
+              <CallBubble key={`call-${item.id}`} call={item} />
+            ) : (
+              <MessageBubble key={item.id} message={item} chatId={activeChatId} />
+            )
           ))
         )}
         {isTyping && <TypingIndicator />}

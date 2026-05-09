@@ -43,3 +43,53 @@ pnpm-debug.log*
 Thumbs.db
 desktop.ini
 ehthumbs.db
+
+# ── Report / Documentation ───────────────────────────
+*.docx
+*.xlsx
+*.pptx
+
+# ── Report / Documentation (LaTeX) ──────────────────
+report.tex
+report_draft.tex
+report.pdf
+report_draft.pdf
+report.aux
+report.fdb_latexmk
+report.fls
+report.lof
+report.lot
+report.out
+report.pytxcode
+report.toc
+report0-plantuml.tex
+report0-plantuml.txt
+report0-plantuml.txt.latex.cache
+*_draft.aux
+*_draft.lof
+*_draft.lot
+*_draft.out
+*_draft.toc
+latexmkrc
+plantuml.sty
+compile.bat
+compile_linux.sh
+
+# ── Report screenshots / assets ─────────────────────
+admin-dashboard.png
+ai1.jpg
+ai2.jpg
+ai3.jpg
+group-chat.png
+group-chat-mobile.png
+login-screen.png
+login-screen-mobile.png
+logo.png
+main-chat.png
+main-chat-mobile.png
+register-screen.png
+register-screen-mobile.png
+usecase-overview.drawio.pdf
+
+# ── Maven wrapper JAR (do not commit) ───────────────
+.mvn/wrapper/maven-wrapper.jar

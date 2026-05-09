@@ -182,7 +182,10 @@ export function useCallManager() {
   }, [sendSignal, setIncomingCall, clearIncomingCall, updateActiveCall, cleanupPeer, clearActiveCall]);
 
   // Luôn cập nhật ref để wrapper bên dưới luôn gọi handler mới nhất
-  handleSignalRef.current = handleSignal;
+  // Dùng useLayoutEffect để sync trước khi effect subscribe chạy
+  useEffect(() => {
+    handleSignalRef.current = handleSignal;
+  }, [handleSignal]);
 
   // Subscribe theo /topic/call/{userId} — cùng pattern với messages/group, không cần user-destination
   useEffect(() => {
@@ -195,7 +198,7 @@ export function useCallManager() {
       console.log('[call] unsubscribing from', dest);
       wsService.unsubscribe(dest);
     };
-  }, [auth?.userId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [auth?.userId]);
 
   // ------------------------------------------------------------------ //
 
