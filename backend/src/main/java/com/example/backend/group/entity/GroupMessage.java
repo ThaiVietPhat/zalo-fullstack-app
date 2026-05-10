@@ -51,7 +51,4 @@ public class GroupMessage extends BaseAuditingEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "sender_id", nullable = false)
     private User sender;
-
-    @Version
-    private Long version;
 }

@@ -67,7 +67,4 @@ public class Message extends BaseAuditingEntity {
             return null;
         }
     }
-
-    @Version
-    private Long version;
 }

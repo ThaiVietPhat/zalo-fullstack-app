@@ -76,7 +76,4 @@ public class Chat extends BaseAuditingEntity {
     public boolean containsUser(UUID userId) {
         return user1.getId().equals(userId) || user2.getId().equals(userId);
     }
-
-    @Version
-    private Long version;
 }
