@@ -12,13 +12,12 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.example.backend.shared.entity.BaseAuditingEntity;
-
 @Entity
 @Table(name = "reports")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor
 @SuperBuilder
-public class Report extends BaseAuditingEntity {
+@EntityListeners(AuditingEntityListener.class)
+public class Report {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -58,4 +57,8 @@ public class Report extends BaseAuditingEntity {
     @Column(name = "evidence_keys", columnDefinition = "TEXT")
     @Builder.Default
     private List<String> evidenceKeys = new ArrayList<>();
+
+    @CreatedDate
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
 }

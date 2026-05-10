@@ -9,7 +9,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.UUID;
 
 public interface ReportRepository extends JpaRepository<Report, Long> {
-    Page<Report> findAllByStatusOrderByCreatedDateDesc(ReportStatus status, Pageable pageable);
-    Page<Report> findAllByOrderByCreatedDateDesc(Pageable pageable);
+    Page<Report> findAllByStatusOrderByCreatedAtDesc(ReportStatus status, Pageable pageable);
+    Page<Report> findAllByOrderByCreatedAtDesc(Pageable pageable);
     boolean existsByReporter_IdAndReported_IdAndStatus(UUID reporterId, UUID reportedId, ReportStatus status);
 }

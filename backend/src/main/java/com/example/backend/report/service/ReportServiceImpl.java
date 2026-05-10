@@ -69,13 +69,13 @@ public class ReportServiceImpl implements ReportService {
     @Override
     @Transactional(readOnly = true)
     public Page<ReportDto> getReports(String status, int page, int size) {
-        PageRequest pageable = PageRequest.of(page, size, Sort.by("createdDate").descending());
+        PageRequest pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         if (status != null && !status.isBlank() && !status.equalsIgnoreCase("ALL")) {
             ReportStatus reportStatus = ReportStatus.valueOf(status.toUpperCase());
-            return reportRepository.findAllByStatusOrderByCreatedDateDesc(reportStatus, pageable)
+            return reportRepository.findAllByStatusOrderByCreatedAtDesc(reportStatus, pageable)
                     .map(this::toDto);
         }
-        return reportRepository.findAllByOrderByCreatedDateDesc(pageable).map(this::toDto);
+        return reportRepository.findAllByOrderByCreatedAtDesc(pageable).map(this::toDto);
     }
 
     @Override

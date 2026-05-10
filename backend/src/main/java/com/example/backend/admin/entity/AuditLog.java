@@ -7,17 +7,18 @@ import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UuidGenerator;
 import org.hibernate.type.SqlTypes;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
-
-import com.example.backend.shared.entity.BaseAuditingEntity;
 
 @Entity
 @Table(name = "audit_log")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor
 @SuperBuilder
-public class AuditLog extends BaseAuditingEntity {
+@EntityListeners(AuditingEntityListener.class)
+public class AuditLog {
 
     @Id
     @UuidGenerator
@@ -46,4 +47,8 @@ public class AuditLog extends BaseAuditingEntity {
 
     @Column(columnDefinition = "TEXT")
     private String details;
+
+    @CreatedDate
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
 }

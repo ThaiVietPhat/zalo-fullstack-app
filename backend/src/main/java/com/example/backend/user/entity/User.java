@@ -103,7 +103,4 @@ public class User extends BaseAuditingEntity {
         if (minutesAgo < 1440) return (minutesAgo / 60) + " giờ trước";
         return (minutesAgo / 1440) + " ngày trước";
     }
-
-    @Version
-    private Long version;
 }

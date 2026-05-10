@@ -21,6 +21,6 @@ public interface AdminMapper {
     AdminGroupDto toGroupDto(Group group);
 
     @Mapping(target = "adminId", source = "admin.id")
-    @Mapping(target = "createdAt", source = "createdDate")
+    @Mapping(target = "createdAt", source = "createdAt")
     AuditLogDto toAuditLogDto(AuditLog auditLog);
 }

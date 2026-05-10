@@ -16,6 +16,6 @@ public interface ReportMapper {
     @Mapping(target = "reportedEmail", source = "reported.email")
     @Mapping(target = "reportedBanned", source = "reported.banned")
     @Mapping(target = "evidenceUrls", ignore = true) // Handled in service due to presigned URLs
-    @Mapping(target = "createdAt", source = "createdDate")
+    @Mapping(target = "createdAt", source = "createdAt")
     ReportDto toDto(Report report);
 }

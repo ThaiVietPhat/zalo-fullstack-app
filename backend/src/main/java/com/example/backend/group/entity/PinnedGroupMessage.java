@@ -1,34 +1,31 @@
 package com.example.backend.group.entity;
 
-import java.time.LocalDateTime;
-
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.annotations.UuidGenerator;
-import org.hibernate.type.SqlTypes;
-
 import com.example.backend.user.entity.User;
-
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.experimental.SuperBuilder;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.annotations.UuidGenerator;
+import org.hibernate.type.SqlTypes;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
-
-import com.example.backend.shared.entity.BaseAuditingEntity;
 
 @Entity
 @Table(name = "pinned_group_message")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor
 @SuperBuilder
-public class PinnedGroupMessage extends BaseAuditingEntity {
+@EntityListeners(AuditingEntityListener.class)
+public class PinnedGroupMessage {
 
     @Id
     @UuidGenerator
     @JdbcTypeCode(SqlTypes.CHAR)
-    @Column(columnDefinition = "CHAR(36)")
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -42,4 +39,8 @@ public class PinnedGroupMessage extends BaseAuditingEntity {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "pinned_by", nullable = false)
     private User pinnedBy;
+
+    @CreatedDate
+    @Column(name = "created_date", nullable = false, updatable = false)
+    private LocalDateTime createdDate;
 }
