@@ -66,9 +66,9 @@ spring:
 app:
   redis:
     online-ttl-seconds: "${REDIS_ONLINE_TTL:120}"
-    ai-rate-limit: "${app.redis.ai-rate-limit:10}"
+    ai-rate-limit: "${AI_RATE_LIMIT:10}"
   jwt:
-    secret: "${JWT_SECRET}"
+    secret: "${JWT_SECRET:dinh-cao-architect-zalo-clone-2026-secret-key}"
     expiration-ms: 86400000
     refresh-expiration-ms: 604800000
   cors:
@@ -79,11 +79,11 @@ app:
       Câu trả lời nên ngắn gọn, rõ ràng và hữu ích."
 
 r2:
-  access-key-id: "${R2_ACCESS_KEY_ID:}"
-  secret-access-key: "${R2_SECRET_ACCESS_KEY:}"
-  bucket: "${R2_BUCKET:}"
+  access-key-id: "${R2_ACCESS_KEY_ID:default-access-key}"
+  secret-access-key: "${R2_SECRET_ACCESS_KEY:default-secret-key}"
+  bucket: "${R2_BUCKET:zalo-media}"
   region: "${R2_REGION:auto}"
-  endpoint: "${R2_ENDPOINT:}"
+  endpoint: "${R2_ENDPOINT:https://example.r2.cloudflarestorage.com}"
 
 brevo:
   api:

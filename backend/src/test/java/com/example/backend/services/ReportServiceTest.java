@@ -145,7 +145,7 @@ class ReportServiceTest {
     @DisplayName("getReports() - lấy tất cả reports")
     void getReports_all() {
         Page<Report> page = new PageImpl<>(List.of(pendingReport));
-        when(reportRepository.findAllByOrderByCreatedDateDesc(any(Pageable.class))).thenReturn(page);
+        when(reportRepository.findAllByOrderByCreatedAtDesc(any(Pageable.class))).thenReturn(page);
 
         Page<ReportDto> result = reportService.getReports("ALL", 0, 10);
 
@@ -156,20 +156,20 @@ class ReportServiceTest {
     @DisplayName("getReports() - lọc theo status PENDING")
     void getReports_byPendingStatus() {
         Page<Report> page = new PageImpl<>(List.of(pendingReport));
-        when(reportRepository.findAllByStatusOrderByCreatedDateDesc(eq(ReportStatus.PENDING), any(Pageable.class)))
+        when(reportRepository.findAllByStatusOrderByCreatedAtDesc(eq(ReportStatus.PENDING), any(Pageable.class)))
                 .thenReturn(page);
 
         Page<ReportDto> result = reportService.getReports("PENDING", 0, 10);
 
         assertThat(result.getTotalElements()).isEqualTo(1);
-        verify(reportRepository).findAllByStatusOrderByCreatedDateDesc(eq(ReportStatus.PENDING), any());
+        verify(reportRepository).findAllByStatusOrderByCreatedAtDesc(eq(ReportStatus.PENDING), any());
     }
 
     @Test
     @DisplayName("getReports() - status null → lấy tất cả")
     void getReports_nullStatus_returnsAll() {
         Page<Report> page = new PageImpl<>(List.of(pendingReport));
-        when(reportRepository.findAllByOrderByCreatedDateDesc(any(Pageable.class))).thenReturn(page);
+        when(reportRepository.findAllByOrderByCreatedAtDesc(any(Pageable.class))).thenReturn(page);
 
         Page<ReportDto> result = reportService.getReports(null, 0, 10);
 

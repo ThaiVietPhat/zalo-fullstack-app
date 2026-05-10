@@ -41,13 +41,17 @@ public class AiRateLimitAspect {
 
         String userId = auth.getName(); // email (dung nhu userId de phan biet user)
 
-        if (!rateLimitService.tryConsume(userId)) {
-            log.warn("AI rate limit vuot qua cho user: {}", userId);
-            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
-                    .body(Map.of(
-                        "error", "RATE_LIMIT_EXCEEDED",
-                        "message", "Ban da vuot qua gioi han AI request. Vui long thu lai sau 1 phut."
-                    ));
+        try {
+            if (!rateLimitService.tryConsume(userId)) {
+                log.warn("AI rate limit vuot qua cho user: {}", userId);
+                return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                        .body(Map.of(
+                            "error", "RATE_LIMIT_EXCEEDED",
+                            "message", "Ban da vuot qua gioi han AI request. Vui long thu lai sau 1 phut."
+                        ));
+            }
+        } catch (Exception e) {
+            log.error("Error during rate limiting check: {}. Proceeding without limit.", e.getMessage());
         }
 
         return joinPoint.proceed();

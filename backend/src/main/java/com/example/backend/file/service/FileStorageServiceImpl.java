@@ -67,26 +67,35 @@ public class FileStorageServiceImpl implements FileStorageService {
 
     @PostConstruct
     public void init() {
-        var credentials = StaticCredentialsProvider.create(
-                AwsBasicCredentials.create(accessKeyId, secretAccessKey));
-        var regionObj = Region.of(region.isBlank() ? "auto" : region);
-
-        var clientBuilder = S3Client.builder()
-                .region(regionObj)
-                .credentialsProvider(credentials);
-        var presignerBuilder = S3Presigner.builder()
-                .region(regionObj)
-                .credentialsProvider(credentials);
-
-        if (s3Endpoint != null && !s3Endpoint.isBlank()) {
-            clientBuilder.endpointOverride(URI.create(s3Endpoint));
-            presignerBuilder.endpointOverride(URI.create(s3Endpoint));
+        if (accessKeyId == null || accessKeyId.isBlank() || secretAccessKey == null || secretAccessKey.isBlank()) {
+            log.warn("R2/S3 credentials are missing or blank. File storage will be disabled.");
+            return;
         }
 
-        s3Client = clientBuilder.build();
-        s3Presigner = presignerBuilder.build();
+        try {
+            var credentials = StaticCredentialsProvider.create(
+                    AwsBasicCredentials.create(accessKeyId, secretAccessKey));
+            var regionObj = Region.of(region == null || region.isBlank() ? "auto" : region);
 
-        log.info("R2 storage initialized for bucket: {}", bucketName);
+            var clientBuilder = S3Client.builder()
+                    .region(regionObj)
+                    .credentialsProvider(credentials);
+            var presignerBuilder = S3Presigner.builder()
+                    .region(regionObj)
+                    .credentialsProvider(credentials);
+
+            if (s3Endpoint != null && !s3Endpoint.isBlank()) {
+                clientBuilder.endpointOverride(URI.create(s3Endpoint));
+                presignerBuilder.endpointOverride(URI.create(s3Endpoint));
+            }
+
+            s3Client = clientBuilder.build();
+            s3Presigner = presignerBuilder.build();
+
+            log.info("R2 storage initialized for bucket: {}", bucketName);
+        } catch (Exception e) {
+            log.error("Failed to initialize R2 storage: {}", e.getMessage());
+        }
     }
 
     @Override
