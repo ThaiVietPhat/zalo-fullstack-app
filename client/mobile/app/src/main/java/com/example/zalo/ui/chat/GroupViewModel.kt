@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.zalo.data.local.TokenManager
 import com.example.zalo.data.remote.WebSocketManager
+import com.example.zalo.data.remote.dto.GroupDto
 import com.example.zalo.data.remote.dto.GroupMessageDto
 import com.example.zalo.data.remote.dto.SummarizeResponse
 import com.example.zalo.domain.repository.ChatRepository
@@ -16,6 +17,7 @@ import java.io.File
 import javax.inject.Inject
 
 data class GroupChatUiState(
+    val group: GroupDto? = null,
     val messages: List<GroupMessageDto> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null,
@@ -116,5 +118,49 @@ class GroupViewModel @Inject constructor(
 
     fun sendTyping(isTyping: Boolean) {
         currentGroupId?.let { webSocketManager.sendTyping(it, isTyping, true) }
+    }
+
+    fun loadGroupDetails(groupId: String) {
+        viewModelScope.launch {
+            repository.getGroup(groupId).onSuccess { group ->
+                _uiState.value = _uiState.value.copy(group = group)
+            }
+        }
+    }
+
+    fun addMembers(memberIds: List<String>) {
+        val groupId = currentGroupId ?: return
+        viewModelScope.launch {
+            repository.addMembers(groupId, memberIds).onSuccess { updatedGroup ->
+                _uiState.value = _uiState.value.copy(group = updatedGroup)
+            }
+        }
+    }
+
+    fun leaveGroup(onLeft: () -> Unit) {
+        val groupId = currentGroupId ?: return
+        viewModelScope.launch {
+            repository.leaveGroup(groupId).onSuccess {
+                onLeft()
+            }
+        }
+    }
+
+    fun pinMessage(messageId: String) {
+        val groupId = currentGroupId ?: return
+        viewModelScope.launch {
+            repository.pinMessage(groupId, messageId).onSuccess {
+                // Refresh pinned messages if needed
+            }
+        }
+    }
+
+    fun toggleReaction(messageId: String, emoji: String) {
+        viewModelScope.launch {
+            repository.toggleGroupReaction(messageId, emoji).onSuccess {
+                // Refresh messages to show reaction
+                currentGroupId?.let { loadMessages(it) }
+            }
+        }
     }
 }

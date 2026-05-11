@@ -138,6 +138,132 @@ class ChatRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun markAsDelivered(chatId: String): Result<Unit> {
+        return try {
+            val response = messageApi.markAsDelivered(chatId)
+            if (response.isSuccessful) Result.success(Unit) else Result.failure(Exception(response.message()))
+        } catch (e: Exception) { Result.failure(e) }
+    }
+
+    override suspend fun recallMessage(messageId: String): Result<Unit> {
+        return try {
+            val response = messageApi.recallMessage(messageId)
+            if (response.isSuccessful) Result.success(Unit) else Result.failure(Exception(response.message()))
+        } catch (e: Exception) { Result.failure(e) }
+    }
+
+    override suspend fun deleteMessageForMe(messageId: String): Result<Unit> {
+        return try {
+            val response = messageApi.deleteMessageForMe(messageId)
+            if (response.isSuccessful) Result.success(Unit) else Result.failure(Exception(response.message()))
+        } catch (e: Exception) { Result.failure(e) }
+    }
+
+    override suspend fun toggleReaction(messageId: String, emoji: String): Result<Unit> {
+        return try {
+            val response = messageApi.toggleReaction(messageId, emoji)
+            if (response.isSuccessful) Result.success(Unit) else Result.failure(Exception(response.message()))
+        } catch (e: Exception) { Result.failure(e) }
+    }
+
+    override suspend fun deleteReaction(messageId: String): Result<Unit> {
+        return try {
+            val response = messageApi.deleteReaction(messageId)
+            if (response.isSuccessful) Result.success(Unit) else Result.failure(Exception(response.message()))
+        } catch (e: Exception) { Result.failure(e) }
+    }
+
+    override suspend fun updateGroup(groupId: String, name: String, description: String): Result<GroupDto> {
+        return try {
+            val response = groupApi.updateGroup(groupId, mapOf("name" to name, "description" to description))
+            if (response.isSuccessful && response.body() != null) Result.success(response.body()!!) else Result.failure(Exception(response.message()))
+        } catch (e: Exception) { Result.failure(e) }
+    }
+
+    override suspend fun addMembers(groupId: String, userIds: List<String>): Result<GroupDto> {
+        return try {
+            val response = groupApi.addMembers(groupId, userIds)
+            if (response.isSuccessful && response.body() != null) Result.success(response.body()!!) else Result.failure(Exception(response.message()))
+        } catch (e: Exception) { Result.failure(e) }
+    }
+
+    override suspend fun removeMember(groupId: String, userId: String): Result<Unit> {
+        return try {
+            val response = groupApi.removeMember(groupId, userId)
+            if (response.isSuccessful) Result.success(Unit) else Result.failure(Exception(response.message()))
+        } catch (e: Exception) { Result.failure(e) }
+    }
+
+    override suspend fun setMemberAsAdmin(groupId: String, userId: String): Result<Unit> {
+        return try {
+            val response = groupApi.setMemberAsAdmin(groupId, userId)
+            if (response.isSuccessful) Result.success(Unit) else Result.failure(Exception(response.message()))
+        } catch (e: Exception) { Result.failure(e) }
+    }
+
+    override suspend fun leaveGroup(groupId: String): Result<Unit> {
+        return try {
+            val response = groupApi.leaveGroup(groupId)
+            if (response.isSuccessful) Result.success(Unit) else Result.failure(Exception(response.message()))
+        } catch (e: Exception) { Result.failure(e) }
+    }
+
+    override suspend fun dissolveGroup(groupId: String): Result<Unit> {
+        return try {
+            val response = groupApi.dissolveGroup(groupId)
+            if (response.isSuccessful) Result.success(Unit) else Result.failure(Exception(response.message()))
+        } catch (e: Exception) { Result.failure(e) }
+    }
+
+    override suspend fun pinMessage(groupId: String, messageId: String): Result<Unit> {
+        return try {
+            val response = groupApi.pinMessage(groupId, messageId)
+            if (response.isSuccessful) Result.success(Unit) else Result.failure(Exception(response.message()))
+        } catch (e: Exception) { Result.failure(e) }
+    }
+
+    override suspend fun unpinMessage(groupId: String, messageId: String): Result<Unit> {
+        return try {
+            val response = groupApi.unpinMessage(groupId, messageId)
+            if (response.isSuccessful) Result.success(Unit) else Result.failure(Exception(response.message()))
+        } catch (e: Exception) { Result.failure(e) }
+    }
+
+    override suspend fun getPinnedMessages(groupId: String): Result<List<GroupMessageDto>> {
+        return try {
+            val response = groupApi.getPinnedMessages(groupId)
+            if (response.isSuccessful && response.body() != null) Result.success(response.body()!!) else Result.failure(Exception(response.message()))
+        } catch (e: Exception) { Result.failure(e) }
+    }
+
+    override suspend fun getJoinRequests(groupId: String): Result<List<GroupJoinRequestDto>> {
+        return try {
+            val response = groupApi.getJoinRequests(groupId)
+            if (response.isSuccessful && response.body() != null) Result.success(response.body()!!) else Result.failure(Exception(response.message()))
+        } catch (e: Exception) { Result.failure(e) }
+    }
+
+    override suspend fun approveJoinRequest(groupId: String, requestId: String): Result<Unit> {
+        return try {
+            val response = groupApi.approveJoinRequest(groupId, requestId)
+            if (response.isSuccessful) Result.success(Unit) else Result.failure(Exception(response.message()))
+        } catch (e: Exception) { Result.failure(e) }
+    }
+
+    override suspend fun rejectJoinRequest(groupId: String, requestId: String): Result<Unit> {
+        return try {
+            val response = groupApi.rejectJoinRequest(groupId, requestId)
+            if (response.isSuccessful) Result.success(Unit) else Result.failure(Exception(response.message()))
+        } catch (e: Exception) { Result.failure(e) }
+    }
+
+    override suspend fun toggleGroupReaction(messageId: String, emoji: String): Result<Unit> {
+        return try {
+            val response = groupApi.toggleGroupReaction(messageId, emoji)
+            if (response.isSuccessful) Result.success(Unit) else Result.failure(Exception(response.message()))
+        } catch (e: Exception) { Result.failure(e) }
+    }
+
     override suspend fun getSmartReply(chatId: String, isGroup: Boolean): Result<SmartReplyResponse> {
         return try {
             val response = if (isGroup) aiApi.getGroupSmartReply(chatId) else aiApi.getChatSmartReply(chatId)

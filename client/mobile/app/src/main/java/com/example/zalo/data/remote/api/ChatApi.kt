@@ -37,4 +37,25 @@ interface MessageApi {
         @Path("chatId") chatId: String,
         @Part file: MultipartBody.Part
     ): Response<MessageDto>
+
+    @PATCH("message/delivered/{chatId}")
+    suspend fun markAsDelivered(@Path("chatId") chatId: String): Response<Void>
+
+    @PATCH("message/delivered/all")
+    suspend fun markAllDelivered(): Response<Void>
+
+    @DELETE("message/{messageId}/recall")
+    suspend fun recallMessage(@Path("messageId") messageId: String): Response<Void>
+
+    @DELETE("message/{messageId}")
+    suspend fun deleteMessageForMe(@Path("messageId") messageId: String): Response<Void>
+
+    @POST("message/{messageId}/reactions")
+    suspend fun toggleReaction(
+        @Path("messageId") messageId: String,
+        @Query("emoji") emoji: String
+    ): Response<Void>
+
+    @DELETE("message/{messageId}/reactions")
+    suspend fun deleteReaction(@Path("messageId") messageId: String): Response<Void>
 }

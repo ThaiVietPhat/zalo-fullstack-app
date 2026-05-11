@@ -19,6 +19,8 @@ object Routes {
     const val HOME = "home"
     const val CHAT = "chat/{chatId}"
     const val GROUP_CHAT = "group/{groupId}"
+    const val PROFILE = "profile"
+    const val CREATE_GROUP = "create_group"
     
     fun chatRoute(chatId: String) = "chat/$chatId"
     fun groupChatRoute(groupId: String) = "group/$groupId"
@@ -66,7 +68,29 @@ fun ZaloNavGraph(
                 onGroupClick = { groupId ->
                     navController.navigate(Routes.groupChatRoute(groupId))
                 },
-                onSearchClick = { /* TODO */ }
+                onSearchClick = { /* TODO */ },
+                onProfileClick = {
+                    navController.navigate(Routes.PROFILE)
+                },
+                onCreateGroupClick = {
+                    navController.navigate(Routes.CREATE_GROUP)
+                }
+            )
+        }
+
+        composable(Routes.PROFILE) {
+            com.example.zalo.ui.user.ProfileScreen(
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Routes.CREATE_GROUP) {
+            com.example.zalo.ui.group.CreateGroupScreen(
+                onBack = { navController.popBackStack() },
+                onGroupCreated = { groupId ->
+                    navController.popBackStack()
+                    navController.navigate(Routes.groupChatRoute(groupId))
+                }
             )
         }
 

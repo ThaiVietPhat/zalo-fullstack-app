@@ -43,3 +43,14 @@ data class SendGroupMessageRequest(
     val content: String,
     val type: String = "TEXT"
 )
+
+@Serializable
+data class GroupJoinRequestDto(
+    val id: String,
+    val groupId: String,
+    val userId: String,
+    val userName: String,
+    val userAvatarUrl: String? = null,
+    val status: String,
+    val createdDate: String
+)
