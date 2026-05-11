@@ -1,4 +1,4 @@
-﻿[versions]
+[versions]
 agp = "8.5.2"
 kotlin = "1.9.24"
 coreKtx = "1.13.1"
@@ -14,13 +14,16 @@ hilt = "2.51.1"
 hiltNavigationCompose = "1.2.0"
 room = "2.6.1"
 krossbow = "8.0.0"
-coil = "2.7.0"`r`nwebrtc = "1.0.32006"`r`nkotlinxSerialization = "1.6.3"
+coil = "2.7.0"
+webrtc = "1.0.32006"
+kotlinxSerialization = "1.6.3"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
+androidx-junit-ktx = { group = "androidx.test.ext", name = "junit-ktx", version = "1.2.1" }
 androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycleRuntimeKtx" }
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
 androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
@@ -43,7 +46,9 @@ room-compiler = { group = "androidx.room", name = "room-compiler", version.ref =
 room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 krossbow-stomp-core = { group = "org.hildan.krossbow", name = "krossbow-stomp-core", version.ref = "krossbow" }
 krossbow-websocket-okhttp = { group = "org.hildan.krossbow", name = "krossbow-websocket-okhttp", version.ref = "krossbow" }
-coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }`r`ngoogle-webrtc = { group = "com.google.webrtc", name = "google-webrtc", version.ref = "webrtc" }`r`nkotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
+coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
+google-webrtc = { group = "com.google.webrtc", name = "google-webrtc", version.ref = "webrtc" }
+kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
