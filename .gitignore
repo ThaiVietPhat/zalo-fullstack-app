@@ -50,3 +50,6 @@ latexmkrc
 # Tools
 plantuml.jar
 plantuml.sty
+compile.bat
+compile_linux.sh
+
