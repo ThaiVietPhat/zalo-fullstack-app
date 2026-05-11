@@ -102,4 +102,11 @@ interface GroupApi {
 
     @DELETE("group-message/{messageId}/reactions")
     suspend fun deleteGroupReaction(@Path("messageId") messageId: String): Response<Void>
+
+    @Multipart
+    @POST("group/{groupId}/upload-media")
+    suspend fun uploadGroupMedia(
+        @Path("groupId") groupId: String,
+        @Part file: MultipartBody.Part
+    ): Response<GroupMessageDto>
 }
