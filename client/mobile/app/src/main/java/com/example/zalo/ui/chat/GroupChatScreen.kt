@@ -1,7 +1,6 @@
-﻿package com.example.zalo.ui.chat
+package com.example.zalo.ui.chat
 
-import androidx.compose.material3.ExperimentalMaterial3Api
-@file:OptIn(ExperimentalMaterial3Api::class)
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -30,7 +29,6 @@ import com.example.zalo.data.local.TokenManager
 import com.example.zalo.data.remote.dto.GroupMessageDto
 import com.example.zalo.util.FileUtil
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GroupChatScreen(
     groupId: String,

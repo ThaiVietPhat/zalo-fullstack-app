@@ -1,7 +1,6 @@
-﻿package com.example.zalo.ui.chat
+package com.example.zalo.ui.chat
 
-import androidx.compose.material3.ExperimentalMaterial3Api
-@file:OptIn(ExperimentalMaterial3Api::class)
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -30,7 +29,6 @@ import com.example.zalo.data.local.TokenManager
 import com.example.zalo.data.remote.dto.MessageDto
 import com.example.zalo.util.FileUtil
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(
     chatId: String,
@@ -136,7 +134,7 @@ fun ChatScreen(
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
             if (uiState.isLoading) {
-                CircularProgressIndicator(Modifier.align(Alignment.Center))
+                CircularProgressIndicator(Alignment.Center)
             }
             LazyColumn(
                 modifier = Modifier
@@ -202,7 +200,6 @@ fun MessageBubble(message: MessageDto, isMine: Boolean) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatInput(
     messageText: String,

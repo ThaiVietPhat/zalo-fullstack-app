@@ -1,7 +1,6 @@
-﻿package com.example.zalo.ui.home
+package com.example.zalo.ui.home
 
-import androidx.compose.material3.ExperimentalMaterial3Api
-@file:OptIn(ExperimentalMaterial3Api::class)
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -26,7 +25,6 @@ import coil.compose.AsyncImage
 import com.example.zalo.data.remote.dto.ChatDto
 import com.example.zalo.data.remote.dto.GroupDto
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     onChatClick: (String) -> Unit,
@@ -100,7 +98,7 @@ fun ChatList(chats: List<ChatDto>, onChatClick: (String) -> Unit) {
                 avatarUrl = chat.avatarUrl,
                 onClick = { onChatClick(chat.id) }
             )
-            Divider(modifier = Modifier.padding(start = 72.dp), thickness = 0.5.dp, color = Color.LightGray)
+            HorizontalDivider(modifier = Modifier.padding(start = 72.dp), thickness = 0.5.dp, color = Color.LightGray)
         }
     }
 }
@@ -117,7 +115,7 @@ fun GroupList(groups: List<GroupDto>, onGroupClick: (String) -> Unit) {
                 avatarUrl = group.avatarUrl,
                 onClick = { onGroupClick(group.id) }
             )
-            Divider(modifier = Modifier.padding(start = 72.dp), thickness = 0.5.dp, color = Color.LightGray)
+            HorizontalDivider(modifier = Modifier.padding(start = 72.dp), thickness = 0.5.dp, color = Color.LightGray)
         }
     }
 }
