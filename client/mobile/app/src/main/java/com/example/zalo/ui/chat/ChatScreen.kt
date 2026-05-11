@@ -199,6 +199,7 @@ fun MessageBubble(message: MessageDto, isMine: Boolean) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatInput(
     messageText: String,

@@ -11,6 +11,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.hildan.krossbow.stomp.StompClient
 import org.hildan.krossbow.stomp.StompSession
+import org.hildan.krossbow.stomp.headers.StompHeaders
 import org.hildan.krossbow.stomp.subscribeText
 import org.hildan.krossbow.stomp.sendText
 import org.hildan.krossbow.websocket.okhttp.OkHttpWebSocketClient
@@ -46,7 +47,10 @@ class WebSocketManager @Inject constructor(
             try {
                 val client = StompClient(OkHttpWebSocketClient())
                 val wsUrl = networkConfig.railwayWsUrl
-                session = client.connect(url = wsUrl, headers = mapOf("Authorization" to "Bearer $token"))
+                session = client.connect(
+                    url = wsUrl, 
+                    customStompConnectHeaders = StompHeaders(mapOf("Authorization" to "Bearer $token"))
+                )
                 Log.d("WebSocketManager", "Connected to $wsUrl")
                 
                 val userId = tokenManager.getUserId() ?: return@launch
