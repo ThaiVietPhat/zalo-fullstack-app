@@ -16,7 +16,7 @@ hiltNavigationCompose = "1.2.0"
 room = "2.6.1"
 krossbow = "8.0.0"
 coil = "2.7.0"
-webrtc = "1.0.32006"
+webrtc = "1.0.45036" # Maintained version on Maven Central
 kotlinxSerialization = "1.6.3"
 
 [libraries]
@@ -47,7 +47,7 @@ room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 krossbow-stomp-core = { group = "org.hildan.krossbow", name = "krossbow-stomp-core", version.ref = "krossbow" }
 krossbow-websocket-okhttp = { group = "org.hildan.krossbow", name = "krossbow-websocket-okhttp", version.ref = "krossbow" }
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
-google-webrtc = { group = "com.google.webrtc", name = "google-webrtc", version.ref = "webrtc" }
+google-webrtc = { group = "com.infobip", name = "google-webrtc", version.ref = "webrtc" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 
 [plugins]
