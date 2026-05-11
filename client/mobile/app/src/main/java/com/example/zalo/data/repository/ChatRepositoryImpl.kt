@@ -157,6 +157,45 @@ class ChatRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun chatWithAi(message: String): Result<AiMessageDto> {
+        return try {
+            val response = aiApi.chatWithAi(AiChatRequest(message))
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(Exception(response.message()))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun getAiHistory(page: Int): Result<List<AiMessageDto>> {
+        return try {
+            val response = aiApi.getAiHistory(page, 30)
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!.content)
+            } else {
+                Result.failure(Exception(response.message()))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun clearAiHistory(): Result<Unit> {
+        return try {
+            val response = aiApi.clearAiHistory()
+            if (response.isSuccessful) {
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception(response.message()))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     override suspend fun uploadMedia(chatId: String, file: File): Result<MessageDto> {
         return try {
             val requestFile = file.asRequestBody("image/*".toMediaTypeOrNull())

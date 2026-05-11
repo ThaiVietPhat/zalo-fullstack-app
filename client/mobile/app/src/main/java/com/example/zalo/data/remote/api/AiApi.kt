@@ -1,11 +1,8 @@
 package com.example.zalo.data.remote.api
 
-import com.example.zalo.data.remote.dto.SmartReplyResponse
-import com.example.zalo.data.remote.dto.SummarizeRequest
-import com.example.zalo.data.remote.dto.SummarizeResponse
-import retrofit2.http.Body
-import retrofit2.http.POST
-import retrofit2.http.Path
+import com.example.zalo.data.remote.dto.*
+import retrofit2.Response
+import retrofit2.http.*
 
 interface AiApi {
     @POST("chat/{chatId}/ai/smart-reply")
@@ -25,4 +22,17 @@ interface AiApi {
         @Path("groupId") groupId: String,
         @Body request: SummarizeRequest
     ): SummarizeResponse
+
+    // AI Direct Chat
+    @POST("ai/chat")
+    suspend fun chatWithAi(@Body request: AiChatRequest): Response<AiMessageDto>
+
+    @GET("ai/history")
+    suspend fun getAiHistory(
+        @Query("page") page: Int,
+        @Query("size") size: Int
+    ): Response<PageResponse<AiMessageDto>>
+
+    @DELETE("ai/history")
+    suspend fun clearAiHistory(): Response<Void>
 }

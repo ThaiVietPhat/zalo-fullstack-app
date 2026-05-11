@@ -23,6 +23,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.example.zalo.data.remote.dto.ChatDto
 import com.example.zalo.data.remote.dto.GroupDto
+import com.example.zalo.ui.ai.AiChatScreen
 
 @Composable
 fun HomeScreen(
@@ -32,7 +33,7 @@ fun HomeScreen(
     viewModel: ChatViewModel = hiltViewModel()
 ) {
     var selectedTab by remember { mutableStateOf(0) }
-    val tabs = listOf("Tin nhắn", "Danh bạ", "Nhóm")
+    val tabs = listOf("Tin nhắn", "Danh bạ", "Nhóm", "AI")
     val uiState by viewModel.uiState.collectAsState()
 
     Scaffold(
@@ -59,7 +60,8 @@ fun HomeScreen(
                                 imageVector = when(index) {
                                     0 -> Icons.Default.Email
                                     1 -> Icons.Default.Person
-                                    else -> Icons.Default.AccountBox
+                                    2 -> Icons.Default.AccountBox
+                                    else -> Icons.Default.Face
                                 },
                                 contentDescription = null
                             )
@@ -70,7 +72,7 @@ fun HomeScreen(
         }
     ) { padding ->
         Box(Modifier.padding(padding)) {
-            if (uiState.isLoading) {
+            if (uiState.isLoading && selectedTab != 3) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
@@ -79,6 +81,7 @@ fun HomeScreen(
                     0 -> ChatList(uiState.chats, onChatClick)
                     1 -> ContactsList()
                     2 -> GroupList(uiState.groups, onGroupClick)
+                    3 -> AiChatScreen()
                 }
             }
         }
@@ -87,34 +90,46 @@ fun HomeScreen(
 
 @Composable
 fun ChatList(chats: List<ChatDto>, onChatClick: (String) -> Unit) {
-    LazyColumn(modifier = Modifier.fillMaxSize()) {
-        items(chats) { chat ->
-            ChatItem(
-                title = chat.chatName ?: "User",
-                lastMessage = chat.lastMessage ?: "Bắt đầu cuộc trò chuyện",
-                time = chat.lastMessageTime?.take(10) ?: "",
-                unreadCount = chat.unreadCount,
-                avatarUrl = chat.avatarUrl,
-                onClick = { onChatClick(chat.id) }
-            )
-            HorizontalDivider(modifier = Modifier.padding(start = 72.dp), thickness = 0.5.dp, color = Color.LightGray)
+    if (chats.isEmpty()) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text("Chưa có cuộc trò chuyện nào", color = Color.Gray)
+        }
+    } else {
+        LazyColumn(modifier = Modifier.fillMaxSize()) {
+            items(chats) { chat ->
+                ChatItem(
+                    title = chat.chatName ?: "User",
+                    lastMessage = chat.lastMessage ?: "Bắt đầu cuộc trò chuyện",
+                    time = chat.lastMessageTime?.take(10) ?: "",
+                    unreadCount = chat.unreadCount,
+                    avatarUrl = chat.avatarUrl,
+                    onClick = { onChatClick(chat.id) }
+                )
+                HorizontalDivider(modifier = Modifier.padding(start = 72.dp), thickness = 0.5.dp, color = Color.LightGray)
+            }
         }
     }
 }
 
 @Composable
 fun GroupList(groups: List<GroupDto>, onGroupClick: (String) -> Unit) {
-    LazyColumn(modifier = Modifier.fillMaxSize()) {
-        items(groups) { group ->
-            ChatItem(
-                title = group.name ?: "Nhóm",
-                lastMessage = group.lastMessage ?: "Nhóm mới tạo",
-                time = group.lastMessageTime?.take(10) ?: "",
-                unreadCount = 0,
-                avatarUrl = group.avatarUrl,
-                onClick = { onGroupClick(group.id) }
-            )
-            HorizontalDivider(modifier = Modifier.padding(start = 72.dp), thickness = 0.5.dp, color = Color.LightGray)
+    if (groups.isEmpty()) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text("Chưa tham gia nhóm nào", color = Color.Gray)
+        }
+    } else {
+        LazyColumn(modifier = Modifier.fillMaxSize()) {
+            items(groups) { group ->
+                ChatItem(
+                    title = group.name ?: "Nhóm",
+                    lastMessage = group.lastMessage ?: "Nhóm mới tạo",
+                    time = group.lastMessageTime?.take(10) ?: "",
+                    unreadCount = 0,
+                    avatarUrl = group.avatarUrl,
+                    onClick = { onGroupClick(group.id) }
+                )
+                HorizontalDivider(modifier = Modifier.padding(start = 72.dp), thickness = 0.5.dp, color = Color.LightGray)
+            }
         }
     }
 }

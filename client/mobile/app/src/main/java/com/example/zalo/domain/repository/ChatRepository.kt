@@ -19,6 +19,9 @@ interface ChatRepository {
     // AI Features
     suspend fun getSmartReply(chatId: String, isGroup: Boolean): Result<SmartReplyResponse>
     suspend fun summarize(chatId: String, isGroup: Boolean, lastNMessages: Int): Result<SummarizeResponse>
+    suspend fun chatWithAi(message: String): Result<AiMessageDto>
+    suspend fun getAiHistory(page: Int): Result<List<AiMessageDto>>
+    suspend fun clearAiHistory(): Result<Unit>
 
     // Media Upload
     suspend fun uploadMedia(chatId: String, file: File): Result<MessageDto>
