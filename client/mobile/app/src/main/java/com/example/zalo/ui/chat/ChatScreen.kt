@@ -133,7 +133,7 @@ fun ChatScreen(
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
             if (uiState.isLoading) {
-                CircularProgressIndicator(Alignment.Center)
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             }
             LazyColumn(
                 modifier = Modifier
