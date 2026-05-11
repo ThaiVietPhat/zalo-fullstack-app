@@ -32,32 +32,6 @@ data class GroupMemberDto(
 )
 
 @Serializable
-data class GroupMessageDto(
-    val id: String,
-    val content: String,
-    val mediaUrl: String? = null,
-    val fileName: String? = null,
-    val type: String,
-    val groupId: String,
-    val senderId: String,
-    val senderName: String,
-    val isMine: Boolean = false,
-    val createdDate: String,
-    val deleted: Boolean = false,
-    val pinned: Boolean = false,
-    val reactions: List<ReactionDto> = emptyList()
-)
-
-@Serializable
-data class ReactionDto(
-    val id: String,
-    val userId: String,
-    val type: String,
-    val messageId: String? = null,
-    val groupMessageId: String? = null
-)
-
-@Serializable
 data class CreateGroupRequest(
     val name: String,
     val description: String? = null,

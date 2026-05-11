@@ -1,4 +1,4 @@
-﻿package com.example.zalo.data.remote.dto
+package com.example.zalo.data.remote.dto
 
 import kotlinx.serialization.Serializable
 
@@ -43,7 +43,9 @@ data class ReactionDto(
     val userId: String? = null,
     val userFullName: String? = null,
     val emoji: String? = null,
-    val createdDate: String? = null
+    val createdDate: String? = null,
+    val messageId: String? = null,
+    val groupMessageId: String? = null
 )
 
 @Serializable

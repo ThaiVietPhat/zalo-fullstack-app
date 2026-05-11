@@ -27,6 +27,7 @@ import com.example.zalo.data.local.TokenManager
 import com.example.zalo.data.remote.dto.MessageDto
 import com.example.zalo.util.FileUtil
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(
     chatId: String,

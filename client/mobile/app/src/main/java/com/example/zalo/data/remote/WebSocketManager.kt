@@ -1,4 +1,4 @@
-﻿package com.example.zalo.data.remote
+package com.example.zalo.data.remote
 
 import android.util.Log
 import com.example.zalo.data.local.TokenManager
@@ -7,11 +7,12 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.hildan.krossbow.stomp.StompClient
 import org.hildan.krossbow.stomp.StompSession
 import org.hildan.krossbow.stomp.subscribeText
-import org.hildan.krossbow.stomp.conversions.convertAndSendText
+import org.hildan.krossbow.stomp.sendText
 import org.hildan.krossbow.websocket.okhttp.OkHttpWebSocketClient
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -45,7 +46,7 @@ class WebSocketManager @Inject constructor(
             try {
                 val client = StompClient(OkHttpWebSocketClient())
                 val wsUrl = networkConfig.railwayWsUrl
-                session = client.connect(url = wsUrl, customHeaders = mapOf("Authorization" to "Bearer $token"))
+                session = client.connect(url = wsUrl, headers = mapOf("Authorization" to "Bearer $token"))
                 Log.d("WebSocketManager", "Connected to $wsUrl")
                 
                 val userId = tokenManager.getUserId() ?: return@launch
@@ -100,13 +101,13 @@ class WebSocketManager @Inject constructor(
     fun sendTyping(id: String, isTyping: Boolean, isGroup: Boolean = false) {
         scope.launch {
             val dest = if (isGroup) "/app/group/$id/typing" else "/app/chat/$id/typing"
-            session?.convertAndSendText(dest, mapOf("typing" to isTyping), kotlinx.serialization.serializer())
+            session?.sendText(dest, json.encodeToString(mapOf("typing" to isTyping)))
         }
     }
 
     fun sendCallSignal(signal: CallSignalDto) {
         scope.launch {
-            session?.convertAndSendText("/app/call/signal", signal, kotlinx.serialization.serializer())
+            session?.sendText("/app/call/signal", json.encodeToString(signal))
         }
     }
 

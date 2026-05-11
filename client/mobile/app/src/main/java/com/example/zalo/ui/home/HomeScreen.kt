@@ -23,6 +23,7 @@ import coil.compose.AsyncImage
 import com.example.zalo.data.remote.dto.ChatDto
 import com.example.zalo.data.remote.dto.GroupDto
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     onChatClick: (String) -> Unit,

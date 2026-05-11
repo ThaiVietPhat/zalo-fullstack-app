@@ -1,7 +1,8 @@
-﻿package com.example.zalo.util
+package com.example.zalo.util
 
 import android.content.Context
 import android.util.Log
+import com.example.zalo.data.local.TokenManager
 import com.example.zalo.data.remote.WebSocketManager
 import com.example.zalo.data.remote.dto.CallSignalDto
 import kotlinx.coroutines.*
@@ -36,14 +37,13 @@ class CallManager @Inject constructor(
         val rtcConfig = PeerConnection.RTCConfiguration(iceServers)
         return factory?.createPeerConnection(rtcConfig, object : PeerConnection.Observer {
             override fun onIceCandidate(candidate: IceCandidate) {
-                // Send candidate over websocket
                 webSocketManager.sendCallSignal(CallSignalDto(
                     type = "ice-candidate",
                     candidate = candidate.sdp,
                     fromUserId = tokenManager.getUserId()
                 ))
             }
-            override fun onAddStream(stream: MediaStream) { /* Handle remote video/audio */ }
+            override fun onAddStream(stream: MediaStream) {}
             override fun onIceConnectionChange(state: PeerConnection.IceConnectionState) {
                 Log.d("CallManager", "ICE State: $state")
             }
@@ -51,6 +51,10 @@ class CallManager @Inject constructor(
             override fun onIceGatheringChange(state: PeerConnection.IceGatheringState) {}
             override fun onSignalingChange(state: PeerConnection.SignalingState) {}
             override fun onAddTrack(receiver: RtpReceiver, mediaStreams: Array<out MediaStream>) {}
+            override fun onRemoveStream(stream: MediaStream) {}
+            override fun onRenegotiationNeeded() {}
+            override fun onIceConnectionReceivingChange(receiving: Boolean) {}
+            override fun onIceCandidatesRemoved(candidates: Array<out IceCandidate>) {}
         })
     }
 
