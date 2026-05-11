@@ -1,6 +1,5 @@
-package com.example.zalo.ui.home
-
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+package com.example.zalo.ui.home
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*

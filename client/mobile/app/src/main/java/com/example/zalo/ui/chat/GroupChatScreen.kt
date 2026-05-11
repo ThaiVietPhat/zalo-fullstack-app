@@ -1,6 +1,5 @@
-package com.example.zalo.ui.chat
-
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+package com.example.zalo.ui.chat
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
