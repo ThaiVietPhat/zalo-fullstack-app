@@ -4,6 +4,10 @@
 .DS_Store
 Thumbs.db
 .claude/
+CLAUDE.md
+GEMINI.md
+.gemini/
+*.cache
 
 # Mobile (Android)
 **/build/
@@ -22,6 +26,7 @@ dist/
 railway-env.local
 
 # Documents & Artifacts
+report*
 *.pdf
 *.docx
 *.aux
