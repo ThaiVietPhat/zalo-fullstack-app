@@ -1,8 +1,8 @@
-﻿plugins {
+plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
-    alias(libs.plugins.compose.compiler)
-    alias(libs.plugins.hilt)`r`n    kotlin("plugin.serialization") version "1.9.24"
+    alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.hilt)
     id("kotlin-kapt")
 }
 
@@ -42,6 +42,9 @@ android {
     buildFeatures {
         compose = true
     }
+    composeOptions {
+        kotlinCompilerExtensionVersion = "1.5.14"
+    }
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -80,7 +83,9 @@ dependencies {
     implementation(libs.krossbow.websocket.okhttp)
     
     // Image loading
-    implementation(libs.coil.compose)`r`n    implementation(libs.google.webrtc)`r`n    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.coil.compose)
+    implementation(libs.google.webrtc)
+    implementation(libs.kotlinx.serialization.json)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
