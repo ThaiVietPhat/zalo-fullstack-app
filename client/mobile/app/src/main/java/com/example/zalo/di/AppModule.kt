@@ -46,6 +46,10 @@ object AppModule {
     @Provides
     @Singleton
     fun provideAiApi(retrofit: Retrofit): AiApi = retrofit.create(AiApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideAdminApi(retrofit: Retrofit): AdminApi = retrofit.create(AdminApi::class.java)
 }
 
 @Module
@@ -63,4 +67,8 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindUserRepository(impl: UserRepositoryImpl): UserRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindAdminRepository(impl: com.example.zalo.data.repository.AdminRepositoryImpl): com.example.zalo.domain.repository.AdminRepository
 }

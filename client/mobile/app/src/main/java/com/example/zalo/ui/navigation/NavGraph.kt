@@ -1,4 +1,4 @@
-﻿package com.example.zalo.ui.navigation
+package com.example.zalo.ui.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
@@ -21,6 +21,7 @@ object Routes {
     const val GROUP_CHAT = "group/{groupId}"
     const val PROFILE = "profile"
     const val CREATE_GROUP = "create_group"
+    const val ADMIN = "admin"
     
     fun chatRoute(chatId: String) = "chat/$chatId"
     fun groupChatRoute(groupId: String) = "group/$groupId"
@@ -74,6 +75,9 @@ fun ZaloNavGraph(
                 },
                 onCreateGroupClick = {
                     navController.navigate(Routes.CREATE_GROUP)
+                },
+                onAdminClick = {
+                    navController.navigate(Routes.ADMIN)
                 }
             )
         }
@@ -91,6 +95,12 @@ fun ZaloNavGraph(
                     navController.popBackStack()
                     navController.navigate(Routes.groupChatRoute(groupId))
                 }
+            )
+        }
+
+        composable(Routes.ADMIN) {
+            com.example.zalo.ui.admin.AdminScreen(
+                onBack = { navController.popBackStack() }
             )
         }
 

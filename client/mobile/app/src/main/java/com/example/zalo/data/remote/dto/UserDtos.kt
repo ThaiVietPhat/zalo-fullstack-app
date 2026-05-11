@@ -13,7 +13,8 @@ data class UserDto(
     val lastSeenText: String? = null,
     val avatarUrl: String? = null,
     val friendshipStatus: String? = "NONE",
-    val blockStatus: String? = "NONE"
+    val blockStatus: String? = "NONE",
+    val role: String? = "USER"
 )
 
 @Serializable

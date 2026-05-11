@@ -34,6 +34,7 @@ fun HomeScreen(
     onSearchClick: () -> Unit,
     onProfileClick: () -> Unit,
     onCreateGroupClick: () -> Unit,
+    onAdminClick: () -> Unit,
     viewModel: ChatViewModel = hiltViewModel()
 ) {
     var selectedTab by remember { mutableStateOf(0) }
@@ -99,7 +100,7 @@ fun HomeScreen(
                     1 -> ContactsList()
                     2 -> GroupList(uiState.groups, onGroupClick)
                     3 -> AiChatScreen()
-                    4 -> MeScreen(onProfileClick)
+                    4 -> MeScreen(onProfileClick, onAdminClick)
                 }
             }
         }
@@ -228,7 +229,7 @@ fun ContactItem(user: UserDto) {
 }
 
 @Composable
-fun MeScreen(onProfileClick: () -> Unit, viewModel: UserViewModel = hiltViewModel()) {
+fun MeScreen(onProfileClick: () -> Unit, onAdminClick: () -> Unit, viewModel: UserViewModel = hiltViewModel()) {
     val uiState by viewModel.uiState.collectAsState()
     
     Column(modifier = Modifier.fillMaxSize()) {
@@ -254,6 +255,15 @@ fun MeScreen(onProfileClick: () -> Unit, viewModel: UserViewModel = hiltViewMode
         }
         
         HorizontalDivider(thickness = 8.dp, color = Color(0xFFF0F0F0))
+
+        if (uiState.user?.role == "ROLE_ADMIN") {
+            ListItem(
+                modifier = Modifier.clickable { onAdminClick() },
+                headlineContent = { Text("Trang quản trị (Admin)") },
+                leadingContent = { Icon(Icons.Default.Settings, contentDescription = null, tint = Color.Red) }
+            )
+            HorizontalDivider(thickness = 8.dp, color = Color(0xFFF0F0F0))
+        }
         
         ListItem(
             headlineContent = { Text("Ví QR") },
