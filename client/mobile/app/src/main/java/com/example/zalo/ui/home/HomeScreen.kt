@@ -1,5 +1,8 @@
 ﻿package com.example.zalo.ui.home
 
+import androidx.compose.material3.ExperimentalMaterial3Api
+@file:OptIn(ExperimentalMaterial3Api::class)
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
