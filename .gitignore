@@ -1,95 +1,47 @@
-# ── IDE ──────────────────────────────────────────────
+﻿# IDE & System
 .idea/
 .vscode/
-*.iws
-*.iml
-*.ipr
-
-# ── Claude Code CLI ──────────────────────────────────
-.claude/
-*.claude.md
-CLAUDE.md
-# ── Java / JVM ───────────────────────────────────────
-*.class
-*.jar
-*.war
-*.nar
-*.ear
-hs_err_pid*
-replay_pid*
-
-# ── Secrets / environment ─────────────────────────────
-.env
-.env.*
-application-local.properties
-railway-env.local
-*.pem
-*.key
-*.p12
-*.jks
-*.pfx
-
-# ── Logs ─────────────────────────────────────────────
-*.log
-logs/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-
-# ── OS ───────────────────────────────────────────────
 .DS_Store
-.DS_Store?
 Thumbs.db
-desktop.ini
-ehthumbs.db
+.claude/
 
-# ── Report / Documentation ───────────────────────────
+# Mobile (Android)
+**/build/
+**/.gradle/
+**/local.properties
+*.iml
+
+# Backend (Maven)
+**/target/
+*.class
+
+# Node.js (Web)
+node_modules/
+dist/
+.env*
+railway-env.local
+
+# Documents & Artifacts
+*.pdf
 *.docx
-*.xlsx
-*.pptx
-
-# ── Report / Documentation (LaTeX) ──────────────────
-report.tex
-report_draft.tex
-report.pdf
-report_draft.pdf
-report.aux
-report.fdb_latexmk
-report.fls
-report.lof
-report.lot
-report.out
-report.pytxcode
-report.toc
-report0-plantuml.tex
-report0-plantuml.txt
-report0-plantuml.txt.latex.cache
-*_draft.aux
-*_draft.lof
-*_draft.lot
-*_draft.out
-*_draft.toc
+*.aux
+*.log
+*.toc
+*.lof
+*.lot
+*.out
+*.fdb_latexmk
+*.fls
+*.pytxcode
+*.tex
 latexmkrc
+
+# Images & Screenshots
+*.png
+*.jpg
+*.jpeg
+*.drawio.pdf
+
+# Tools
+plantuml.jar
 plantuml.sty
-compile.bat
-compile_linux.sh
-
-# ── Report screenshots / assets ─────────────────────
-admin-dashboard.png
-ai1.jpg
-ai2.jpg
-ai3.jpg
-group-chat.png
-group-chat-mobile.png
-login-screen.png
-login-screen-mobile.png
-logo.png
-main-chat.png
-main-chat-mobile.png
-register-screen.png
-register-screen-mobile.png
-usecase-overview.drawio.pdf
-
-# ── Maven wrapper JAR (do not commit) ───────────────
-.mvn/wrapper/maven-wrapper.jar
