@@ -12,7 +12,6 @@ import com.example.backend.user.entity.User;
 import com.example.backend.user.repository.UserRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,7 +29,6 @@ import java.util.stream.Collectors;
 
 @Service
 @Slf4j
-@RequiredArgsConstructor
 public class GroupAiServiceImpl implements GroupAiService {
 
     // UUID cố định cho AI Bot user (được seed qua V21 migration)
@@ -48,6 +46,9 @@ public class GroupAiServiceImpl implements GroupAiService {
     private final SimpMessagingTemplate messagingTemplate;
     private final ObjectMapper objectMapper;
 
+    @Autowired
+    private GroupAiServiceImpl self; // Self-proxy để gọi @Transactional/@CircuitBreaker
+
     @Value("${app.ai.system-prompt}")
     private String systemPrompt;
 
@@ -58,7 +59,11 @@ public class GroupAiServiceImpl implements GroupAiService {
                               UserRepository userRepository,
                               SimpMessagingTemplate messagingTemplate,
                               ObjectMapper objectMapper,
-                              @Value("${app.ai.system-prompt}") String systemPrompt) {
+                              @Value("${app.ai.system-prompt}") String systemPrompt,
+                              @Value("${spring.ai.openai.api-key:}") String apiKey) {
+        if (apiKey == null || apiKey.isBlank()) {
+            log.error("AI (Group): GROQ_API_KEY is missing! AI features will not work.");
+        }
         this.chatClient = chatClientBuilder
                 .defaultSystem(systemPrompt)
                 .build();
@@ -98,7 +103,7 @@ public class GroupAiServiceImpl implements GroupAiService {
                 """.formatted(context, lastMsg);
 
         try {
-            String raw = callAi(prompt);
+            String raw = self.callAi(prompt);
             List<String> suggestions = parseJsonArraySafe(raw);
             return SmartReplyResponse.builder().suggestions(suggestions).build();
         } catch (Exception e) {
@@ -153,7 +158,7 @@ public class GroupAiServiceImpl implements GroupAiService {
 
         String summary;
         try {
-            summary = callAi(prompt);
+            summary = self.callAi(prompt);
         } catch (Exception e) {
             log.warn("Summarize AI call failed: {}", e.getMessage());
             summary = "Không thể tạo tóm tắt lúc này. Vui lòng thử lại sau.";
@@ -199,13 +204,13 @@ public class GroupAiServiceImpl implements GroupAiService {
 
         String reply;
         try {
-            reply = callAi(userPrompt);
+            reply = self.callAi(userPrompt);
         } catch (Exception e) {
             log.warn("Bot mention AI call failed: {}", e.getMessage());
             reply = "Xin lỗi, tôi đang bận. Vui lòng thử lại sau nhé!";
         }
 
-        saveBotReply(groupId, reply);
+        self.saveBotReply(groupId, reply);
     }
 
     @Transactional
@@ -250,14 +255,14 @@ public class GroupAiServiceImpl implements GroupAiService {
     }
 
     @io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker(name = "aiService", fallbackMethod = "callAiFallback")
-    private String callAi(String prompt) {
+    public String callAi(String prompt) {
         return chatClient.prompt()
                 .user(prompt)
                 .call()
                 .content();
     }
 
-    private String callAiFallback(String prompt, Throwable t) {
+    public String callAiFallback(String prompt, Throwable t) {
         log.error("Group AI Circuit Breaker triggered: {}", t.getMessage());
         return "Hệ thống AI đang quá tải hoặc gặp sự cố. Vui lòng thử lại sau.";
     }

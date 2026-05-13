@@ -7,7 +7,6 @@ import com.example.backend.ai.repository.AiMessageRepository;
 import com.example.backend.shared.exception.ResourceNotFoundException;
 import com.example.backend.user.entity.User;
 import com.example.backend.user.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.AssistantMessage;
@@ -27,13 +26,15 @@ import java.util.stream.Collectors;
 
 @Service
 @Slf4j
-@RequiredArgsConstructor
 public class AiChatServiceImpl implements AiChatService {
 
     private final ChatClient chatClient;
     private final AiMessageRepository aiMessageRepository;
     private final UserRepository userRepository;
     private final com.example.backend.ai.mapper.AiMessageMapper aiMessageMapper;
+
+    @Autowired
+    private AiChatServiceImpl self; // Self-proxy để gọi @CircuitBreaker
 
     @Value("${app.ai.system-prompt}")
     private String systemPrompt;
@@ -43,7 +44,11 @@ public class AiChatServiceImpl implements AiChatService {
                              AiMessageRepository aiMessageRepository,
                              UserRepository userRepository,
                              com.example.backend.ai.mapper.AiMessageMapper aiMessageMapper,
-                             @Value("${app.ai.system-prompt}") String systemPrompt) {
+                             @Value("${app.ai.system-prompt}") String systemPrompt,
+                             @Value("${spring.ai.openai.api-key:}") String apiKey) {
+        if (apiKey == null || apiKey.isBlank()) {
+            log.error("AI (Dedicated): GROQ_API_KEY is missing!");
+        }
         this.chatClient = chatClientBuilder.defaultSystem(systemPrompt).build();
         this.aiMessageRepository = aiMessageRepository;
         this.userRepository = userRepository;
@@ -62,7 +67,7 @@ public class AiChatServiceImpl implements AiChatService {
         Collections.reverse(history);
 
         // Gọi AI - KHÔNG nằm trong Transaction
-        String assistantReply = callAi(history);
+        String assistantReply = self.callAi(history);
 
         // Lưu phản hồi AI - Transaction riêng
         AiMessage saved = saveAssistantMessage(user, assistantReply);
@@ -108,7 +113,7 @@ public class AiChatServiceImpl implements AiChatService {
     }
 
     @io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker(name = "aiService", fallbackMethod = "callAiFallback")
-    private String callAi(List<AiMessage> history) {
+    public String callAi(List<AiMessage> history) {
         List<Message> messages = history.stream()
                 .map(m -> "user".equals(m.getRole())
                         ? (Message) new UserMessage(m.getContent())
@@ -121,7 +126,7 @@ public class AiChatServiceImpl implements AiChatService {
                 .content();
     }
 
-    private String callAiFallback(List<AiMessage> history, Throwable t) {
+    public String callAiFallback(List<AiMessage> history, Throwable t) {
         log.error("AI Circuit Breaker triggered: {}", t.getMessage());
         return "Hệ thống AI đang gặp sự cố hoặc phản hồi chậm. Vui lòng thử lại sau giây lát.";
     }

@@ -47,6 +47,9 @@ public class ChatAiServiceImpl implements ChatAiService {
     private final ObjectMapper objectMapper;
     private final com.example.backend.messaging.mapper.MessageMapper messageMapper;
 
+    @Autowired
+    private ChatAiServiceImpl self; // Self-proxy để gọi @Transactional/@CircuitBreaker
+
     @Value("${app.ai.system-prompt}")
     private String systemPrompt;
 
@@ -58,7 +61,11 @@ public class ChatAiServiceImpl implements ChatAiService {
                              SimpMessagingTemplate messagingTemplate,
                              ObjectMapper objectMapper,
                              com.example.backend.messaging.mapper.MessageMapper messageMapper,
-                             @Value("${app.ai.system-prompt}") String systemPrompt) {
+                             @Value("${app.ai.system-prompt}") String systemPrompt,
+                             @Value("${spring.ai.openai.api-key:}") String apiKey) {
+        if (apiKey == null || apiKey.isBlank()) {
+            log.error("AI: GROQ_API_KEY is missing! AI features will not work.");
+        }
         this.chatClient = chatClientBuilder
                 .defaultSystem(systemPrompt)
                 .build();
@@ -101,10 +108,7 @@ public class ChatAiServiceImpl implements ChatAiService {
                 """.formatted(context, lastMsg);
 
         try {
-            String raw = chatClient.prompt()
-                    .user(prompt)
-                    .call()
-                    .content();
+            String raw = self.callAiService(prompt);
             List<String> suggestions = parseJsonArraySafe(raw);
             return SmartReplyResponse.builder().suggestions(suggestions).build();
         } catch (Exception e) {
@@ -161,10 +165,7 @@ public class ChatAiServiceImpl implements ChatAiService {
 
         String summary;
         try {
-            summary = chatClient.prompt()
-                    .user(prompt)
-                    .call()
-                    .content();
+            summary = self.callAiService(prompt);
         } catch (Exception e) {
             log.warn("Chat summarize AI call failed: {}", e.getMessage());
             summary = "Không thể tạo tóm tắt lúc này. Vui lòng thử lại sau.";
@@ -203,21 +204,27 @@ public class ChatAiServiceImpl implements ChatAiService {
                 "Hãy trả lời ngắn gọn, thân thiện, hữu ích. " +
                 "Dùng tiếng Việt nếu câu hỏi bằng tiếng Việt.";
 
-        String reply = callAiService(userPrompt);
+        String reply;
+        try {
+            reply = self.callAiService(userPrompt);
+        } catch (Exception e) {
+            log.error("AI Bot error processing mention: {}", e.getMessage());
+            reply = "Xin lỗi, tôi đang gặp chút sự cố kỹ thuật. Tôi sẽ quay lại sau!";
+        }
 
         // Lưu tin nhắn bot - Transaction riêng
-        saveBotReply(chatId, reply);
+        self.saveBotReply(chatId, reply);
     }
 
     @io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker(name = "aiService", fallbackMethod = "callAiFallback")
-    private String callAiService(String userPrompt) {
+    public String callAiService(String userPrompt) {
         return chatClient.prompt()
                 .user(userPrompt)
                 .call()
                 .content();
     }
 
-    private String callAiFallback(String userPrompt, Throwable t) {
+    public String callAiFallback(String userPrompt, Throwable t) {
         log.error("AI Bot Circuit Breaker triggered: {}", t.getMessage());
         return "Xin lỗi, tôi đang gặp chút sự cố kỹ thuật. Tôi sẽ quay lại sau!";
     }
