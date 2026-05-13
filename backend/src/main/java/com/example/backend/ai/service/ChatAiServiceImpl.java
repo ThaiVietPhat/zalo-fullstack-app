@@ -68,7 +68,9 @@ public class ChatAiServiceImpl implements ChatAiService {
                              @Value("${app.ai.system-prompt}") String systemPrompt,
                              @Value("${spring.ai.openai.api-key:}") String apiKey) {
         if (apiKey == null || apiKey.isBlank()) {
-            log.error("AI: GROQ_API_KEY is missing! AI features will not work.");
+            log.error("AI (Chat): GROQ_API_KEY is missing! AI features will not work.");
+        } else {
+            log.info("AI (Chat): API Key found (length: {})", apiKey.length());
         }
         this.chatClient = chatClientBuilder
                 .defaultSystem(systemPrompt)

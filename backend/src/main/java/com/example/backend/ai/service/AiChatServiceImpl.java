@@ -48,7 +48,9 @@ public class AiChatServiceImpl implements AiChatService {
                              @Value("${app.ai.system-prompt}") String systemPrompt,
                              @Value("${spring.ai.openai.api-key:}") String apiKey) {
         if (apiKey == null || apiKey.isBlank()) {
-            log.error("AI (Dedicated): GROQ_API_KEY is missing!");
+            log.error("AI (Dedicated): GROQ_API_KEY is missing! Please set it in environment variables.");
+        } else {
+            log.info("AI (Dedicated): API Key found (length: {})", apiKey.length());
         }
         this.chatClient = chatClientBuilder.defaultSystem(systemPrompt).build();
         this.aiMessageRepository = aiMessageRepository;
@@ -61,7 +63,7 @@ public class AiChatServiceImpl implements AiChatService {
         User user = getUser(auth);
 
         // Lưu tin nhắn user - Transaction riêng
-        saveUserMessage(user, request.getMessage());
+        self.saveUserMessage(user, request.getMessage());
 
         List<AiMessage> history = aiMessageRepository
                 .findTop20ByUserIdOrderByCreatedDateDesc(user.getId());
@@ -71,7 +73,7 @@ public class AiChatServiceImpl implements AiChatService {
         String assistantReply = self.callAi(history);
 
         // Lưu phản hồi AI - Transaction riêng
-        AiMessage saved = saveAssistantMessage(user, assistantReply);
+        AiMessage saved = self.saveAssistantMessage(user, assistantReply);
 
         return aiMessageMapper.toDto(saved);
     }

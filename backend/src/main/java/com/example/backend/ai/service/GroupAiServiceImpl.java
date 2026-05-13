@@ -66,6 +66,8 @@ public class GroupAiServiceImpl implements GroupAiService {
                               @Value("${spring.ai.openai.api-key:}") String apiKey) {
         if (apiKey == null || apiKey.isBlank()) {
             log.error("AI (Group): GROQ_API_KEY is missing! AI features will not work.");
+        } else {
+            log.info("AI (Group): API Key found (length: {})", apiKey.length());
         }
         this.chatClient = chatClientBuilder
                 .defaultSystem(systemPrompt)
