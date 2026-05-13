@@ -13,10 +13,12 @@ import com.example.backend.user.entity.User;
 import com.example.backend.user.repository.UserRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationContext;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Async;
@@ -32,6 +34,7 @@ import java.util.stream.Collectors;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class ChatAiServiceImpl implements ChatAiService {
 
     // UUID cố định cho AI Bot user (được seed qua V21 migration)
@@ -49,39 +52,10 @@ public class ChatAiServiceImpl implements ChatAiService {
     private final SimpMessagingTemplate messagingTemplate;
     private final ObjectMapper objectMapper;
     private final com.example.backend.messaging.mapper.MessageMapper messageMapper;
-
-    @Autowired
-    @org.springframework.context.annotation.Lazy
-    private ChatAiServiceImpl self; // Self-proxy để gọi @Transactional/@CircuitBreaker
+    private final ApplicationContext applicationContext;
 
     @Value("${app.ai.system-prompt}")
     private String systemPrompt;
-
-    @Autowired
-    public ChatAiServiceImpl(ChatClient.Builder chatClientBuilder,
-                             MessageRepository messageRepository,
-                             ChatRepository chatRepository,
-                             UserRepository userRepository,
-                             SimpMessagingTemplate messagingTemplate,
-                             ObjectMapper objectMapper,
-                             com.example.backend.messaging.mapper.MessageMapper messageMapper,
-                             @Value("${app.ai.system-prompt}") String systemPrompt,
-                             @Value("${spring.ai.openai.api-key:}") String apiKey) {
-        if (apiKey == null || apiKey.isBlank()) {
-            log.error("AI (Chat): GROQ_API_KEY is missing! AI features will not work.");
-        } else {
-            log.info("AI (Chat): API Key found (length: {})", apiKey.length());
-        }
-        this.chatClient = chatClientBuilder
-                .defaultSystem(systemPrompt)
-                .build();
-        this.messageRepository = messageRepository;
-        this.chatRepository = chatRepository;
-        this.userRepository = userRepository;
-        this.messagingTemplate = messagingTemplate;
-        this.objectMapper = objectMapper;
-        this.messageMapper = messageMapper;
-    }
 
     // ─── Feature 1: Smart Reply ───────────────────────────────────────────────
 
@@ -114,7 +88,7 @@ public class ChatAiServiceImpl implements ChatAiService {
                 """.formatted(context, lastMsg);
 
         try {
-            String raw = self.callAiService(prompt);
+            String raw = getSelf().callAiService(prompt);
             List<String> suggestions = parseJsonArraySafe(raw);
             return SmartReplyResponse.builder().suggestions(suggestions).build();
         } catch (Exception e) {
@@ -171,7 +145,7 @@ public class ChatAiServiceImpl implements ChatAiService {
 
         String summary;
         try {
-            summary = self.callAiService(prompt);
+            summary = getSelf().callAiService(prompt);
         } catch (Exception e) {
             log.warn("Chat summarize AI call failed: {}", e.getMessage());
             summary = "Không thể tạo tóm tắt lúc này. Vui lòng thử lại sau.";
@@ -193,7 +167,6 @@ public class ChatAiServiceImpl implements ChatAiService {
     public void handleBotMentionAsync(UUID chatId, String messageContent, String senderName) {
         log.info("AI Bot received @ai mention trigger for chat {}", chatId);
 
-        // Đảm bảo chạy sau khi transaction gốc commit để thấy tin nhắn mới nhất (nếu cần)
         if (TransactionSynchronizationManager.isActualTransactionActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
@@ -228,15 +201,14 @@ public class ChatAiServiceImpl implements ChatAiService {
 
         String reply;
         try {
-            reply = self.callAiService(userPrompt);
+            reply = getSelf().callAiService(userPrompt);
         } catch (Exception e) {
             log.error("AI Bot error during AI call: {}", e.getMessage());
             reply = "Xin lỗi, tôi đang gặp chút sự cố kỹ thuật. Tôi sẽ quay lại sau!";
         }
 
-        // Lưu tin nhắn bot - Transaction riêng
         try {
-            self.saveBotReply(chatId, reply);
+            getSelf().saveBotReply(chatId, reply);
         } catch (Exception e) {
             log.error("AI Bot failed to save/broadcast reply: {}", e.getMessage());
         }
@@ -293,6 +265,10 @@ public class ChatAiServiceImpl implements ChatAiService {
                     .build();
             return userRepository.saveAndFlush(bot);
         });
+    }
+
+    private ChatAiServiceImpl getSelf() {
+        return applicationContext.getBean(ChatAiServiceImpl.class);
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────────────
