@@ -51,6 +51,7 @@ public class ChatAiServiceImpl implements ChatAiService {
     private final com.example.backend.messaging.mapper.MessageMapper messageMapper;
 
     @Autowired
+    @org.springframework.context.annotation.Lazy
     private ChatAiServiceImpl self; // Self-proxy để gọi @Transactional/@CircuitBreaker
 
     @Value("${app.ai.system-prompt}")

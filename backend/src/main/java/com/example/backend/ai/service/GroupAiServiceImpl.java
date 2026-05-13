@@ -49,6 +49,7 @@ public class GroupAiServiceImpl implements GroupAiService {
     private final ObjectMapper objectMapper;
 
     @Autowired
+    @org.springframework.context.annotation.Lazy
     private GroupAiServiceImpl self; // Self-proxy để gọi @Transactional/@CircuitBreaker
 
     @Value("${app.ai.system-prompt}")

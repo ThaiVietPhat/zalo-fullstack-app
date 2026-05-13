@@ -34,6 +34,7 @@ public class AiChatServiceImpl implements AiChatService {
     private final com.example.backend.ai.mapper.AiMessageMapper aiMessageMapper;
 
     @Autowired
+    @org.springframework.context.annotation.Lazy
     private AiChatServiceImpl self; // Self-proxy để gọi @CircuitBreaker
 
     @Value("${app.ai.system-prompt}")
