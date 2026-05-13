@@ -52,9 +52,6 @@ public class GroupAiServiceImpl implements GroupAiService {
     private final ObjectMapper objectMapper;
     private final ApplicationContext applicationContext;
 
-    @Value("${app.ai.system-prompt}")
-    private String systemPrompt;
-
     // ─── Feature 1: Smart Reply ───────────────────────────────────────────────
 
     @Override

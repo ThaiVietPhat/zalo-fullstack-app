@@ -54,9 +54,6 @@ public class ChatAiServiceImpl implements ChatAiService {
     private final com.example.backend.messaging.mapper.MessageMapper messageMapper;
     private final ApplicationContext applicationContext;
 
-    @Value("${app.ai.system-prompt}")
-    private String systemPrompt;
-
     // ─── Feature 1: Smart Reply ───────────────────────────────────────────────
 
     @Override

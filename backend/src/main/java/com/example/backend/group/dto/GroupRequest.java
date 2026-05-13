@@ -49,6 +49,7 @@ public class GroupRequest {
         @NotBlank(message = "Nội dung tin nhắn không được để trống")
         private String content;
 
+        @Builder.Default
         private MessageType type = MessageType.TEXT;
     }
 }

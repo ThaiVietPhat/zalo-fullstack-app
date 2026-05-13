@@ -37,9 +37,11 @@ public class Chat extends BaseAuditingEntity {
     private User user2;
 
     @Column(name = "deleted_by_user1", nullable = false)
+    @Builder.Default
     private boolean deletedByUser1 = false;
 
     @Column(name = "deleted_by_user2", nullable = false)
+    @Builder.Default
     private boolean deletedByUser2 = false;
 
     /** Thời điểm user1 xóa chat — dùng để lọc tin nhắn cũ khi mở lại */

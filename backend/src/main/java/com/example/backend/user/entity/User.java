@@ -44,9 +44,11 @@ public class User extends BaseAuditingEntity {
     private LocalDateTime lastSeen;
 
     @Column(nullable = false)
+    @Builder.Default
     private String role = "USER";
 
     @Column(nullable = false)
+    @Builder.Default
     private boolean banned = false;
 
     @Column(name = "ban_reason", length = 500)
@@ -59,12 +61,14 @@ public class User extends BaseAuditingEntity {
     private LocalDateTime bannedAt;
 
     @Column(name = "is_online", nullable = false)
+    @Builder.Default
     private boolean online = false;
 
     @Column(name = "avatar_url")
     private String avatarUrl;
 
     @Column(name = "email_verified", nullable = false)
+    @Builder.Default
     private boolean emailVerified = false;
 
     @Column(name = "verification_code", length = 6)
@@ -80,6 +84,7 @@ public class User extends BaseAuditingEntity {
     private LocalDateTime resetPasswordCodeExpiry;
 
     @Column(name = "token_version", nullable = false)
+    @Builder.Default
     private int tokenVersion = 1;
 
     @Transient

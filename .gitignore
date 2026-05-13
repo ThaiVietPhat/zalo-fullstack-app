@@ -26,7 +26,7 @@ dist/
 railway-env.local
 
 # Documents & Artifacts
-report*
+/report*
 *.pdf
 *.docx
 *.aux

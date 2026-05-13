@@ -15,5 +15,6 @@ public class ResolveReportRequest {
     /** Ghi chú xử lý (tuỳ chọn) */
     private String resolution;
     /** NONE | BAN_1_DAY | BAN_7_DAYS | BAN_30_DAYS | BAN_PERMANENT */
+    @Builder.Default
     private String banAction = "NONE";
 }
