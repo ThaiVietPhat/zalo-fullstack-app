@@ -2,6 +2,7 @@ package com.example.backend.ai.service;
 
 import com.example.backend.ai.dto.SmartReplyResponse;
 import com.example.backend.ai.dto.SummarizeResponse;
+import com.example.backend.chat.entity.Chat;
 import com.example.backend.chat.repository.ChatRepository;
 import com.example.backend.messaging.dto.MessageDto;
 import com.example.backend.messaging.entity.Message;
@@ -21,6 +22,8 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -185,6 +188,22 @@ public class ChatAiServiceImpl implements ChatAiService {
     @Override
     @Async
     public void handleBotMentionAsync(UUID chatId, String messageContent, String senderName) {
+        log.info("AI Bot received @ai mention trigger for chat {}", chatId);
+
+        // Đảm bảo chạy sau khi transaction gốc commit để thấy tin nhắn mới nhất (nếu cần)
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    processBotMention(chatId, messageContent, senderName);
+                }
+            });
+        } else {
+            processBotMention(chatId, messageContent, senderName);
+        }
+    }
+
+    private void processBotMention(UUID chatId, String messageContent, String senderName) {
         log.info("AI Bot processing @ai mention in chat {} from {}", chatId, senderName);
 
         List<Message> contextMsgs = messageRepository
@@ -208,12 +227,16 @@ public class ChatAiServiceImpl implements ChatAiService {
         try {
             reply = self.callAiService(userPrompt);
         } catch (Exception e) {
-            log.error("AI Bot error processing mention: {}", e.getMessage());
+            log.error("AI Bot error during AI call: {}", e.getMessage());
             reply = "Xin lỗi, tôi đang gặp chút sự cố kỹ thuật. Tôi sẽ quay lại sau!";
         }
 
         // Lưu tin nhắn bot - Transaction riêng
-        self.saveBotReply(chatId, reply);
+        try {
+            self.saveBotReply(chatId, reply);
+        } catch (Exception e) {
+            log.error("AI Bot failed to save/broadcast reply: {}", e.getMessage());
+        }
     }
 
     @io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker(name = "aiService", fallbackMethod = "callAiFallback")
@@ -231,17 +254,9 @@ public class ChatAiServiceImpl implements ChatAiService {
 
     @Transactional
     public void saveBotReply(UUID chatId, String reply) {
-        User botUser = userRepository.findById(AI_BOT_USER_ID).orElse(null);
-        if (botUser == null) {
-            log.error("AI Bot user not found in DB (id={}). Hãy chạy migration V21.", AI_BOT_USER_ID);
-            return;
-        }
-
-        com.example.backend.chat.entity.Chat chat = chatRepository.findById(chatId).orElse(null);
-        if (chat == null) {
-            log.warn("Chat {} not found, aborting AI bot reply", chatId);
-            return;
-        }
+        User botUser = getOrCreateBotUser();
+        Chat chat = chatRepository.findById(chatId)
+                .orElseThrow(() -> new RuntimeException("Chat not found: " + chatId));
 
         Message botMsg = Message.builder()
                 .chat(chat)
@@ -250,13 +265,31 @@ public class ChatAiServiceImpl implements ChatAiService {
                 .type(MessageType.TEXT)
                 .state(MessageState.SENT)
                 .build();
-        Message saved = messageRepository.save(botMsg);
+        Message saved = messageRepository.saveAndFlush(botMsg);
 
         MessageDto dto = messageMapper.toDto(saved);
         dto.setSenderName(AI_BOT_NAME);
 
         messagingTemplate.convertAndSend("/topic/chat/" + chatId, dto);
-        log.info("AI Bot replied to chat {}", chatId);
+        log.info("AI Bot replied successfully to chat {}", chatId);
+    }
+
+    private User getOrCreateBotUser() {
+        return userRepository.findById(AI_BOT_USER_ID).orElseGet(() -> {
+            log.warn("AI Bot user missing in DB, creating now...");
+            User bot = User.builder()
+                    .id(AI_BOT_USER_ID)
+                    .firstName("Trợ lý")
+                    .lastName("AI")
+                    .email("ai-bot@system.local")
+                    .password("")
+                    .emailVerified(true)
+                    .online(false)
+                    .role("USER")
+                    .tokenVersion(1)
+                    .build();
+            return userRepository.saveAndFlush(bot);
+        });
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────────────

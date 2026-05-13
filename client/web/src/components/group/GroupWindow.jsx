@@ -42,7 +42,7 @@ function GroupMessageBubble({ message, groupId, isAdmin }) {
   const [imagePreview, setImagePreview] = useState(null);
 
   const isMine = message.senderId === auth?.userId;
-  const isBot = message.senderId === AI_BOT_USER_ID;
+  const isBot = message.senderId?.toString() === AI_BOT_USER_ID;
   const BASE_URL = import.meta.env.VITE_API_URL || '';
 
   if (message.type === 'SYSTEM') {

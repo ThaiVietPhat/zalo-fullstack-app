@@ -21,6 +21,8 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -74,6 +76,8 @@ public class GroupAiServiceImpl implements GroupAiService {
         this.objectMapper = objectMapper;
     }
 
+    // ─── Feature 1: Smart Reply ───────────────────────────────────────────────
+
     @Override
     @Transactional(readOnly = true)
     public SmartReplyResponse getSmartReplies(UUID groupId) {
@@ -113,6 +117,8 @@ public class GroupAiServiceImpl implements GroupAiService {
                     .build();
         }
     }
+
+    // ─── Feature 2: Summarize ─────────────────────────────────────────────────
 
     @Override
     @Transactional(readOnly = true)
@@ -183,6 +189,21 @@ public class GroupAiServiceImpl implements GroupAiService {
     @Override
     @Async
     public void handleBotMentionAsync(UUID groupId, String messageContent, String senderName) {
+        log.info("AI Bot received @ai mention trigger for group {}", groupId);
+
+        if (TransactionSynchronizationManager.isActualTransactionActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    processBotMention(groupId, messageContent, senderName);
+                }
+            });
+        } else {
+            processBotMention(groupId, messageContent, senderName);
+        }
+    }
+
+    private void processBotMention(UUID groupId, String messageContent, String senderName) {
         log.info("AI Bot processing mention in group {} from {}", groupId, senderName);
 
         List<GroupMessage> contextMsgs = groupMessageRepository
@@ -210,22 +231,17 @@ public class GroupAiServiceImpl implements GroupAiService {
             reply = "Xin lỗi, tôi đang bận. Vui lòng thử lại sau nhé!";
         }
 
-        self.saveBotReply(groupId, reply);
+        try {
+            self.saveBotReply(groupId, reply);
+        } catch (Exception e) {
+            log.error("AI Bot failed to save group reply: {}", e.getMessage());
+        }
     }
 
     @Transactional
     public void saveBotReply(UUID groupId, String reply) {
-        User botUser = userRepository.findById(AI_BOT_USER_ID).orElse(null);
-        if (botUser == null) {
-            log.error("AI Bot user not found in DB (id={}). Hãy chạy migration V21.", AI_BOT_USER_ID);
-            return;
-        }
-
-        Group group = groupRepository.findById(groupId).orElse(null);
-        if (group == null) {
-            log.warn("Group {} not found, aborting AI bot reply", groupId);
-            return;
-        }
+        User botUser = getOrCreateBotUser();
+        Group group = groupRepository.findById(groupId).orElseThrow(() -> new RuntimeException("Group not found: " + groupId));
 
         GroupMessage botMsg = GroupMessage.builder()
                 .group(group)
@@ -233,7 +249,7 @@ public class GroupAiServiceImpl implements GroupAiService {
                 .content(reply)
                 .type(MessageType.TEXT)
                 .build();
-        GroupMessage saved = groupMessageRepository.save(botMsg);
+        GroupMessage saved = groupMessageRepository.saveAndFlush(botMsg);
 
         GroupMessageDto dto = GroupMessageDto.builder()
                 .id(saved.getId())
@@ -251,7 +267,25 @@ public class GroupAiServiceImpl implements GroupAiService {
                 .build();
 
         messagingTemplate.convertAndSend("/topic/group/" + groupId, dto);
-        log.info("AI Bot replied to group {}", groupId);
+        log.info("AI Bot replied successfully to group {}", groupId);
+    }
+
+    private User getOrCreateBotUser() {
+        return userRepository.findById(AI_BOT_USER_ID).orElseGet(() -> {
+            log.warn("AI Bot user missing in DB, creating now...");
+            User bot = User.builder()
+                    .id(AI_BOT_USER_ID)
+                    .firstName("Trợ lý")
+                    .lastName("AI")
+                    .email("ai-bot@system.local")
+                    .password("")
+                    .emailVerified(true)
+                    .online(false)
+                    .role("USER")
+                    .tokenVersion(1)
+                    .build();
+            return userRepository.saveAndFlush(bot);
+        });
     }
 
     @io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker(name = "aiService", fallbackMethod = "callAiFallback")
