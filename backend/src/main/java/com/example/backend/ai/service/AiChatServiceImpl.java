@@ -13,6 +13,7 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -26,13 +27,24 @@ import java.util.stream.Collectors;
 
 @Service
 @Slf4j
-@RequiredArgsConstructor
 public class AiChatServiceImpl implements AiChatService {
 
     private final ChatClient chatClient;
     private final AiMessageRepository aiMessageRepository;
     private final UserRepository userRepository;
     private final com.example.backend.ai.mapper.AiMessageMapper aiMessageMapper;
+
+    @Autowired
+    public AiChatServiceImpl(ChatClient.Builder chatClientBuilder,
+                             AiMessageRepository aiMessageRepository,
+                             UserRepository userRepository,
+                             com.example.backend.ai.mapper.AiMessageMapper aiMessageMapper,
+                             @Value("${app.ai.system-prompt}") String systemPrompt) {
+        this.chatClient = chatClientBuilder.defaultSystem(systemPrompt).build();
+        this.aiMessageRepository = aiMessageRepository;
+        this.userRepository = userRepository;
+        this.aiMessageMapper = aiMessageMapper;
+    }
 
     @Override
     public AiMessageDto sendMessage(AiChatRequest request, Authentication auth) {
