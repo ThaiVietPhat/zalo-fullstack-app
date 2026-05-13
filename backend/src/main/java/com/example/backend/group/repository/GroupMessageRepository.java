@@ -64,7 +64,7 @@ public interface GroupMessageRepository extends JpaRepository<GroupMessage, UUID
      * Lấy N tin nhắn gần nhất của nhóm (dùng cho AI tóm tắt / trả lời câu hỏi về nhóm).
      * Trả về DESC → service sẽ reverse lại thành ASC trước khi đưa cho AI.
      */
-    @Query("SELECT m FROM GroupMessage m " +
+    @Query("SELECT m FROM GroupMessage m JOIN FETCH m.sender " +
             "WHERE m.group.id = :groupId " +
             "AND m.deleted = false " +
             "AND (m.type = com.example.backend.messaging.enums.MessageType.TEXT " +
@@ -77,7 +77,7 @@ public interface GroupMessageRepository extends JpaRepository<GroupMessage, UUID
     /**
      * Lấy tin nhắn trong khoảng thời gian cụ thể (dùng khi user hỏi "tóm tắt hôm nay", "2 giờ qua", v.v.)
      */
-    @Query("SELECT m FROM GroupMessage m " +
+    @Query("SELECT m FROM GroupMessage m JOIN FETCH m.sender " +
             "WHERE m.group.id = :groupId " +
             "AND m.deleted = false " +
             "AND m.createdDate BETWEEN :from AND :to " +

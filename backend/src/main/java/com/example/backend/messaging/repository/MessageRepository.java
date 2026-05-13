@@ -101,7 +101,7 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
      * Lấy N tin nhắn TEXT gần nhất của chat 1-1 (dùng cho AI smart reply / bot mention).
      * Trả về DESC → service sẽ reverse lại thành ASC trước khi đưa cho AI.
      */
-    @Query("SELECT m FROM Message m WHERE m.chat.id = :chatId AND m.deleted = false " +
+    @Query("SELECT m FROM Message m JOIN FETCH m.sender WHERE m.chat.id = :chatId AND m.deleted = false " +
            "AND m.type = com.example.backend.messaging.enums.MessageType.TEXT " +
            "ORDER BY m.createdDate DESC")
     List<Message> findRecentTextMessagesForAi(@Param("chatId") UUID chatId, Pageable pageable);
@@ -109,7 +109,7 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
     /**
      * Lấy tin nhắn TEXT trong khoảng thời gian cụ thể (dùng cho AI tóm tắt).
      */
-    @Query("SELECT m FROM Message m WHERE m.chat.id = :chatId AND m.deleted = false " +
+    @Query("SELECT m FROM Message m JOIN FETCH m.sender WHERE m.chat.id = :chatId AND m.deleted = false " +
            "AND m.createdDate BETWEEN :from AND :to " +
            "AND m.type = com.example.backend.messaging.enums.MessageType.TEXT " +
            "ORDER BY m.createdDate ASC")

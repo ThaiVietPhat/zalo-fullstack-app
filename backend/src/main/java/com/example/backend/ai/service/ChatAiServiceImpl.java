@@ -160,7 +160,6 @@ public class ChatAiServiceImpl implements ChatAiService {
     // ─── Feature 3: @AI Bot ───────────────────────────────────────────────────
 
     @Override
-    @Async
     public void handleBotMentionAsync(UUID chatId, String messageContent, String senderName) {
         log.info("AI Bot received @ai mention trigger for chat {}", chatId);
 
@@ -168,15 +167,16 @@ public class ChatAiServiceImpl implements ChatAiService {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
-                    processBotMention(chatId, messageContent, senderName);
+                    getSelf().processBotMentionAsync(chatId, messageContent, senderName);
                 }
             });
         } else {
-            processBotMention(chatId, messageContent, senderName);
+            getSelf().processBotMentionAsync(chatId, messageContent, senderName);
         }
     }
 
-    private void processBotMention(UUID chatId, String messageContent, String senderName) {
+    @Async
+    public void processBotMentionAsync(UUID chatId, String messageContent, String senderName) {
         log.info("AI Bot processing @ai mention in chat {} from {}", chatId, senderName);
 
         List<Message> contextMsgs = messageRepository

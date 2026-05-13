@@ -163,7 +163,6 @@ public class GroupAiServiceImpl implements GroupAiService {
     }
 
     @Override
-    @Async
     public void handleBotMentionAsync(UUID groupId, String messageContent, String senderName) {
         log.info("AI Bot received @ai mention trigger for group {}", groupId);
 
@@ -171,15 +170,16 @@ public class GroupAiServiceImpl implements GroupAiService {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
-                    processBotMention(groupId, messageContent, senderName);
+                    getSelf().processBotMentionAsync(groupId, messageContent, senderName);
                 }
             });
         } else {
-            processBotMention(groupId, messageContent, senderName);
+            getSelf().processBotMentionAsync(groupId, messageContent, senderName);
         }
     }
 
-    private void processBotMention(UUID groupId, String messageContent, String senderName) {
+    @Async
+    public void processBotMentionAsync(UUID groupId, String messageContent, String senderName) {
         log.info("AI Bot processing mention in group {} from {}", groupId, senderName);
 
         List<GroupMessage> contextMsgs = groupMessageRepository
