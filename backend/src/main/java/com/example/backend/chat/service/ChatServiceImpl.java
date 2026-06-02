@@ -35,6 +35,12 @@ public class ChatServiceImpl implements ChatService {
     private final MessageMapper messageMapper;
     private final BlockService blockService;
     private final OnlineStatusService onlineStatusService;
+    private final org.springframework.cache.CacheManager cacheManager;
+
+    private void evictChatsCache(String email) {
+        var cache = cacheManager.getCache("chats");
+        if (cache != null) cache.evict(email);
+    }
 
     @Override
     @Cacheable(value = "chats", key = "#currentUser.name")
@@ -86,7 +92,7 @@ public class ChatServiceImpl implements ChatService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        Chat chat = chatRepository.findById(chatId)
+        Chat chat = chatRepository.findChatWithUsersById(chatId)
                 .orElseThrow(() -> new ResourceNotFoundException("Chat not found with id: " + chatId));
 
         if (!chat.containsUser(user.getId())) {
@@ -97,7 +103,6 @@ public class ChatServiceImpl implements ChatService {
     }
 
     @Override
-    @CacheEvict(value = "chats", key = "#currentUser.name")
     @Transactional
     public ChatDto getOrCreateChat(UUID otherUserId, Authentication currentUser) {
         String email = currentUser.getName();
@@ -119,6 +124,9 @@ public class ChatServiceImpl implements ChatService {
                             .build();
                     return chatRepository.save(newChat);
                 });
+
+        evictChatsCache(user.getEmail());
+        evictChatsCache(otherUser.getEmail());
 
         return mapChatToDto(chat, user);
     }

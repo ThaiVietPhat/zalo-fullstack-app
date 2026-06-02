@@ -26,6 +26,13 @@ public interface ChatRepository extends JpaRepository<Chat, UUID> {
     Optional<Chat> findChatBetweenTwoUsers(@Param("user1Id") UUID user1Id, 
                                            @Param("user2Id") UUID user2Id);
 
+    @Query("SELECT c FROM Chat c " +
+           "LEFT JOIN FETCH c.user1 " +
+           "LEFT JOIN FETCH c.user2 " +
+           "WHERE c.id = :chatId")
+    Optional<Chat> findChatWithUsersById(@Param("chatId") UUID chatId);
+
+
     /**
      * Optimized query to fetch chat list with unread count and last message.
      * Returns a list of Object[] where:
