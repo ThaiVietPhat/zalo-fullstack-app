@@ -27,6 +27,8 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -40,7 +42,7 @@ public class GroupAiServiceImpl implements GroupAiService {
     public static final UUID AI_BOT_USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
     public static final String AI_BOT_NAME = "Trợ lý AI";
 
-    private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm dd/MM");
+    private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm dd/MM").withZone(ZoneId.of("Asia/Ho_Chi_Minh"));
     private static final int CONTEXT_MSG_LIMIT = 30;
     private static final int SUMMARIZE_MAX_MSGS = 100;
 
@@ -98,8 +100,8 @@ public class GroupAiServiceImpl implements GroupAiService {
 
     @Override
     @Transactional(readOnly = true)
-    public SummarizeResponse summarize(UUID groupId, LocalDateTime since) {
-        LocalDateTime to = LocalDateTime.now();
+    public SummarizeResponse summarize(UUID groupId, Instant since) {
+        Instant to = Instant.now();
 
         List<GroupMessage> messages = groupMessageRepository
                 .findMessagesForAiByDateRange(groupId, since, to);
@@ -121,7 +123,7 @@ public class GroupAiServiceImpl implements GroupAiService {
         String context = sample.stream()
                 .filter(m -> m.getContent() != null && !m.getContent().isBlank())
                 .map(m -> "[%s] %s: %s".formatted(
-                        m.getCreatedDate().format(TIME_FMT),
+                        TIME_FMT.format(m.getCreatedDate()),
                         m.getSender().getFirstName() + " " + m.getSender().getLastName(),
                         m.getContent()))
                 .collect(Collectors.joining("\n"));
@@ -136,7 +138,7 @@ public class GroupAiServiceImpl implements GroupAiService {
                 - Các chủ đề chính được thảo luận
                 - Quyết định hoặc kết luận quan trọng (nếu có)
                 Trả lời bằng tiếng Việt.
-                """.formatted(since.format(TIME_FMT), to.format(TIME_FMT), messages.size(), context);
+                """.formatted(TIME_FMT.format(since), TIME_FMT.format(to), messages.size(), context);
 
         String summary;
         try {

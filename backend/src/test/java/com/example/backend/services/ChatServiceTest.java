@@ -12,6 +12,7 @@ import com.example.backend.shared.exception.UnauthorizedException;
 import com.example.backend.user.entity.User;
 import com.example.backend.user.repository.UserRepository;
 import com.example.backend.user.service.BlockService;
+import com.example.backend.shared.service.OnlineStatusService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -39,6 +40,7 @@ class ChatServiceTest {
     @Mock UserRepository userRepository;
     @Mock MessageMapper messageMapper;
     @Mock BlockService blockService;
+    @Mock OnlineStatusService onlineStatusService;
     @Mock Authentication authentication;
 
     @InjectMocks ChatServiceImpl chatService;
@@ -78,10 +80,11 @@ class ChatServiceTest {
     }
 
     private void stubChatMapping(Chat c, ChatDto dto) {
-        when(chatMapper.toDto(c)).thenReturn(dto);
-        when(messageRepository.countUnreadMessages(any(), any())).thenReturn(0);
-        when(messageRepository.findTop1ByChatIdOrderByCreatedDateDesc(any())).thenReturn(Optional.empty());
-        when(blockService.isBlockedByMe(any(), any())).thenReturn(false);
+        lenient().when(chatMapper.toDto(c)).thenReturn(dto);
+        lenient().when(messageRepository.countUnreadMessages(any(), any())).thenReturn(0);
+        lenient().when(messageRepository.findTop1ByChatIdOrderByCreatedDateDesc(any())).thenReturn(Optional.empty());
+        lenient().when(blockService.isBlockedByMe(any(), any())).thenReturn(false);
+        lenient().when(onlineStatusService.isOnline(any())).thenReturn(false);
     }
 
     // ─── getChatByReceiverId ──────────────────────────────────────────────────
@@ -90,7 +93,15 @@ class ChatServiceTest {
     @DisplayName("getChatByReceiverId() - trả về danh sách chat")
     void getChatByReceiverId_success() {
         when(userRepository.findByEmail("user1@gmail.com")).thenReturn(Optional.of(user1));
-        when(chatRepository.findAllChatsByUserId(user1.getId())).thenReturn(List.of(chat));
+        Object[] summary = new Object[] {
+            chat,
+            0L,
+            "Hello",
+            com.example.backend.messaging.enums.MessageType.TEXT,
+            java.time.Instant.now()
+        };
+        List<Object[]> summaryList = java.util.Collections.singletonList(summary);
+        when(chatRepository.findAllChatsWithSummaryByUserId(user1.getId())).thenReturn(summaryList);
         stubChatMapping(chat, chatDto);
 
         List<ChatDto> result = chatService.getChatByReceiverId(authentication);

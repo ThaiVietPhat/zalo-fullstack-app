@@ -3,7 +3,10 @@ package com.example.backend.services;
 import com.example.backend.auth.dto.AuthRequest;
 import com.example.backend.auth.dto.AuthResponse;
 import com.example.backend.auth.service.AuthService;
+import com.example.backend.auth.service.AuthServiceImpl;
 import com.example.backend.auth.service.EmailService;
+import com.example.backend.shared.service.OnlineStatusService;
+import com.example.backend.shared.service.TokenBlacklistService;
 import com.example.backend.messaging.service.NotificationService;
 import com.example.backend.security.service.JwtService;
 import com.example.backend.shared.exception.AccountBannedException;
@@ -36,8 +39,10 @@ class AuthServiceTest {
     @Mock JwtService jwtService;
     @Mock EmailService emailService;
     @Mock NotificationService notificationService;
+    @Mock OnlineStatusService onlineStatusService;
+    @Mock TokenBlacklistService tokenBlacklistService;
 
-    @InjectMocks AuthService authService;
+    @InjectMocks AuthServiceImpl authService;
 
     private User verifiedUser;
     private User unverifiedUser;
@@ -226,7 +231,7 @@ class AuthServiceTest {
 
         assertThat(res.getAccessToken()).isEqualTo("access-token");
         assertThat(res.getEmail()).isEqualTo("verified@gmail.com");
-        assertThat(verifiedUser.isOnline()).isTrue();
+        verify(onlineStatusService).setOnline(verifiedUser.getId());
         verify(notificationService).sendForceLogout(eq("verified@gmail.com"), any());
     }
 

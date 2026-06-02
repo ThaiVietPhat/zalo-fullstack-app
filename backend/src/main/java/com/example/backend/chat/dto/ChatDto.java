@@ -3,7 +3,7 @@ package com.example.backend.chat.dto;
 import com.example.backend.messaging.enums.MessageType;
 import lombok.*;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 @Getter
@@ -18,7 +18,7 @@ public class ChatDto {
     private String chatName;
     private String lastMessage;
     private MessageType lastMessageType;
-    private LocalDateTime lastMessageTime;
+    private Instant lastMessageTime;
     private long unreadCount;
     private boolean recipientOnline;
     private String recipientLastSeenText;

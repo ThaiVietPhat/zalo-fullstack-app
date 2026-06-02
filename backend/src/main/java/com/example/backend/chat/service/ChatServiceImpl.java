@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -50,7 +51,7 @@ public class ChatServiceImpl implements ChatService {
                     Long unreadCount = (Long) row[1];
                     String lastContent = (String) row[2];
                     com.example.backend.messaging.enums.MessageType lastType = (com.example.backend.messaging.enums.MessageType) row[3];
-                    java.time.LocalDateTime lastTime = (java.time.LocalDateTime) row[4];
+                    java.time.Instant lastTime = (java.time.Instant) row[4];
 
                     ChatDto dto = chatMapper.toDto(chat);
                     dto.setChatName(chat.getChatName(user.getId()));
@@ -138,7 +139,7 @@ public class ChatServiceImpl implements ChatService {
         }
 
         // Soft-delete: chỉ ẩn phía user này, lưu timestamp để lọc tin nhắn cũ khi mở lại
-        LocalDateTime now = LocalDateTime.now();
+        Instant now = Instant.now();
         if (chat.getUser1().getId().equals(user.getId())) {
             chat.setDeletedByUser1(true);
             chat.setDeletedAtByUser1(now);

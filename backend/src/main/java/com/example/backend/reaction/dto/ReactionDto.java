@@ -2,7 +2,7 @@ package com.example.backend.reaction.dto;
 
 import lombok.*;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 @Data @Builder @NoArgsConstructor @AllArgsConstructor
@@ -11,5 +11,5 @@ public class ReactionDto {
     private UUID userId;
     private String userFullName;
     private String emoji;
-    private LocalDateTime createdDate;
+    private Instant createdDate;
 }

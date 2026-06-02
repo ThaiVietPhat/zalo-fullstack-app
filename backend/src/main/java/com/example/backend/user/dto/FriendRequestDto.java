@@ -2,7 +2,7 @@ package com.example.backend.user.dto;
 
 import lombok.*;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 @Getter @Setter @Builder @AllArgsConstructor @NoArgsConstructor
@@ -18,5 +18,5 @@ public class FriendRequestDto {
     private String receiverEmail;
     private String receiverAvatarUrl;
     private String status;
-    private LocalDateTime createdDate;
+    private Instant createdDate;
 }

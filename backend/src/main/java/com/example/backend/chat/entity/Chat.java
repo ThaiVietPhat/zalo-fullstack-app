@@ -7,7 +7,7 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UuidGenerator;
 import org.hibernate.type.SqlTypes;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 import com.example.backend.shared.entity.BaseAuditingEntity;
 import com.example.backend.user.entity.User;
@@ -46,15 +46,15 @@ public class Chat extends BaseAuditingEntity {
 
     /** Thời điểm user1 xóa chat — dùng để lọc tin nhắn cũ khi mở lại */
     @Column(name = "deleted_at_by_user1")
-    private LocalDateTime deletedAtByUser1;
+    private Instant deletedAtByUser1;
 
     /** Thời điểm user2 xóa chat — dùng để lọc tin nhắn cũ khi mở lại */
     @Column(name = "deleted_at_by_user2")
-    private LocalDateTime deletedAtByUser2;
+    private Instant deletedAtByUser2;
 
     /** Trả về timestamp xóa của user hiện tại (null nếu chưa xóa) */
     @Transient
-    public LocalDateTime getDeletedAtFor(UUID userId) {
+    public Instant getDeletedAtFor(UUID userId) {
         if (user1.getId().equals(userId)) return deletedAtByUser1;
         if (user2.getId().equals(userId)) return deletedAtByUser2;
         return null;

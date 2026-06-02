@@ -2,7 +2,7 @@ package com.example.backend.admin.dto;
 
 import lombok.*;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 @Data @Builder @NoArgsConstructor @AllArgsConstructor
@@ -13,5 +13,5 @@ public class AdminGroupDto {
     private int memberCount;
     private UUID createdById;
     private String createdByName;
-    private LocalDateTime createdDate;
+    private Instant createdDate;
 }

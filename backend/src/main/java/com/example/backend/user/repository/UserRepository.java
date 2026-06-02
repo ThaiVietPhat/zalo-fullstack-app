@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -32,5 +33,5 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     List<User> findByRole(String role);
 
     @Query("SELECT DATE(u.createdDate), COUNT(u) FROM User u WHERE u.createdDate >= :since GROUP BY DATE(u.createdDate)")
-    List<Object[]> countDailyNewUsers(@Param("since") LocalDateTime since);
+    List<Object[]> countDailyNewUsers(@Param("since") Instant since);
 }

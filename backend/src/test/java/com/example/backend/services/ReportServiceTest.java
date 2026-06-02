@@ -10,6 +10,9 @@ import com.example.backend.report.entity.Report;
 import com.example.backend.report.entity.ReportStatus;
 import com.example.backend.report.repository.ReportRepository;
 import com.example.backend.report.service.ReportService;
+import com.example.backend.report.service.ReportServiceImpl;
+import com.example.backend.file.service.FileStorageService;
+import com.example.backend.report.mapper.ReportMapper;
 import com.example.backend.shared.exception.ResourceNotFoundException;
 import com.example.backend.user.entity.User;
 import com.example.backend.user.repository.UserRepository;
@@ -40,8 +43,10 @@ class ReportServiceTest {
     @Mock UserRepository userRepository;
     @Mock NotificationService notificationService;
     @Mock AuditLogRepository auditLogRepository;
+    @Mock FileStorageService fileStorageService;
+    @Mock ReportMapper reportMapper;
 
-    @InjectMocks ReportService reportService;
+    @InjectMocks ReportServiceImpl reportService;
 
     private User reporter;
     private User reported;
@@ -80,6 +85,10 @@ class ReportServiceTest {
                 .reason("Spam")
                 .status(ReportStatus.PENDING)
                 .build();
+
+        ReportDto reportDto = new ReportDto();
+        reportDto.setReason("Spam");
+        lenient().when(reportMapper.toDto(any(Report.class))).thenReturn(reportDto);
     }
 
     // ─── createReport ─────────────────────────────────────────────────────────

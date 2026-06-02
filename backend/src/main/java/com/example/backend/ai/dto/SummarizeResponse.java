@@ -2,7 +2,7 @@ package com.example.backend.ai.dto;
 
 import lombok.Builder;
 import lombok.Data;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 
 @Data
@@ -11,6 +11,6 @@ public class SummarizeResponse {
     private String summary;
     private int messageCount;
     private List<String> topSpeakers; // "Minh (18 tin)"
-    private LocalDateTime from;
-    private LocalDateTime to;
+    private Instant from;
+    private Instant to;
 }

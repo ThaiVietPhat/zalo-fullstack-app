@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -189,7 +190,7 @@ public class AdminServiceImpl implements AdminService {
         long totalMessages = messageRepository.countByDeletedFalse()
                            + groupMessageRepository.countByDeletedFalse();
 
-        LocalDateTime since = LocalDateTime.now().minusDays(30);
+        Instant since = Instant.now().minus(30, java.time.temporal.ChronoUnit.DAYS);
 
         // Daily messages: merge 1-1 và group
         Map<String, Long> dailyMsgMap = new TreeMap<>();

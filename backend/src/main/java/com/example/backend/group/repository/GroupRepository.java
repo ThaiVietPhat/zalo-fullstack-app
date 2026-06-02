@@ -7,6 +7,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -29,5 +30,5 @@ public interface GroupRepository extends JpaRepository<Group, UUID> {
     List<Group> findAllGroupsByUserId(@Param("userId") UUID userId);
 
     @Query("SELECT DATE(g.createdDate), COUNT(g) FROM Group g WHERE g.createdDate >= :since GROUP BY DATE(g.createdDate)")
-    List<Object[]> countDailyNewGroups(@Param("since") LocalDateTime since);
+    List<Object[]> countDailyNewGroups(@Param("since") Instant since);
 }

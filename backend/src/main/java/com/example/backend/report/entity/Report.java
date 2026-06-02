@@ -8,7 +8,7 @@ import lombok.experimental.SuperBuilder;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -43,7 +43,7 @@ public class Report {
     private ReportStatus status = ReportStatus.PENDING;
 
     @Column(name = "resolved_at")
-    private LocalDateTime resolvedAt;
+    private Instant resolvedAt;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "resolved_by")
@@ -60,5 +60,5 @@ public class Report {
 
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    private Instant createdAt;
 }

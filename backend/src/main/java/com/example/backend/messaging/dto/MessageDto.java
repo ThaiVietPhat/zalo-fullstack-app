@@ -4,7 +4,7 @@ import com.example.backend.messaging.enums.MessageState;
 import com.example.backend.messaging.enums.MessageType;
 import lombok.*;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import com.example.backend.reaction.dto.ReactionDto;
@@ -16,7 +16,7 @@ public class MessageDto {
     private String content;
     private MessageState state;
     private MessageType type;
-    private LocalDateTime createdAt;
+    private Instant createdAt;
     private UUID senderId;
     private UUID receiverId;
     private String mediaUrl;

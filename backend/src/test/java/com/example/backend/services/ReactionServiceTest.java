@@ -16,6 +16,7 @@ import com.example.backend.messaging.service.NotificationService;
 import com.example.backend.reaction.dto.ReactionDto;
 import com.example.backend.reaction.service.ReactionService;
 import com.example.backend.reaction.service.ReactionServiceImpl;
+import com.example.backend.messaging.mapper.ReactionMapper;
 import com.example.backend.shared.exception.ResourceNotFoundException;
 import com.example.backend.shared.exception.UnauthorizedException;
 import com.example.backend.user.entity.User;
@@ -51,9 +52,10 @@ class ReactionServiceTest {
     @Mock ChatRepository chatRepository;
     @Mock NotificationService notificationService;
     @Mock SimpMessagingTemplate messagingTemplate;
+    @Mock ReactionMapper reactionMapper;
     @Mock Authentication authentication;
 
-    @InjectMocks ReactionService reactionService;
+    @InjectMocks ReactionServiceImpl reactionService;
 
     private User user1;
     private User user2;
@@ -107,8 +109,12 @@ class ReactionServiceTest {
         groupMessage.setSender(user1);
         groupMessage.setContent("Group Hello");
 
-        when(authentication.getName()).thenReturn("user1@gmail.com");
-        when(userRepository.findByEmail("user1@gmail.com")).thenReturn(Optional.of(user1));
+        ReactionDto reactionDto = new ReactionDto();
+        reactionDto.setEmoji("👍");
+        lenient().when(reactionMapper.toDto(any())).thenReturn(reactionDto);
+
+        lenient().when(authentication.getName()).thenReturn("user1@gmail.com");
+        lenient().when(userRepository.findByEmail("user1@gmail.com")).thenReturn(Optional.of(user1));
     }
 
     // ─── reactToMessage ───────────────────────────────────────────────────────

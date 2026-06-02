@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -36,7 +37,7 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
            "AND (:deletedAt IS NULL OR m.createdDate > :deletedAt)")
     Page<Message> findByChatIdForUser(@Param("chatId") UUID chatId,
                                       @Param("userId") UUID userId,
-                                      @Param("deletedAt") LocalDateTime deletedAt,
+                                      @Param("deletedAt") Instant deletedAt,
                                       Pageable pageable);
 
     @Query("SELECT COUNT(m) FROM Message m WHERE m.chat.id = :chatId " +
@@ -89,7 +90,7 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
     @Query("SELECT CAST(m.createdDate AS date), COUNT(m) FROM Message m " +
             "WHERE m.createdDate >= :since AND m.deleted = false " +
             "GROUP BY CAST(m.createdDate AS date) ORDER BY CAST(m.createdDate AS date) ASC")
-    List<Object[]> countDailyMessages(@Param("since") LocalDateTime since);
+    List<Object[]> countDailyMessages(@Param("since") Instant since);
 
     @Query("SELECT m.sender.id, COUNT(m) FROM Message m WHERE m.deleted = false " +
             "GROUP BY m.sender.id ORDER BY COUNT(m) DESC")
@@ -114,6 +115,6 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
            "AND m.type = com.example.backend.messaging.enums.MessageType.TEXT " +
            "ORDER BY m.createdDate ASC")
     List<Message> findMessagesForAiByDateRange(@Param("chatId") UUID chatId,
-                                               @Param("from") LocalDateTime from,
-                                               @Param("to") LocalDateTime to);
+                                               @Param("from") Instant from,
+                                               @Param("to") Instant to);
 }

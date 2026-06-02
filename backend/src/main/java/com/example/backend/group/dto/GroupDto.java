@@ -4,7 +4,7 @@ import com.example.backend.messaging.enums.MessageType;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -21,7 +21,7 @@ public class GroupDto {
     // Preview tin nhắn cuối
     private String lastMessage;
     private MessageType lastMessageType;
-    private LocalDateTime lastMessageTime;
+    private Instant lastMessageTime;
     private String lastMessageSenderName;
 
     // Quyền của user hiện tại trong nhóm

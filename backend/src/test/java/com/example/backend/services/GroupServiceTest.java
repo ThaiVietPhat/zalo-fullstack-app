@@ -16,6 +16,9 @@ import com.example.backend.group.repository.GroupMessageRepository;
 import com.example.backend.group.repository.GroupRepository;
 import com.example.backend.group.repository.PinnedGroupMessageRepository;
 import com.example.backend.group.service.GroupService;
+import com.example.backend.group.service.GroupServiceImpl;
+import com.example.backend.shared.service.GroupUnreadService;
+import com.example.backend.group.mapper.GroupMapper;
 import com.example.backend.messaging.enums.MessageType;
 import com.example.backend.shared.exception.ResourceNotFoundException;
 import com.example.backend.shared.exception.UnauthorizedException;
@@ -56,14 +59,17 @@ class GroupServiceTest {
     @Mock FileStorageService fileStorageService;
     @Mock GroupAiService groupAiService;
     @Mock Authentication authentication;
-
-    @InjectMocks GroupService groupService;
+    @Mock GroupUnreadService groupUnreadService;
+    @Mock GroupMapper groupMapper;
+    @InjectMocks GroupServiceImpl groupService;
 
     private User creator;
     private User member1;
     private User member2;
     private Group group;
     private UUID groupId;
+    private GroupDto groupDto;
+    private GroupMessageDto groupMessageDto;
 
     @BeforeEach
     void setUp() {
@@ -96,8 +102,26 @@ class GroupServiceTest {
                 GroupMember.of(group, member1, false)
         )));
 
-        when(authentication.getName()).thenReturn("creator@gmail.com");
-        when(userRepository.findByEmail("creator@gmail.com")).thenReturn(Optional.of(creator));
+        groupDto = new GroupDto();
+        groupDto.setId(groupId);
+        groupDto.setName("Test Group");
+
+        groupMessageDto = new GroupMessageDto();
+        groupMessageDto.setContent("Hello nhóm!");
+
+        lenient().when(groupMapper.toDto(any(Group.class))).thenReturn(groupDto);
+        lenient().when(groupMapper.toMessageDto(any(GroupMessage.class))).thenReturn(groupMessageDto);
+
+        lenient().when(groupMessageRepository.save(any(GroupMessage.class))).thenAnswer(invocation -> {
+            GroupMessage message = invocation.getArgument(0);
+            if (message.getId() == null) {
+                message.setId(UUID.randomUUID());
+            }
+            return message;
+        });
+
+        lenient().when(authentication.getName()).thenReturn("creator@gmail.com");
+        lenient().when(userRepository.findByEmail("creator@gmail.com")).thenReturn(Optional.of(creator));
     }
 
     // ─── createGroup ─────────────────────────────────────────────────────────
@@ -114,7 +138,7 @@ class GroupServiceTest {
         when(userRepository.findById(member1.getId())).thenReturn(Optional.of(member1));
         when(userRepository.findById(member2.getId())).thenReturn(Optional.of(member2));
         when(groupRepository.save(any())).thenReturn(group);
-        when(groupMessageRepository.findTop1ByGroupIdOrderByCreatedDateDesc(any()))
+        lenient().when(groupMessageRepository.findTop1ByGroupIdAndDeletedFalseOrderByCreatedDateDesc(any()))
                 .thenReturn(Optional.empty());
 
         GroupDto result = groupService.createGroup(req, authentication);
@@ -146,7 +170,7 @@ class GroupServiceTest {
     @DisplayName("getMyGroups() - trả về danh sách nhóm")
     void getMyGroups_success() {
         when(groupRepository.findAllGroupsByUserId(creator.getId())).thenReturn(List.of(group));
-        when(groupMessageRepository.findTop1ByGroupIdOrderByCreatedDateDesc(any()))
+        lenient().when(groupMessageRepository.findTop1ByGroupIdAndDeletedFalseOrderByCreatedDateDesc(any()))
                 .thenReturn(Optional.empty());
 
         List<GroupDto> result = groupService.getMyGroups(authentication);
@@ -176,7 +200,7 @@ class GroupServiceTest {
         when(groupMemberRepository.existsByGroupIdAndUserId(groupId, member2.getId())).thenReturn(false);
         when(userRepository.findById(member2.getId())).thenReturn(Optional.of(member2));
         when(groupRepository.save(any())).thenReturn(group);
-        when(groupMessageRepository.findTop1ByGroupIdOrderByCreatedDateDesc(any()))
+        lenient().when(groupMessageRepository.findTop1ByGroupIdAndDeletedFalseOrderByCreatedDateDesc(any()))
                 .thenReturn(Optional.empty());
 
         GroupDto result = groupService.addMembers(groupId, req, authentication);
@@ -207,7 +231,7 @@ class GroupServiceTest {
         when(groupRepository.findById(groupId)).thenReturn(Optional.of(group));
         when(groupMemberRepository.existsByGroupIdAndUserId(groupId, member1.getId())).thenReturn(true);
         when(groupRepository.save(any())).thenReturn(group);
-        when(groupMessageRepository.findTop1ByGroupIdOrderByCreatedDateDesc(any()))
+        lenient().when(groupMessageRepository.findTop1ByGroupIdAndDeletedFalseOrderByCreatedDateDesc(any()))
                 .thenReturn(Optional.empty());
 
         GroupDto result = groupService.addMembers(groupId, req, authentication);
@@ -224,13 +248,13 @@ class GroupServiceTest {
         GroupMember memberToRemove = GroupMember.of(group, member1, false);
 
         when(groupRepository.findById(groupId)).thenReturn(Optional.of(group));
-        when(groupMemberRepository.findByGroupIdAndUserId(groupId, member1.getId()))
+        lenient().when(groupMemberRepository.findByGroupIdAndUserId(groupId, member1.getId()))
                 .thenReturn(Optional.of(memberToRemove));
 
         assertThatNoException().isThrownBy(
                 () -> groupService.removeMember(groupId, member1.getId(), authentication));
 
-        verify(groupMemberRepository).delete(memberToRemove);
+        verify(groupRepository).save(group);
     }
 
     @Test
@@ -247,7 +271,7 @@ class GroupServiceTest {
     @DisplayName("removeMember() - thành viên không tồn tại trong nhóm → ResourceNotFoundException")
     void removeMember_memberNotInGroup_throws() {
         when(groupRepository.findById(groupId)).thenReturn(Optional.of(group));
-        when(groupMemberRepository.findByGroupIdAndUserId(groupId, member2.getId()))
+        lenient().when(groupMemberRepository.findByGroupIdAndUserId(groupId, member2.getId()))
                 .thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> groupService.removeMember(groupId, member2.getId(), authentication))
@@ -302,7 +326,7 @@ class GroupServiceTest {
     void sendMessage_emptyContent_throws() {
         GroupRequest.SendMessage req = new GroupRequest.SendMessage("   ", MessageType.TEXT);
 
-        when(groupRepository.findById(groupId)).thenReturn(Optional.of(group));
+        lenient().when(groupRepository.findById(groupId)).thenReturn(Optional.of(group));
 
         assertThatThrownBy(() -> groupService.sendMessage(groupId, req, authentication))
                 .isInstanceOf(IllegalArgumentException.class);
@@ -318,13 +342,13 @@ class GroupServiceTest {
         when(authentication.getName()).thenReturn("member1@gmail.com");
         when(userRepository.findByEmail("member1@gmail.com")).thenReturn(Optional.of(member1));
         when(groupRepository.findById(groupId)).thenReturn(Optional.of(group));
-        when(groupMemberRepository.findByGroupIdAndUserId(groupId, member1.getId()))
+        lenient().when(groupMemberRepository.findByGroupIdAndUserId(groupId, member1.getId()))
                 .thenReturn(Optional.of(memberRecord));
 
         assertThatNoException().isThrownBy(
                 () -> groupService.leaveGroup(groupId, null, authentication));
 
-        verify(groupMemberRepository).delete(memberRecord);
+        verify(groupRepository).save(group);
     }
 
     @Test
@@ -342,7 +366,7 @@ class GroupServiceTest {
     @DisplayName("getGroupById() - thành công")
     void getGroupById_success() {
         when(groupRepository.findById(groupId)).thenReturn(Optional.of(group));
-        when(groupMessageRepository.findTop1ByGroupIdOrderByCreatedDateDesc(any()))
+        lenient().when(groupMessageRepository.findTop1ByGroupIdAndDeletedFalseOrderByCreatedDateDesc(any()))
                 .thenReturn(Optional.empty());
 
         GroupDto result = groupService.getGroupById(groupId, authentication);

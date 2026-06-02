@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -28,7 +29,7 @@ public interface GroupMessageRepository extends JpaRepository<GroupMessage, UUID
     @Query("SELECT CAST(m.createdDate AS date), COUNT(m) FROM GroupMessage m " +
             "WHERE m.createdDate >= :since AND m.deleted = false " +
             "GROUP BY CAST(m.createdDate AS date) ORDER BY CAST(m.createdDate AS date) ASC")
-    List<Object[]> countDailyGroupMessages(@Param("since") LocalDateTime since);
+    List<Object[]> countDailyGroupMessages(@Param("since") Instant since);
 
     @Query("SELECT m.sender.id, COUNT(m) FROM GroupMessage m WHERE m.deleted = false " +
             "GROUP BY m.sender.id ORDER BY COUNT(m) DESC")
@@ -86,8 +87,8 @@ public interface GroupMessageRepository extends JpaRepository<GroupMessage, UUID
             "ORDER BY m.createdDate ASC")
     List<GroupMessage> findMessagesForAiByDateRange(
             @Param("groupId") UUID groupId,
-            @Param("from") LocalDateTime from,
-            @Param("to") LocalDateTime to);
+            @Param("from") Instant from,
+            @Param("to") Instant to);
 
     /**
      * Đếm tổng tin nhắn của nhóm (AI biết nhóm đang hoạt động nhiều hay ít).
@@ -109,5 +110,5 @@ public interface GroupMessageRepository extends JpaRepository<GroupMessage, UUID
             "ORDER BY cnt DESC")
     List<Object[]> findTopSpeakersInGroup(
             @Param("groupId") UUID groupId,
-            @Param("since") LocalDateTime since);
+            @Param("since") Instant since);
 }

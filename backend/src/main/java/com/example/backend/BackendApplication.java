@@ -8,7 +8,8 @@ import org.springframework.scheduling.annotation.EnableAsync;
 @SpringBootApplication
 @EnableJpaAuditing
 @EnableAsync
-public class BackendApplication {
+public class
+BackendApplication {
 
     public static void main(String[] args) {
         SpringApplication.run(BackendApplication.class, args);

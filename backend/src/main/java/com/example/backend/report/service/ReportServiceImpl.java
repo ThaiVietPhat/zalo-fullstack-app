@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -87,7 +88,7 @@ public class ReportServiceImpl implements ReportService {
         User reported = report.getReported();
 
         report.setStatus(ReportStatus.valueOf(req.getStatus().toUpperCase()));
-        report.setResolvedAt(LocalDateTime.now());
+        report.setResolvedAt(Instant.now());
         report.setResolvedBy(admin);
         report.setResolution(req.getResolution());
         reportRepository.save(report);

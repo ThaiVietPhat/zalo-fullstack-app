@@ -563,6 +563,9 @@ public class GroupServiceImpl implements GroupService {
     @Override
     @Transactional
     public GroupMessageDto sendMessage(UUID groupId, GroupRequest.SendMessage request, Authentication currentUser) {
+        if (request.getContent() == null || request.getContent().trim().isEmpty()) {
+            throw new IllegalArgumentException("Nội dung tin nhắn không được để trống");
+        }
         User user = getUser(currentUser);
         Group group = getGroupAndCheckMember(groupId, user.getId());
 

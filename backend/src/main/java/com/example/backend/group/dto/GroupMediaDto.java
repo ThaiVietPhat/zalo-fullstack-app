@@ -3,7 +3,7 @@ package com.example.backend.group.dto;
 import lombok.Builder;
 import lombok.Data;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -22,7 +22,7 @@ public class GroupMediaDto {
         private String url;
         private String fileName;
         private String senderName;
-        private LocalDateTime createdDate;
+        private Instant createdDate;
     }
 
     @Data
@@ -30,6 +30,6 @@ public class GroupMediaDto {
     public static class LinkItem {
         private String url;
         private String senderName;
-        private LocalDateTime createdDate;
+        private Instant createdDate;
     }
 }

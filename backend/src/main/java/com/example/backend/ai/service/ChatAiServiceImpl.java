@@ -28,6 +28,8 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -41,7 +43,7 @@ public class ChatAiServiceImpl implements ChatAiService {
     public static final UUID AI_BOT_USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
     public static final String AI_BOT_NAME = "Trợ lý AI";
 
-    private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm dd/MM");
+    private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm dd/MM").withZone(ZoneId.of("Asia/Ho_Chi_Minh"));
     private static final int CONTEXT_MSG_LIMIT = 30;
     private static final int SUMMARIZE_MAX_MSGS = 50;
 
@@ -100,8 +102,8 @@ public class ChatAiServiceImpl implements ChatAiService {
 
     @Override
     @Transactional(readOnly = true)
-    public SummarizeResponse summarize(UUID chatId, LocalDateTime since) {
-        LocalDateTime to = LocalDateTime.now();
+    public SummarizeResponse summarize(UUID chatId, Instant since) {
+        Instant to = Instant.now();
 
         List<Message> messages = messageRepository
                 .findMessagesForAiByDateRange(chatId, since, to);
@@ -123,7 +125,7 @@ public class ChatAiServiceImpl implements ChatAiService {
         String context = sample.stream()
                 .filter(m -> m.getContent() != null && !m.getContent().isBlank())
                 .map(m -> "[%s] %s: %s".formatted(
-                        m.getCreatedDate().format(TIME_FMT),
+                        TIME_FMT.format(m.getCreatedDate()),
                         m.getSender().getFirstName() + " " + m.getSender().getLastName(),
                         m.getContent()))
                 .collect(Collectors.joining("\n"));
@@ -138,7 +140,7 @@ public class ChatAiServiceImpl implements ChatAiService {
                 - Các chủ đề chính được thảo luận
                 - Kết luận hoặc quyết định quan trọng (nếu có)
                 Trả lời bằng tiếng Việt.
-                """.formatted(since.format(TIME_FMT), to.format(TIME_FMT), messages.size(), context);
+                """.formatted(TIME_FMT.format(since), TIME_FMT.format(to), messages.size(), context);
 
         String summary;
         try {

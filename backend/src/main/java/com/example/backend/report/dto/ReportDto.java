@@ -3,7 +3,7 @@ package com.example.backend.report.dto;
 import com.example.backend.report.entity.ReportStatus;
 import lombok.*;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -19,8 +19,8 @@ public class ReportDto {
     private String reason;
     private String description;
     private ReportStatus status;
-    private LocalDateTime createdAt;
-    private LocalDateTime resolvedAt;
+    private Instant createdAt;
+    private Instant resolvedAt;
     private String resolution;
     private boolean reportedBanned;
     /** Presigned URLs của file bằng chứng (sinh mới mỗi lần trả về) */

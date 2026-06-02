@@ -4,7 +4,7 @@ import com.example.backend.messaging.enums.MessageType;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import com.example.backend.reaction.dto.ReactionDto;
@@ -21,7 +21,7 @@ public class GroupMessageDto {
     private String senderName;
     @JsonProperty("isMine")
     private boolean isMine;
-    private LocalDateTime createdDate;
+    private Instant createdDate;
     private boolean deleted;
     private boolean pinned;
     private boolean hiddenForMe;

@@ -29,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -180,7 +181,7 @@ public class MessageServiceImpl implements MessageService {
             throw new UnauthorizedException("Access denied: you are not a member of this chat");
         }
 
-        LocalDateTime deletedAt = chat.getDeletedAtFor(user.getId());
+        Instant deletedAt = chat.getDeletedAtFor(user.getId());
 
         Page<Message> messagePage = messageRepository.findByChatIdForUser(
                 chatUuid,
